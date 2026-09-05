@@ -2,8 +2,9 @@ import {User} from "../models/user.model.js";
 import {ApiResponse} from "../utils/api-response.js";
 import {ApiError} from "../utils/api-error.js";
 import {asyncHandler} from "../utils/async-handler.js";
-import {sendEmail} from "../utils/mail.js";
+import { sendEmail, emailVerificationMailgenContent, forgotPasswordMailgenContent } from "../utils/mail.js";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 const generateAccessAndRefreshToken = async(userId) => {
    try {
       const user = await User.findById(userId);
@@ -106,7 +107,8 @@ const loginUser = asyncHandler(async(req, res) => {
    // SETTING THE COOKIES
    const options = {
       httpOnly: true,
-      secure: true
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax"
    }
 
    return res
@@ -262,7 +264,8 @@ const refreshAccessToken = asyncHandler(async(req, res) => {
  
       const options = {
          httpOnly: true,
-         secure: true
+         secure: process.env.NODE_ENV === "production",
+         sameSite: "lax"
       }
 
       const {accessToken, refreshToken: newRT} = await generateAccessAndRefreshToken(user._id); //generating new access and refresh token and casting the new refresh token to avoid confusion

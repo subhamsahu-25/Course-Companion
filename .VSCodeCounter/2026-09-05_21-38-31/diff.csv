@@ -1,0 +1,63 @@
+"filename", "language", "JavaScript", "JavaScript JSX", "JSON", "PostCSS", "HTML", "Markdown", "Ignore", "comment", "blank", "total"
+"c:\PADHAI\webwiz hackathon\backend\.prettierignore", "Ignore", 0, 0, 0, 0, 0, 0, -2, 0, 0, -2
+"c:\PADHAI\webwiz hackathon\backend\.prettierrc", "JSON", 0, 0, -10, 0, 0, 0, 0, 0, -1, -11
+"c:\PADHAI\webwiz hackathon\backend\package-lock.json", "JSON", 0, 0, -2301, 0, 0, 0, 0, 0, -1, -2302
+"c:\PADHAI\webwiz hackathon\backend\package.json", "JSON", 0, 0, -30, 0, 0, 0, 0, 0, -1, -31
+"c:\PADHAI\webwiz hackathon\backend\src\app.js", "JavaScript", -32, 0, 0, 0, 0, 0, 0, -4, -8, -44
+"c:\PADHAI\webwiz hackathon\backend\src\controllers\answer.controller.js", "JavaScript", -105, 0, 0, 0, 0, 0, 0, -5, -27, -137
+"c:\PADHAI\webwiz hackathon\backend\src\controllers\auth.controller.js", "JavaScript", -308, 0, 0, 0, 0, 0, 0, -13, -80, -401
+"c:\PADHAI\webwiz hackathon\backend\src\controllers\course.controller.js", "JavaScript", -99, 0, 0, 0, 0, 0, 0, -1, -24, -124
+"c:\PADHAI\webwiz hackathon\backend\src\controllers\document.controller.js", "JavaScript", -89, 0, 0, 0, 0, 0, 0, -5, -21, -115
+"c:\PADHAI\webwiz hackathon\backend\src\controllers\module.controller.js", "JavaScript", -99, 0, 0, 0, 0, 0, 0, -2, -26, -127
+"c:\PADHAI\webwiz hackathon\backend\src\controllers\question.controller.js", "JavaScript", -123, 0, 0, 0, 0, 0, 0, -4, -27, -154
+"c:\PADHAI\webwiz hackathon\backend\src\db\db.js", "JavaScript", -15, 0, 0, 0, 0, 0, 0, 0, -3, -18
+"c:\PADHAI\webwiz hackathon\backend\src\middlewares\auth.middleware.js", "JavaScript", -34, 0, 0, 0, 0, 0, 0, -10, -10, -54
+"c:\PADHAI\webwiz hackathon\backend\src\middlewares\error-handler.middleware.js", "JavaScript", -44, 0, 0, 0, 0, 0, 0, -8, -11, -63
+"c:\PADHAI\webwiz hackathon\backend\src\middlewares\handle-upload-errors.middleware.js", "JavaScript", -16, 0, 0, 0, 0, 0, 0, -6, -2, -24
+"c:\PADHAI\webwiz hackathon\backend\src\middlewares\upload.middleware.js", "JavaScript", -28, 0, 0, 0, 0, 0, 0, -1, -6, -35
+"c:\PADHAI\webwiz hackathon\backend\src\middlewares\validator.middleware.js", "JavaScript", -14, 0, 0, 0, 0, 0, 0, -2, -5, -21
+"c:\PADHAI\webwiz hackathon\backend\src\models\answer.model.js", "JavaScript", -25, 0, 0, 0, 0, 0, 0, 0, -2, -27
+"c:\PADHAI\webwiz hackathon\backend\src\models\course.model.js", "JavaScript", -29, 0, 0, 0, 0, 0, 0, 0, -2, -31
+"c:\PADHAI\webwiz hackathon\backend\src\models\document.model.js", "JavaScript", -33, 0, 0, 0, 0, 0, 0, 0, -2, -35
+"c:\PADHAI\webwiz hackathon\backend\src\models\module.model.js", "JavaScript", -30, 0, 0, 0, 0, 0, 0, 0, -2, -32
+"c:\PADHAI\webwiz hackathon\backend\src\models\question.model.js", "JavaScript", -34, 0, 0, 0, 0, 0, 0, 0, -2, -36
+"c:\PADHAI\webwiz hackathon\backend\src\models\user.model.js", "JavaScript", -114, 0, 0, 0, 0, 0, 0, -7, -9, -130
+"c:\PADHAI\webwiz hackathon\backend\src\routes\answer.route.js", "JavaScript", -27, 0, 0, 0, 0, 0, 0, -5, -8, -40
+"c:\PADHAI\webwiz hackathon\backend\src\routes\auth.route.js", "JavaScript", -34, 0, 0, 0, 0, 0, 0, -2, -15, -51
+"c:\PADHAI\webwiz hackathon\backend\src\routes\course.route.js", "JavaScript", -32, 0, 0, 0, 0, 0, 0, -3, -7, -42
+"c:\PADHAI\webwiz hackathon\backend\src\routes\document.route.js", "JavaScript", -34, 0, 0, 0, 0, 0, 0, -3, -7, -44
+"c:\PADHAI\webwiz hackathon\backend\src\routes\module.route.js", "JavaScript", -32, 0, 0, 0, 0, 0, 0, -3, -7, -42
+"c:\PADHAI\webwiz hackathon\backend\src\routes\question.route.js", "JavaScript", -25, 0, 0, 0, 0, 0, 0, -4, -8, -37
+"c:\PADHAI\webwiz hackathon\backend\src\server.js", "JavaScript", -15, 0, 0, 0, 0, 0, 0, 0, -3, -18
+"c:\PADHAI\webwiz hackathon\backend\src\services\answer-workflow.service.js", "JavaScript", -27, 0, 0, 0, 0, 0, 0, -1, -5, -33
+"c:\PADHAI\webwiz hackathon\backend\src\utils\api-error.js", "JavaScript", -23, 0, 0, 0, 0, 0, 0, 0, -2, -25
+"c:\PADHAI\webwiz hackathon\backend\src\utils\api-response.js", "JavaScript", -9, 0, 0, 0, 0, 0, 0, 0, -1, -10
+"c:\PADHAI\webwiz hackathon\backend\src\utils\async-handler.js", "JavaScript", -8, 0, 0, 0, 0, 0, 0, 0, -1, -9
+"c:\PADHAI\webwiz hackathon\backend\src\utils\constants.js", "JavaScript", -12, 0, 0, 0, 0, 0, 0, -1, -3, -16
+"c:\PADHAI\webwiz hackathon\backend\src\utils\mail.js", "JavaScript", -68, 0, 0, 0, 0, 0, 0, 0, -8, -76
+"c:\PADHAI\webwiz hackathon\backend\src\validators\answer.validator.js", "JavaScript", -32, 0, 0, 0, 0, 0, 0, -2, -6, -40
+"c:\PADHAI\webwiz hackathon\backend\src\validators\auth.validator.js", "JavaScript", -82, 0, 0, 0, 0, 0, 0, 0, -10, -92
+"c:\PADHAI\webwiz hackathon\backend\src\validators\course.validator.js", "JavaScript", -28, 0, 0, 0, 0, 0, 0, 0, -5, -33
+"c:\PADHAI\webwiz hackathon\backend\src\validators\document.validator.js", "JavaScript", -23, 0, 0, 0, 0, 0, 0, -4, -4, -31
+"c:\PADHAI\webwiz hackathon\backend\src\validators\module.validator.js", "JavaScript", -27, 0, 0, 0, 0, 0, 0, 0, -5, -32
+"c:\PADHAI\webwiz hackathon\backend\src\validators\question.validator.js", "JavaScript", -39, 0, 0, 0, 0, 0, 0, 0, -8, -47
+"c:\PADHAI\webwiz hackathon\frontend\README.md", "Markdown", 0, 0, 0, 0, 0, 9, 0, 0, 8, 17
+"c:\PADHAI\webwiz hackathon\frontend\eslint.config.js", "JavaScript", 20, 0, 0, 0, 0, 0, 0, 0, 2, 22
+"c:\PADHAI\webwiz hackathon\frontend\index.html", "HTML", 0, 0, 0, 0, 12, 0, 0, 0, 1, 13
+"c:\PADHAI\webwiz hackathon\frontend\package-lock.json", "JSON", 0, 0, 3043, 0, 0, 0, 0, 0, 1, 3044
+"c:\PADHAI\webwiz hackathon\frontend\package.json", "JSON", 0, 0, 28, 0, 0, 0, 0, 0, 1, 29
+"c:\PADHAI\webwiz hackathon\frontend\src\App.jsx", "JavaScript JSX", 0, 82, 0, 0, 0, 0, 0, 0, 20, 102
+"c:\PADHAI\webwiz hackathon\frontend\src\api\client.js", "JavaScript", 22, 0, 0, 0, 0, 0, 0, 2, 8, 32
+"c:\PADHAI\webwiz hackathon\frontend\src\components\Sidebar.jsx", "JavaScript JSX", 0, 66, 0, 0, 0, 0, 0, 0, 14, 80
+"c:\PADHAI\webwiz hackathon\frontend\src\index.css", "PostCSS", 0, 0, 0, 16, 0, 0, 0, 0, 3, 19
+"c:\PADHAI\webwiz hackathon\frontend\src\layouts\RoleLayout.jsx", "JavaScript JSX", 0, 26, 0, 0, 0, 0, 0, 0, 4, 30
+"c:\PADHAI\webwiz hackathon\frontend\src\main.jsx", "JavaScript JSX", 0, 9, 0, 0, 0, 0, 0, 0, 1, 10
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\Login.jsx", "JavaScript JSX", 0, 65, 0, 0, 0, 0, 0, 0, 20, 85
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Modules.jsx", "JavaScript JSX", 0, 66, 0, 0, 0, 0, 0, 0, 19, 85
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Upload.jsx", "JavaScript JSX", 0, 170, 0, 0, 0, 0, 0, 0, 40, 210
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Ask.jsx", "JavaScript JSX", 0, 107, 0, 0, 0, 0, 0, 0, 29, 136
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Dashboard.jsx", "JavaScript JSX", 0, 98, 0, 0, 0, 0, 0, 0, 20, 118
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Modules.jsx", "JavaScript JSX", 0, 69, 0, 0, 0, 0, 0, 0, 16, 85
+"c:\PADHAI\webwiz hackathon\frontend\src\pages\ta\ReviewQueue.jsx", "JavaScript JSX", 0, 156, 0, 0, 0, 0, 0, 0, 28, 184
+"c:\PADHAI\webwiz hackathon\frontend\vite.config.js", "JavaScript", 9, 0, 0, 0, 0, 0, 0, 0, 1, 10
+"Total", "-", -1797, 914, 730, 16, 12, 9, -2, -94, -149, -361

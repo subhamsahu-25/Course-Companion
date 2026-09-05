@@ -27,10 +27,10 @@ class CustomOllamaEmbedder {
 async function ingestDocuments() {
     const directoryPath = "./course_materials";
     const absolutePath = path.resolve(directoryPath);
-    
+
     console.log(`\n📂 Reading PDFs from: ${absolutePath}`);
     const documents = [];
-    
+
     if (!fs.existsSync(directoryPath)) {
         fs.mkdirSync(directoryPath);
         console.log(`Created missing directory. Please add PDFs to it.`);
@@ -85,17 +85,26 @@ async function ingestDocuments() {
         chunkSize: 500,
         chunkOverlap: 50,
     });
-    
+
     const chunks = await textSplitter.createDocuments(
         documents.map(doc => doc.pageContent),
         documents.map(doc => doc.metadata)
     );
 
     console.log("3. Connecting to ChromaDB & local Ollama...");
-    const client = new ChromaClient({ path: "http://localhost:8000" });
-    
+    const client = new ChromaClient({ host: "localhost", port: 8000, ssl: false });
+
     const embedder = new CustomOllamaEmbedder();
-    
+
+    // Start fresh each run so re-running ingest doesn't pile up duplicate
+    // chunks on top of whatever was added last time.
+    try {
+        await client.deleteCollection({ name: "course_collection" });
+        console.log("Cleared existing collection.");
+    } catch (err) {
+        // Collection didn't exist yet on a first run — nothing to delete, that's fine.
+    }
+
     const collection = await client.getOrCreateCollection({
         name: "course_collection",
         embeddingFunction: embedder
@@ -106,7 +115,7 @@ async function ingestDocuments() {
     await collection.add({
         ids: ids,
         documents: chunks.map(c => c.pageContent),
-        metadatas: chunks.map(c => c.metadata)
+        metadatas: chunks.map(c => ({ source: c.metadata.source }))
     });
 
     console.log(`🎉 Ingestion complete! Saved ${chunks.length} chunks.`);

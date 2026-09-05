@@ -2,7 +2,7 @@ import Mailgen from "mailgen";
 import Nodemailer from "nodemailer";
 
 const sendEmail = async (options) => {
-   new Mailgen({
+   const mailGenerator = new Mailgen({
       theme: "default",
       product: {
          name: "Task Manager",

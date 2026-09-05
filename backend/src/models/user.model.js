@@ -66,12 +66,10 @@ const userSchema = new Schema(
 );
 
 // MONGOOSE HOOKS - USED IT HERE TO HASH THE PASSWORD ONLY WHEN IT IS BEING CHANGED OR RESETED.
-userSchema.pre("save", async function (next) {
-   if (!this.isModified("password"))
-      return next();
+userSchema.pre("save", async function () {
+   if (!this.isModified("password")) return;
    this.password = await bcrypt.hash(this.password, 10);
-   next();
-})
+});
 
 // MONGOOSE METHODS - USED IT HERE TO COMPARE THE PASSWORD
 userSchema.methods.isPasswordCorrect = async function (password) {
