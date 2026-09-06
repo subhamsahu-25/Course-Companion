@@ -1,14 +1,14 @@
-// backend/src/controllers/qa.controller.js
+// backend/src/controllers/qa.controller.js — update askQuestion, add getStats
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import * as ragService from "../services/rag.service.js";
 
 const askQuestion = asyncHandler(async (req, res) => {
-   const { question } = req.body;
+   const { question, moduleId } = req.body;
    if (!question) throw new ApiError(400, "Question is required");
 
-   const result = await ragService.submitQuestion(req.user._id.toString(), question);
+   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId);
    return res.status(200).json(new ApiResponse(200, result, "Question submitted for review"));
 });
 
@@ -37,4 +37,14 @@ const getMyAnswer = asyncHandler(async (req, res) => {
    return res.status(200).json(new ApiResponse(200, result, "Answer status fetched"));
 });
 
-export { askQuestion, getReviewQueue, approveQuestion, rejectQuestion, getMyAnswer };
+const getMyAnswers = asyncHandler(async (req, res) => {
+   const result = await ragService.getMyAnswers(req.user._id.toString());
+   return res.status(200).json(new ApiResponse(200, result, "Answers fetched"));
+});
+
+const getStats = asyncHandler(async (req, res) => {
+   const stats = await ragService.getStats(req.user._id.toString());
+   return res.status(200).json(new ApiResponse(200, stats, "Stats fetched"));
+});
+
+export { askQuestion, getReviewQueue, approveQuestion, rejectQuestion, getMyAnswer, getMyAnswers, getStats };

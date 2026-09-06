@@ -19,9 +19,8 @@ import {
 } from "../validators/module.validator.js";
 import { courseIdParamValidator } from "../validators/course.validator.js";
 
-// public reads
-router.route("/course/:id").get(courseIdParamValidator(), validate, getModulesByCourse);
-router.route("/:moduleId").get(moduleIdParamValidator(), validate, getModuleById);
+router.route("/course/:id").get(authGuard, courseIdParamValidator(), validate, getModulesByCourse);
+router.route("/:moduleId").get(authGuard, moduleIdParamValidator(), validate, getModuleById);
 
 // secure writes
 router

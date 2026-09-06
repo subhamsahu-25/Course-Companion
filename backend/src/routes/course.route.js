@@ -16,11 +16,12 @@ import { validate } from "../middlewares/validator.middleware.js";
 import {
    createCourseValidator,
    courseIdParamValidator,
+   updateCourseValidator
 } from "../validators/course.validator.js";
 
 // public — anyone can browse published courses
-router.route("/").get(getAllCourses);
-router.route("/:id").get(courseIdParamValidator(), validate, getCourseById);
+router.route("/").get(authGuard, getAllCourses);
+router.route("/:id").get(authGuard, courseIdParamValidator(), validate, getCourseById);;
 
 // secure — instructor/admin only
 router
@@ -33,7 +34,7 @@ router
       authGuard,
       roleGuard("instructor", "admin"),
       courseIdParamValidator(),
-      createCourseValidator(),
+      updateCourseValidator(), 
       validate,
       updateCourse
    )

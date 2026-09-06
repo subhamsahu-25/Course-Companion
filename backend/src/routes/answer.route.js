@@ -35,6 +35,6 @@ router
 // role check (e.g. admin-only) depending on your actual role list — adjust as needed
 router
    .route("/:id/status")
-   .patch(authGuard, roleGuard("reviewer", "admin"), answerStatusValidator(), validate, updateAnswerStatus);
+   .patch(authGuard, roleGuard("ta", "admin"), answerStatusValidator(), validate, updateAnswerStatus);
 
 export default router;

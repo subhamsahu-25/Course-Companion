@@ -6,6 +6,7 @@ import {
    uploadDocument,
    getDocumentsByModule,
    getDocumentById,
+   streamDocumentFile,
    deleteDocument,
 } from "../controllers/document.controller.js";
 
@@ -20,9 +21,11 @@ import {
 } from "../validators/document.validator.js";
 import { moduleIdParamValidator } from "../validators/module.validator.js";
 
-// public reads
-router.route("/module/:moduleId").get(moduleIdParamValidator(), validate, getDocumentsByModule);
-router.route("/:id").get(getDocumentById);
+router
+   .route("/module/:moduleId")
+   .get(authGuard, moduleIdParamValidator(), validate, getDocumentsByModule);
+router.route("/:id/file").get(authGuard, streamDocumentFile);
+router.route("/:id").get(authGuard, getDocumentById);
 
 // secure — upload requires instructor/admin
 router

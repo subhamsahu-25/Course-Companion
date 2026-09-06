@@ -29,7 +29,7 @@ const createCourse = asyncHandler(async (req, res) => {
 
 const getAllCourses = asyncHandler(async (req, res) => {
    const filter = {};
-   if (req.user?.role !== "admin" && req.user?.role !== "instructor") {
+   if (!["admin", "instructor", "ta"].includes(req.user?.role)) {
       filter.isPublished = true;
    }
 

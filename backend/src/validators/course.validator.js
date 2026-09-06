@@ -30,4 +30,30 @@ const courseIdParamValidator = () => {
    ]
 }
 
-export { createCourseValidator, courseIdParamValidator };
+const updateCourseValidator = () => {
+   return [
+      body("title")
+         .optional()
+         .trim()
+         .isLength({ min: 3, max: 100 })
+         .withMessage("Title must be between 3 and 100 characters"),
+
+      body("description")
+         .optional()
+         .trim()
+         .isLength({ max: 1000 })
+         .withMessage("Description must not exceed 1000 characters"),
+
+      body("tags")
+         .optional()
+         .isArray()
+         .withMessage("Tags must be an array"),
+
+      body("isPublished")
+         .optional()
+         .isBoolean()
+         .withMessage("isPublished must be a boolean"),
+   ]
+}
+
+export { createCourseValidator, courseIdParamValidator, updateCourseValidator };

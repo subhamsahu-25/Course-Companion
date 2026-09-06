@@ -1,4 +1,4 @@
-// backend/src/routes/qa.route.js
+// backend/src/routes/qa.route.js — add the stats route
 import { Router } from "express";
 const router = Router();
 
@@ -9,15 +9,17 @@ import {
    approveQuestion,
    rejectQuestion,
    getMyAnswer,
+   getMyAnswers,
+   getStats,
 } from "../controllers/qa.controller.js";
 
-// students ask questions and check on their own submissions
 router.route("/ask").post(authGuard, askQuestion);
 router.route("/my-answer/:id").get(authGuard, getMyAnswer);
+router.route("/my-answers").get(authGuard, getMyAnswers);
+router.route("/stats").get(authGuard, getStats);
 
-// TA/reviewer-only moderation
-router.route("/queue").get(authGuard, roleGuard("reviewer", "admin"), getReviewQueue);
-router.route("/queue/:id/approve").post(authGuard, roleGuard("reviewer", "admin"), approveQuestion);
-router.route("/queue/:id/reject").post(authGuard, roleGuard("reviewer", "admin"), rejectQuestion);
+router.route("/queue").get(authGuard, roleGuard("ta", "admin"), getReviewQueue);
+router.route("/queue/:id/approve").post(authGuard, roleGuard("ta", "admin"), approveQuestion);
+router.route("/queue/:id/reject").post(authGuard, roleGuard("ta", "admin"), rejectQuestion);
 
 export default router;

@@ -1,5 +1,6 @@
 // controllers/document.controller.js
 import fs from "fs";
+import path from "path";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
@@ -32,10 +33,11 @@ const uploadDocument = asyncHandler(async (req, res) => {
       throw new ApiError(403, "You are not allowed to upload to this module");
    }
 
+   const ext = path.extname(req.file.originalname).toLowerCase();
    const document = await Document.create({
       title: title || req.file.originalname,
       module: moduleId,
-      type: ALLOWED_MIME_TYPES[req.file.mimetype] || "other",
+      type: ALLOWED_MIME_TYPES[req.file.mimetype] || (ext === ".pdf" ? "pdf" : "other"),
       url: `/uploads/${req.file.filename}`,
    });
 
@@ -72,6 +74,35 @@ const getDocumentById = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, document, "Document fetched successfully"));
 });
 
+const streamDocumentFile = asyncHandler(async (req, res) => {
+   const { id } = req.params;
+
+   const document = await Document.findById(id);
+   if (!document?.url) {
+      throw new ApiError(404, "Document not found");
+   }
+
+   const filename = path.basename(document.url);
+   const filePath = path.resolve("uploads", filename);
+
+   if (!fs.existsSync(filePath)) {
+      throw new ApiError(404, "File is not available");
+   }
+
+   const ext = path.extname(filename).toLowerCase();
+   const mimeTypes = {
+      ".pdf": "application/pdf",
+      ".txt": "text/plain; charset=utf-8",
+   };
+
+   res.setHeader("Content-Type", mimeTypes[ext] || "application/octet-stream");
+   res.setHeader(
+      "Content-Disposition",
+      `inline; filename="${encodeURIComponent(document.title || filename)}"`,
+   );
+   fs.createReadStream(filePath).pipe(res);
+});
+
 const deleteDocument = asyncHandler(async (req, res) => {
    const { id } = req.params;
 
@@ -90,8 +121,7 @@ const deleteDocument = asyncHandler(async (req, res) => {
       throw new ApiError(403, "You are not allowed to delete this document");
    }
 
-   // remove the physical file — url is stored as "/uploads/<filename>"
-   const filePath = `.${document.url}`;
+   const filePath = path.resolve("uploads", path.basename(document.url));
    fs.unlink(filePath, (err) => {
       if (err) console.error(`Failed to delete file ${filePath}:`, err.message);
    });
@@ -111,5 +141,6 @@ export {
    uploadDocument,
    getDocumentsByModule,
    getDocumentById,
+   streamDocumentFile,
    deleteDocument,
 };

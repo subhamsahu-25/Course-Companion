@@ -41,6 +41,7 @@ const getModulesByCourse = asyncHandler(async (req, res) => {
 
    const modules = await Module.find({ course: courseId })
       .sort({ order: 1 })
+      .populate({ path: "documents", options: { sort: { order: 1 } } })
       .lean();
 
    return res

@@ -1,6 +1,6 @@
-// backend/src/services/rag.service.js
+// backend/src/services/rag.service.js — update submitQuestion, add getStats
 const ragRequest = async (endpoint, options = {}) => {
-   const RAG_SERVICE_URL = process.env.RAG_SERVICE_URL; // read at call-time, not import-time
+   const RAG_SERVICE_URL = process.env.RAG_SERVICE_URL;
 
    const response = await fetch(`${RAG_SERVICE_URL}${endpoint}`, {
       ...options,
@@ -14,10 +14,10 @@ const ragRequest = async (endpoint, options = {}) => {
    return data;
 };
 
-const submitQuestion = (studentId, question) =>
+const submitQuestion = (studentId, question, moduleId) =>
    ragRequest("/submit-question", {
       method: "POST",
-      body: JSON.stringify({ student_id: studentId, question }),
+      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId }),
    });
 
 const getReviewQueue = () => ragRequest("/review-queue");
@@ -36,4 +36,8 @@ const rejectAnswer = (id, note) =>
 
 const getMyAnswer = (id) => ragRequest(`/my-answer/${id}`);
 
-export { submitQuestion, getReviewQueue, approveAnswer, rejectAnswer, getMyAnswer };
+const getMyAnswers = (studentId) => ragRequest(`/my-answers/${studentId}`);
+
+const getStats = (studentId) => ragRequest(`/stats/${studentId}`);
+
+export { submitQuestion, getReviewQueue, approveAnswer, rejectAnswer, getMyAnswer, getMyAnswers, getStats };
