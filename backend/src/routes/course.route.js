@@ -21,7 +21,7 @@ import {
 
 // public — anyone can browse published courses
 router.route("/").get(authGuard, getAllCourses);
-router.route("/:id").get(authGuard, courseIdParamValidator(), validate, getCourseById);;
+router.route("/:id").get(authGuard, courseIdParamValidator(), validate, getCourseById);
 
 // secure — instructor/admin only
 router

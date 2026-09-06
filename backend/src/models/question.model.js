@@ -24,13 +24,32 @@ const questionSchema = new Schema({
       type: Number, 
       default: 0 
    },
+   points: {
+      type: Number,
+      default: 1,
+      min: 0
+   },
    explanation: { // shown after answering by the rag llm model
       type: String, 
       trim: true 
    }, 
+   isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+   },
+   deletedAt: {
+      type: Date,
+      default: null
+   },
 }, 
 { 
    timestamps: true 
+});
+
+// Auto-exclude soft-deleted questions — see Course/Module for the same pattern.
+questionSchema.pre(/^find/, function (next) {
+   this.where({ isDeleted: false });
 });
 
 export const Question = mongoose.model("Question", questionSchema);

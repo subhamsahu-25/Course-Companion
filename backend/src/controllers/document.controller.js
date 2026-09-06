@@ -39,6 +39,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
       module: moduleId,
       type: ALLOWED_MIME_TYPES[req.file.mimetype] || (ext === ".pdf" ? "pdf" : "other"),
       url: `/uploads/${req.file.filename}`,
+      fileSizeBytes: req.file.size,
    });
 
    module.documents.push(document._id);
@@ -121,16 +122,13 @@ const deleteDocument = asyncHandler(async (req, res) => {
       throw new ApiError(403, "You are not allowed to delete this document");
    }
 
-   const filePath = path.resolve("uploads", path.basename(document.url));
-   fs.unlink(filePath, (err) => {
-      if (err) console.error(`Failed to delete file ${filePath}:`, err.message);
-   });
-
    await Module.findByIdAndUpdate(document.module._id, {
       $pull: { documents: document._id },
    });
 
-   await document.deleteOne();
+   document.isDeleted = true;
+   document.deletedAt = new Date();
+   await document.save();
 
    return res
       .status(200)

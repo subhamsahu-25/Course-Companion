@@ -24,9 +24,33 @@ const moduleSchema = new Schema({
       type: Schema.Types.ObjectId, 
       ref: 'Document' 
    }],
+   questions: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Question'
+   }],
+   isPublished: {
+      type: Boolean,
+      default: false
+   },
+   isDeleted: {
+      type: Boolean,
+      default: false,
+      index: true
+   },
+   deletedAt: {
+      type: Date,
+      default: null
+   },
 }, 
 { 
    timestamps: true
+});
+
+// Auto-exclude soft-deleted modules, mirroring Course's soft-delete pattern —
+// keeps a soft-deleted course's modules from still being directly reachable
+// via /modules/:moduleId or /modules/course/:id.
+moduleSchema.pre(/^find/, function (next) {
+   this.where({ isDeleted: false });
 });
 
 export const Module = mongoose.model("Module", moduleSchema);

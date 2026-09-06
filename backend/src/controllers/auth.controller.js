@@ -1,4 +1,4 @@
-import {User} from "../models/user.model.js";
+import {User, AvailableUserRoles} from "../models/user.model.js";
 import {ApiResponse} from "../utils/api-response.js";
 import {ApiError} from "../utils/api-error.js";
 import {asyncHandler} from "../utils/async-handler.js";
@@ -22,7 +22,19 @@ const generateAccessAndRefreshToken = async(userId) => {
 
 const registerUser = asyncHandler(async(req, res) => {
    // ACCEPTING THE DATA COMING FROM FRONTEND (FOR NOW - BODY)
-   const { email, username, password, role} = req.body;
+   const { email, username, password, role } = req.body;
+
+   // Anyone can self-register as a student, instructor, or TA, but never as
+   // admin — admin accounts must be granted by an existing admin, not chosen
+   // by whoever fills in the signup form.
+   const SELF_REGISTERABLE_ROLES = [
+      AvailableUserRoles.STUDENT,
+      AvailableUserRoles.INSTRUCTOR,
+      AvailableUserRoles.TA,
+   ];
+   const requestedRole = role && SELF_REGISTERABLE_ROLES.includes(role)
+      ? role
+      : AvailableUserRoles.STUDENT;
 
    // CHECKING IF THE USER ALREADY EXISTS
    const userExists = await User.findOne({
@@ -38,6 +50,7 @@ const registerUser = asyncHandler(async(req, res) => {
       username,
       email,
       password,
+      role: requestedRole,
       isEmailVerified: false,
    });
 
@@ -81,12 +94,14 @@ const loginUser = asyncHandler(async(req, res) => {
    // ACCEPTING THE DATA COMING FROM FRONTEND (FOR NOW - BODY)
    const { email, password, username } = req.body;
 
-   if(!username || !email)
-      throw new ApiError(400, "Username / Email is required");
-   
-   // CHECKING IF THE USER ALREADY EXISTS
-   const user = await User.findOne({email});
-   
+   if(!username && !email)
+      throw new ApiError(400, "Username or Email is required");
+
+   // CHECKING IF THE USER ALREADY EXISTS — by whichever identifier was sent
+   const user = await User.findOne(
+      email ? { email } : { username }
+   );
+
    if(!user)
       throw new ApiError(400, "Username / Email is required");
    
@@ -143,7 +158,7 @@ const logoutUser = asyncHandler(async(req, res) => {
 
    const options = {
       httpOnly: true,
-      secure: true
+      secure: process.env.NODE_ENV === "production"
    }
 
    return res
@@ -276,7 +291,7 @@ const refreshAccessToken = asyncHandler(async(req, res) => {
       return res
          .status(200)
          .cookie("accessToken", accessToken, options)
-         .cookie("refreshToken", refreshToken, options)
+         .cookie("refreshToken", newRT, options)
          .json(
             new ApiResponse(
                200,

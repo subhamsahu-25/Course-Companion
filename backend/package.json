@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/server.js",
-    "start": "node src/server.js"
+    "start": "node src/server.js",
+    "migrate:soft-delete": "node scripts/migrate-soft-delete.js"
   },
   "author": "",
   "license": "ISC",

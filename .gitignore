@@ -1,2 +1,14 @@
 node_modules
 .env
+
+# User-uploaded files, real course material, and the generated Chroma
+# vector index/DB shouldn't be committed — they're either private/real
+# user data, potentially copyrighted course content, or fully regenerable
+# from rag/ingest.js.
+backend/uploads/*
+!backend/uploads/.gitkeep
+
+rag/course_materials/*
+!rag/course_materials/.gitkeep
+
+rag/chroma-data/

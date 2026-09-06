@@ -7,10 +7,23 @@ const courseSchema = new Schema(
          required: true,
          trim: true
       },
+      slug: {
+         type: String,
+         required: true,
+         unique: true,
+         lowercase: true,
+         trim: true,
+         index: true
+      },
       description: {
          type: String,
          trim: true
       },
+      tags: [{
+         type: String,
+         trim: true,
+         lowercase: true
+      }],
       instructor: {
          type: Schema.Types.ObjectId,
          ref: 'User',

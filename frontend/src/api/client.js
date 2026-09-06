@@ -23,6 +23,15 @@ const request = async (endpoint, options = {}) => {
 export const login = (email, password) =>
    request("/auth/login", { method: "POST", body: JSON.stringify({ email, password }) });
 
+export const register = ({ email, username, password, role }) =>
+   request("/auth/register", { method: "POST", body: JSON.stringify({ email, username, password, role }) });
+
+export const logoutUser = () =>
+   request("/auth/logout", { method: "POST" });
+
+export const getCurrentUser = () =>
+   request("/auth/current-user", { method: "POST" });
+
 export const getModules = (courseId) =>
    request(`/modules/course/${courseId}`);
 

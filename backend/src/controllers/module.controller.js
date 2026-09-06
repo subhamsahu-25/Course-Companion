@@ -4,6 +4,9 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { Module } from "../models/module.model.js";
 import { Course } from "../models/course.model.js";
+import { Question } from "../models/question.model.js";
+import { Answer } from "../models/answer.model.js";
+import { Document } from "../models/document.model.js";
 
 const createModule = asyncHandler(async (req, res) => {
    const { title, description, course: courseId, order } = req.body;
@@ -112,7 +115,18 @@ const deleteModule = asyncHandler(async (req, res) => {
       $pull: { modules: module._id },
    });
 
-   await module.deleteOne();
+   const questionIds = await Question.find({ module: module._id }).distinct("_id");
+   const now = new Date();
+
+   module.isDeleted = true;
+   module.deletedAt = now;
+   await module.save();
+
+   await Promise.all([
+      Question.updateMany({ _id: { $in: questionIds } }, { isDeleted: true, deletedAt: now }),
+      Document.updateMany({ module: module._id }, { isDeleted: true, deletedAt: now }),
+      Answer.updateMany({ question: { $in: questionIds } }, { isDeleted: true, deletedAt: now }),
+   ]);
 
    return res
       .status(200)

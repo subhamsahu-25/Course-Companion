@@ -5,8 +5,8 @@ const sendEmail = async (options) => {
    const mailGenerator = new Mailgen({
       theme: "default",
       product: {
-         name: "Task Manager",
-         link: "https://taskmanageLink.com"
+         name: "Course Companion",
+         link: process.env.CORS_ORIGIN?.split(",")[0] || "http://localhost:5173"
       }
    })
 
@@ -23,7 +23,7 @@ const sendEmail = async (options) => {
    })
 
    const mail = {
-      from: "Task Manager <taskManager@taskManager.com>",
+      from: "Course Companion <no-reply@course-companion.local>",
       to: options.email,
       subject: options.subject,
       text: emailTextual,

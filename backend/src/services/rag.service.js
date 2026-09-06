@@ -4,7 +4,11 @@ const ragRequest = async (endpoint, options = {}) => {
 
    const response = await fetch(`${RAG_SERVICE_URL}${endpoint}`, {
       ...options,
-      headers: { "Content-Type": "application/json", ...options.headers },
+      headers: {
+         "Content-Type": "application/json",
+         "x-service-key": process.env.RAG_SERVICE_KEY,
+         ...options.headers,
+      },
    });
 
    const data = await response.json();

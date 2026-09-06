@@ -1,55 +1,49 @@
 const studentLinks = [
   ['student-dashboard', 'Dashboard'],
-  ['student-modules', 'Modules'],
+  ['student-courses', 'Courses'],
   ['student-ask', 'Ask a question'],
-]
+];
 
-const taLinks = [
-  ['ta-review', 'Review queue'],
-]
+const taLinks = [['ta-review', 'Review queue']];
 
 const adminLinks = [
-  ['admin-modules', 'Modules'],
+  ['admin-courses', 'Courses'],
   ['admin-upload', 'Upload material'],
-]
+];
 
-export default function Sidebar({
-  role,
-  currentPage,
-  onPageChange,
-  onLogout,
-}) {
-  let links = studentLinks
+export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
+  let links = studentLinks;
 
   if (role === 'ta') {
-    links = taLinks
+    links = taLinks;
+  }
+
+  if (role === 'admin' || role === 'instructor') {
+    links = adminLinks;
+  }
+
+  let roleName = 'Student';
+
+  if (role === 'ta') {
+    roleName = 'Teaching Assistant';
   }
 
   if (role === 'admin') {
-    links = adminLinks
+    roleName = 'Admin';
   }
 
-  let roleName = 'Student'
-
-  if (role === 'ta') {
-    roleName = 'Teaching Assistant'
-  }
-
-  if (role === 'admin') {
-    roleName = 'Admin'
+  if (role === 'instructor') {
+    roleName = 'Instructor';
   }
 
   return (
     <aside className="hidden min-h-screen w-62.5 shrink-0 border-r border-[#D9E1E7] bg-white px-5 py-7 md:block">
-
       <div className="mb-9 px-2">
         <div className="text-[21px] font-semibold text-[#1D3557]">
           Course Companion
         </div>
 
-        <div className="mt-1 text-[15px] text-[#457B9D]">
-          {roleName}
-        </div>
+        <div className="mt-1 text-[15px] text-[#457B9D]">{roleName}</div>
       </div>
 
       <nav className="space-y-1">
@@ -68,13 +62,12 @@ export default function Sidebar({
         ))}
       </nav>
 
-            <button
+      <button
         onClick={onLogout}
         className="mt-10 w-full border-t border-[#D9E1E7] px-2 pt-5 text-left text-[15px] text-[#457B9D] hover:text-[#1D3557]"
       >
-        Switch role
+        Log out
       </button>
-
     </aside>
-  )
+  );
 }

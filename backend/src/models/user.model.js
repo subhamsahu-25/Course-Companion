@@ -5,6 +5,7 @@ import crypto from "crypto";
 // AVAILABLE USER ROLES
 export const AvailableUserRoles = {
    ADMIN: "admin",
+   INSTRUCTOR: "instructor",
    TA: "ta",
    STUDENT: "student",
 };

@@ -3,6 +3,10 @@ import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { Course } from "../models/course.model.js";
+import { Module } from "../models/module.model.js";
+import { Question } from "../models/question.model.js";
+import { Document } from "../models/document.model.js";
+import { Answer } from "../models/answer.model.js";
 
 const createCourse = asyncHandler(async (req, res) => {
    const { title, description, tags } = req.body;
@@ -108,7 +112,20 @@ const deleteCourse = asyncHandler(async (req, res) => {
       throw new ApiError(403, "You are not allowed to delete this course");
    }
 
-   await course.deleteOne();
+   course.isDeleted = true;
+   course.deletedAt = new Date();
+   await course.save();
+
+   const now = new Date();
+   const moduleIds = await Module.find({ course: course._id }).distinct("_id");
+   const questionIds = await Question.find({ module: { $in: moduleIds } }).distinct("_id");
+
+   await Promise.all([
+      Module.updateMany({ _id: { $in: moduleIds } }, { isDeleted: true, deletedAt: now }),
+      Question.updateMany({ _id: { $in: questionIds } }, { isDeleted: true, deletedAt: now }),
+      Document.updateMany({ module: { $in: moduleIds } }, { isDeleted: true, deletedAt: now }),
+      Answer.updateMany({ question: { $in: questionIds } }, { isDeleted: true, deletedAt: now }),
+   ]);
 
    return res
       .status(200)

@@ -4,6 +4,7 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { Question } from "../models/question.model.js";
 import { Module } from "../models/module.model.js";
+import { Answer } from "../models/answer.model.js";
 
 const createQuestion = asyncHandler(async (req, res) => {
    const { module: moduleId, text, type, points } = req.body;
@@ -137,8 +138,12 @@ const deleteQuestion = asyncHandler(async (req, res) => {
       $pull: { questions: question._id },
    });
 
-   await question.deleteOne();
-   // NOTE: this does not cascade-delete the Question's Answers — see note below.
+   const now = new Date();
+   question.isDeleted = true;
+   question.deletedAt = now;
+   await question.save();
+
+   await Answer.updateMany({ question: question._id }, { isDeleted: true, deletedAt: now });
 
    return res
       .status(200)
