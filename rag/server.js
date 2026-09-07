@@ -80,7 +80,7 @@ const vectorStore = new Chroma(embeddings, {
     url: process.env.CHROMA_URL || "http://localhost:8000"
 });
 
-const retriever = vectorStore.asRetriever(5);
+const retriever = vectorStore.asRetriever(8);
 
 // 3. RAG Pipeline Configuration
 const promptTemplate = PromptTemplate.fromTemplate(`
@@ -95,7 +95,11 @@ Question: {question}
 Answer:
 `);
 
-const formatDocs = (docs) => docs.map((doc, i) => `Chunk ${i + 1}: ${doc.pageContent}`).join("\n\n");
+const formatDocs = (docs) => {
+    const formatted = docs.map((doc, i) => `Chunk ${i + 1}: ${doc.pageContent}`).join("\n\n");
+    console.log("---- RETRIEVED CONTEXT ----\n", formatted, "\n---------------------------");
+    return formatted;
+};
 
 // 4. TA Review Queue
 // A draft answer sits here in "pending" status until a TA approves or
@@ -216,6 +220,20 @@ app.get('/stats/:studentId', async (req, res) => {
     ]);
 
     res.json({ total, pending, approved, rejected });
+});
+import { ingestDocuments } from './ingest-logic.js';
+
+// 12. Internal: re-run ingestion over everything in course_materials.
+// Called by the main backend right after a PDF upload so newly added
+// material becomes searchable without a manual `node ingest.js` step.
+app.post('/ingest', async (req, res) => {
+    try {
+        const result = await ingestDocuments();
+        res.json({ status: 'success', ...result });
+    } catch (error) {
+        console.error("Error during ingestion:", error);
+        res.status(500).json({ error: "Ingestion failed" });
+    }
 });
 
 const PORT = process.env.PORT || 3000;
