@@ -1,69 +1,86 @@
-import { useState } from 'react'
-
-const startingItems = [
-  {
-    id: 1,
-    module: 'Signals & Systems',
-    question:
-      'Why does the ROC of a Laplace transform matter for stability?',
-    answer:
-      'Stability requires the ROC to include the imaginary axis. If the system is causal, all poles must lie in the left half-plane.',
-    status: 'draft',
-  },
-  {
-    id: 2,
-    module: 'Electromagnetics',
-    question:
-      'What does a negative divergence of E indicate physically?',
-    answer:
-      'A negative divergence means the point acts as a sink. Field lines converge into it, which corresponds to negative charge density.',
-    status: 'draft',
-  },
-]
+import { useEffect, useState } from 'react';
+import {
+  getReviewQueue,
+  approveAnswer,
+  rejectAnswer,
+} from '../../api/client.js';
 
 export default function ReviewQueue() {
-  const [items, setItems] = useState(startingItems)
-  const [editingId, setEditingId] = useState(null)
-  const [answerText, setAnswerText] = useState('')
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  function changeStatus(id, status) {
-    setItems((oldItems) =>
-      oldItems.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              status,
-            }
-          : item
-      )
-    )
+  const [editingId, setEditingId] = useState(null);
+  const [answerText, setAnswerText] = useState('');
+  const [actioningId, setActioningId] = useState(null);
+
+  useEffect(() => {
+    loadQueue();
+  }, []);
+
+  async function loadQueue() {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await getReviewQueue();
+      setItems(res.data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
   }
 
   function startEditing(item) {
-    setEditingId(item.id)
-    setAnswerText(item.answer)
+    setEditingId(item._id);
+    setAnswerText(item.draftAnswer);
   }
 
-  function saveAnswer(id) {
-    setItems((oldItems) =>
-      oldItems.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              answer: answerText,
-              status: 'reviewed',
-            }
-          : item
-      )
-    )
+  function cancelEditing() {
+    setEditingId(null);
+    setAnswerText('');
+  }
 
-    setEditingId(null)
-    setAnswerText('')
+  async function approve(id, editedAnswer) {
+    setActioningId(id);
+    setError(null);
+    try {
+      await approveAnswer(id, editedAnswer);
+      setEditingId(null);
+      setAnswerText('');
+      // Approved items drop off the pending queue, so just refetch.
+      await loadQueue();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActioningId(null);
+    }
+  }
+
+  async function reject(id) {
+    const note = window.prompt(
+      'Optional note for the student (leave blank to use the default message):',
+    );
+    if (note === null) return; // they hit cancel
+
+    setActioningId(id);
+    setError(null);
+    try {
+      await rejectAnswer(id, note || undefined);
+      await loadQueue();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setActioningId(null);
+    }
+  }
+
+  if (loading) {
+    return <p className="text-sm text-[#647D8D]">Loading review queue...</p>;
   }
 
   return (
     <div>
-
       <div>
         <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
           Teaching Assistant
@@ -78,107 +95,103 @@ export default function ReviewQueue() {
         </p>
       </div>
 
-      <div className="mt-8 space-y-5">
+      {error && (
+        <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
+      {items.length === 0 && !error && (
+        <p className="mt-8 text-sm text-[#8AA0AE]">
+          Nothing waiting on review right now.
+        </p>
+      )}
+
+      <div className="mt-8 space-y-5">
         {items.map((item) => (
           <div
-            key={item.id}
+            key={item._id}
             className="overflow-hidden rounded-xl border border-[#D9E1E7] bg-white shadow-sm"
           >
-
             <div className="flex items-center justify-between bg-[#E7F1F6] px-5 py-3">
-
               <span className="text-xs font-semibold uppercase tracking-wide text-[#457B9D]">
-                {item.module}
+                {new Date(item.createdAt).toLocaleString()}
               </span>
 
               <span className="rounded-full bg-white px-3 py-1 text-xs text-[#457B9D]">
                 {item.status}
               </span>
-
             </div>
 
             <div className="p-6">
-
               <div className="text-[18px] font-semibold text-[#2B2D42]">
                 {item.question}
               </div>
 
-              {editingId === item.id ? (
+              {editingId === item._id ? (
                 <textarea
                   value={answerText}
-                  onChange={(event) =>
-                    setAnswerText(event.target.value)
-                  }
+                  onChange={(event) => setAnswerText(event.target.value)}
                   rows="5"
                   className="mt-4 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
                 />
               ) : (
                 <p className="mt-4 text-[15px] leading-6 text-[#354F61]">
-                  {item.answer}
+                  {item.draftAnswer}
                 </p>
               )}
 
-              {item.status !== 'published' &&
-                item.status !== 'rejected' && (
-                  <div className="mt-5 flex flex-wrap gap-2">
+              <div className="mt-5 flex flex-wrap gap-2">
+                {editingId === item._id ? (
+                  <>
+                    <button
+                      onClick={() => approve(item._id, answerText)}
+                      disabled={actioningId === item._id}
+                      className="rounded-md bg-[#457B9D] px-4 py-2 text-sm text-white hover:bg-[#386B89] disabled:opacity-60"
+                    >
+                      {actioningId === item._id ? 'Saving…' : 'Save & approve'}
+                    </button>
 
-                    {editingId === item.id ? (
-                      <button
-                        onClick={() =>
-                          saveAnswer(item.id)
-                        }
-                        className="rounded-md bg-[#457B9D] px-4 py-2 text-sm text-white hover:bg-[#386B89]"
-                      >
-                        Save changes
-                      </button>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() =>
-                            changeStatus(
-                              item.id,
-                              'published'
-                            )
-                          }
-                          className="rounded-md bg-[#1D3557] px-4 py-2 text-sm text-white hover:bg-[#28476F]"
-                        >
-                          Approve
-                        </button>
+                    <button
+                      onClick={cancelEditing}
+                      disabled={actioningId === item._id}
+                      className="rounded-md border border-[#C8D6DF] bg-white px-4 py-2 text-sm text-[#2B2D42] hover:bg-[#F5F8FA] disabled:opacity-60"
+                    >
+                      Cancel
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => approve(item._id)}
+                      disabled={actioningId === item._id}
+                      className="rounded-md bg-[#1D3557] px-4 py-2 text-sm text-white hover:bg-[#28476F] disabled:opacity-60"
+                    >
+                      {actioningId === item._id ? 'Approving…' : 'Approve'}
+                    </button>
 
-                        <button
-                          onClick={() =>
-                            startEditing(item)
-                          }
-                          className="rounded-md border border-[#C8D6DF] bg-white px-4 py-2 text-sm text-[#2B2D42] hover:bg-[#F5F8FA]"
-                        >
-                          Edit
-                        </button>
+                    <button
+                      onClick={() => startEditing(item)}
+                      disabled={actioningId === item._id}
+                      className="rounded-md border border-[#C8D6DF] bg-white px-4 py-2 text-sm text-[#2B2D42] hover:bg-[#F5F8FA] disabled:opacity-60"
+                    >
+                      Edit
+                    </button>
 
-                        <button
-                          onClick={() =>
-                            changeStatus(
-                              item.id,
-                              'rejected'
-                            )
-                          }
-                          className="rounded-md border border-[#C8D6DF] bg-white px-4 py-2 text-sm text-[#2B2D42] hover:bg-[#F5F8FA]"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-
-                  </div>
+                    <button
+                      onClick={() => reject(item._id)}
+                      disabled={actioningId === item._id}
+                      className="rounded-md border border-[#C8D6DF] bg-white px-4 py-2 text-sm text-[#2B2D42] hover:bg-[#F5F8FA] disabled:opacity-60"
+                    >
+                      {actioningId === item._id ? 'Rejecting…' : 'Reject'}
+                    </button>
+                  </>
                 )}
-
+              </div>
             </div>
-
           </div>
         ))}
-
       </div>
-
     </div>
-  )
+  );
 }

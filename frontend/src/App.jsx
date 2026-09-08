@@ -2,8 +2,9 @@
 import { useEffect, useState } from 'react';
 
 import Login from './pages/Login.jsx';
+import Signup from './pages/Signup.jsx';
 import RoleLayout from './layouts/RoleLayout.jsx';
-import { getCurrentUser, logoutUser } from './api/client.js';
+import { getCurrentUser, logout as logoutRequest } from './api/client.js';
 
 import StudentDashboard from './pages/student/Dashboard.jsx';
 import StudentCourses from './pages/student/Courses.jsx';
@@ -16,7 +17,6 @@ import AdminCourses from './pages/admin/Courses.jsx';
 import AdminModules from './pages/admin/Modules.jsx';
 import AdminUpload from './pages/admin/Upload.jsx';
 
-// Instructor and admin currently share the same course-management screens.
 function defaultPageForRole(role) {
   if (role === 'ta') return 'ta-review';
   if (role === 'admin' || role === 'instructor') return 'admin-courses';
@@ -26,7 +26,14 @@ function defaultPageForRole(role) {
 export default function App() {
   const [user, setUser] = useState(null);
   const [currentPage, setCurrentPage] = useState('login');
+  // 'checking' avoids flashing the login screen before we know whether an
+  // existing session cookie is still valid.
   const [authStatus, setAuthStatus] = useState('checking');
+  // Which auth screen to show while logged out — 'login' or 'signup'.
+  const [authView, setAuthView] = useState('login');
+
+  // Navigation context carried between pages — e.g. which course was
+  // clicked on the Courses page, so Modules knows what to load.
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedModuleId, setSelectedModuleId] = useState('');
 
@@ -50,27 +57,28 @@ export default function App() {
     };
   }, []);
 
-  function login(loggedInUser) {
+  function handleLogin(loggedInUser) {
     setUser(loggedInUser);
     setAuthStatus('authenticated');
     setCurrentPage(defaultPageForRole(loggedInUser.role));
   }
 
-  async function logout() {
+  async function handleLogout() {
     try {
-      await logoutUser();
+      await logoutRequest();
     } catch {
       // even if the network call fails, still clear local state so the
       // user isn't stuck on a page that assumes they're logged in
     }
     setUser(null);
     setAuthStatus('anonymous');
+    setAuthView('login');
     setCurrentPage('login');
   }
 
-  // params can carry { courseId } and/or { moduleId } alongside a page
-  // change, so pages further down the navigation (Modules, Ask) know
-  // which course/module was clicked on the page before them.
+  // `params` can carry { courseId } and/or { moduleId } alongside a page
+  // change, so a page further down the flow (Modules, Ask) knows which
+  // course/module was clicked on the page before it.
   function changePage(page, params = {}) {
     if (params.courseId !== undefined) setSelectedCourseId(params.courseId);
     if (params.moduleId !== undefined) setSelectedModuleId(params.moduleId);
@@ -78,43 +86,41 @@ export default function App() {
   }
 
   function getPage() {
-    if (currentPage === 'student-dashboard') {
-      return <StudentDashboard onPageChange={changePage} />;
-    }
+    switch (currentPage) {
+      case 'student-dashboard':
+        return <StudentDashboard onPageChange={changePage} />;
 
-    if (currentPage === 'student-courses') {
-      return <StudentCourses onPageChange={changePage} />;
-    }
+      case 'student-courses':
+        return <StudentCourses onPageChange={changePage} />;
 
-    if (currentPage === 'student-modules') {
-      return (
-        <StudentModules courseId={selectedCourseId} onPageChange={changePage} />
-      );
-    }
+      case 'student-modules':
+        return (
+          <StudentModules
+            courseId={selectedCourseId}
+            onPageChange={changePage}
+          />
+        );
 
-    if (currentPage === 'student-ask') {
-      return <StudentAsk initialModuleId={selectedModuleId} />;
-    }
+      case 'student-ask':
+        return <StudentAsk initialModuleId={selectedModuleId} />;
 
-    if (currentPage === 'ta-review') {
-      return <ReviewQueue />;
-    }
+      case 'ta-review':
+        return <ReviewQueue />;
 
-    if (currentPage === 'admin-courses') {
-      return <AdminCourses onPageChange={changePage} />;
-    }
+      case 'admin-courses':
+        return <AdminCourses onPageChange={changePage} />;
 
-    if (currentPage === 'admin-modules') {
-      return (
-        <AdminModules courseId={selectedCourseId} onPageChange={changePage} />
-      );
-    }
+      case 'admin-modules':
+        return (
+          <AdminModules courseId={selectedCourseId} onPageChange={changePage} />
+        );
 
-    if (currentPage === 'admin-upload') {
-      return <AdminUpload />;
-    }
+      case 'admin-upload':
+        return <AdminUpload />;
 
-    return <div className="rounded-lg bg-white p-6">Page not found</div>;
+      default:
+        return <div className="rounded-lg bg-white p-6">Page not found</div>;
+    }
   }
 
   if (authStatus === 'checking') {
@@ -126,7 +132,21 @@ export default function App() {
   }
 
   if (authStatus === 'anonymous' || !user) {
-    return <Login onLogin={login} />;
+    if (authView === 'signup') {
+      return (
+        <Signup
+          onSignupSuccess={() => setAuthView('login')}
+          onSwitchToLogin={() => setAuthView('login')}
+        />
+      );
+    }
+
+    return (
+      <Login
+        onLogin={handleLogin}
+        onSwitchToSignup={() => setAuthView('signup')}
+      />
+    );
   }
 
   return (
@@ -134,7 +154,7 @@ export default function App() {
       role={user.role}
       currentPage={currentPage}
       onPageChange={changePage}
-      onLogout={logout}
+      onLogout={handleLogout}
     >
       {getPage()}
     </RoleLayout>

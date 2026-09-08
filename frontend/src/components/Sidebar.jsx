@@ -1,40 +1,8 @@
-const studentLinks = [
-  ['student-dashboard', 'Dashboard'],
-  ['student-courses', 'Courses'],
-  ['student-ask', 'Ask a question'],
-];
-
-const taLinks = [['ta-review', 'Review queue']];
-
-const adminLinks = [
-  ['admin-courses', 'Courses'],
-  ['admin-upload', 'Upload material'],
-];
+import { linksForRole, nameForRole } from '../utils/roleLinks.js';
 
 export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
-  let links = studentLinks;
-
-  if (role === 'ta') {
-    links = taLinks;
-  }
-
-  if (role === 'admin' || role === 'instructor') {
-    links = adminLinks;
-  }
-
-  let roleName = 'Student';
-
-  if (role === 'ta') {
-    roleName = 'Teaching Assistant';
-  }
-
-  if (role === 'admin') {
-    roleName = 'Admin';
-  }
-
-  if (role === 'instructor') {
-    roleName = 'Instructor';
-  }
+  const links = linksForRole(role)
+  const roleName = nameForRole(role)
 
   return (
     <aside className="hidden min-h-screen w-62.5 shrink-0 border-r border-[#D9E1E7] bg-white px-5 py-7 md:block">
@@ -69,5 +37,6 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
         Log out
       </button>
     </aside>
-  );
+  )
 }
+

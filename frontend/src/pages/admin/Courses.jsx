@@ -1,95 +1,91 @@
 // frontend/src/pages/admin/Courses.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react'
 import {
   getCourses,
   createCourse,
-  getModulesByCourse,
   updateCourse,
-  deleteCourse, // 1. Added import
-} from '../../api/courses';
+  deleteCourse,
+  getModulesByCourse,
+} from '../../api/client.js'
 
 export default function AdminCourses({ onPageChange }) {
-  const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [courses, setCourses] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
 
-  const [showNewCourse, setShowNewCourse] = useState(false);
-  const [newCourseTitle, setNewCourseTitle] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const [deletingId, setDeletingId] = useState(null); // Track pending delete
+  const [showNewCourse, setShowNewCourse] = useState(false)
+  const [newCourseTitle, setNewCourseTitle] = useState('')
+  const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    loadCourses();
-  }, []);
+    loadCourses()
+  }, [])
 
   async function loadCourses() {
+    setLoading(true)
     try {
-      const coursesRes = await getCourses();
+      const coursesRes = await getCourses()
 
       const withModuleCounts = await Promise.all(
         coursesRes.data.map(async (course) => {
-          const modulesRes = await getModulesByCourse(course._id);
-          return { ...course, moduleCount: modulesRes.data.length };
-        }),
-      );
+          const modulesRes = await getModulesByCourse(course._id)
+          return { ...course, moduleCount: modulesRes.data.length }
+        })
+      )
 
-      setCourses(withModuleCounts);
+      setCourses(withModuleCounts)
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setLoading(false);
+      setLoading(false)
     }
   }
 
   async function handleCreateCourse(event) {
-    event.preventDefault();
-    if (!newCourseTitle.trim()) return;
+    event.preventDefault()
+    if (!newCourseTitle.trim()) return
 
-    setSubmitting(true);
+    setSubmitting(true)
     try {
-      await createCourse(newCourseTitle);
-      setNewCourseTitle('');
-      setShowNewCourse(false);
-      await loadCourses();
+      await createCourse(newCourseTitle)
+      setNewCourseTitle('')
+      setShowNewCourse(false)
+      await loadCourses()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     } finally {
-      setSubmitting(false);
+      setSubmitting(false)
     }
   }
 
-  async function togglePublish(course) {
+  async function togglePublish(course, event) {
+    event.stopPropagation() // don't trigger the card's own onClick
     try {
-      await updateCourse(course._id, { isPublished: !course.isPublished });
-      await loadCourses();
+      await updateCourse(course._id, { isPublished: !course.isPublished })
+      await loadCourses()
     } catch (err) {
-      setError(err.message);
+      setError(err.message)
     }
   }
 
-  // 2. Delete Course Handler
-  async function handleDeleteCourse(e, courseId, title) {
-    e.stopPropagation(); // Stop navigation to modules view
+  async function handleDelete(course, event) {
+    event.stopPropagation()
 
     const confirmed = window.confirm(
-      `Are you sure you want to delete "${title}"? This will remove it from student and TA portals.`,
-    );
-    if (!confirmed) return;
+      `Delete "${course.title}"? This cannot be undone. Modules and documents inside it will not be deleted automatically.`
+    )
+    if (!confirmed) return
 
-    setDeletingId(courseId);
     try {
-      await deleteCourse(courseId);
-      // Instant UI removal
-      setCourses((prev) => prev.filter((c) => c._id !== courseId));
+      await deleteCourse(course._id)
+      await loadCourses()
     } catch (err) {
-      setError(err.message || 'Failed to delete course');
-    } finally {
-      setDeletingId(null);
+      setError(err.message)
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading courses...</p>;
+    return <p className="text-sm text-[#647D8D]">Loading courses...</p>
   }
 
   return (
@@ -126,7 +122,7 @@ export default function AdminCourses({ onPageChange }) {
       {showNewCourse && (
         <form
           onSubmit={handleCreateCourse}
-          className="mt-6 flex gap-3 rounded-xl border border-[#D9E1E7] bg-white p-4"
+          className="mt-6 flex flex-col gap-3 rounded-xl border border-[#D9E1E7] bg-white p-4 sm:flex-row"
         >
           <input
             type="text"
@@ -153,64 +149,40 @@ export default function AdminCourses({ onPageChange }) {
         )}
 
         {courses.map((course) => (
-          <button
+          <div
             key={course._id}
             onClick={() =>
               onPageChange('admin-modules', { courseId: course._id })
             }
-            className="group relative flex flex-col justify-between rounded-xl border border-[#D9E1E7] bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#457B9D] hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-[#D9E1E7] bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#457B9D] hover:shadow-md"
           >
-            <div>
-              <div className="flex items-start justify-between gap-2">
-                <div className="text-[19px] font-semibold text-[#2B2D42]">
-                  {course.title}
-                </div>
-
-                {/* 3. Delete Action Button */}
-                <button
-                  type="button"
-                  title="Delete course"
-                  disabled={deletingId === course._id}
-                  onClick={(e) =>
-                    handleDeleteCourse(e, course._id, course.title)
-                  }
-                  className="rounded-md p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-600 disabled:opacity-50"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    className="h-4 w-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                    />
-                  </svg>
-                </button>
+            <div className="flex items-start justify-between gap-3">
+              <div className="text-[19px] font-semibold text-[#2B2D42]">
+                {course.title}
               </div>
 
-              {course.description && (
-                <p className="mt-2 text-sm text-[#647D8D]">
-                  {course.description}
-                </p>
-              )}
+              <button
+                onClick={(e) => handleDelete(course, e)}
+                className="shrink-0 text-xs text-[#B4636A] hover:underline"
+              >
+                Delete
+              </button>
             </div>
 
-            <div className="mt-6 flex items-center justify-between">
+            {course.description && (
+              <p className="mt-2 text-sm text-[#647D8D]">
+                {course.description}
+              </p>
+            )}
+
+            <div className="mt-4 flex items-center justify-between">
               <span className="text-sm text-[#457B9D]">
-                {course.moduleCount} module{course.moduleCount !== 1 ? 's' : ''}{' '}
-                →
+                {course.moduleCount} module
+                {course.moduleCount !== 1 ? 's' : ''} →
               </span>
 
-              <span
-                onClick={(e) => {
-                  e.stopPropagation();
-                  togglePublish(course);
-                }}
+              <button
+                onClick={(e) => togglePublish(course, e)}
                 className={`rounded-full px-3 py-1 text-xs font-medium ${
                   course.isPublished
                     ? 'bg-green-100 text-green-700'
@@ -218,11 +190,11 @@ export default function AdminCourses({ onPageChange }) {
                 }`}
               >
                 {course.isPublished ? 'Published' : 'Draft — click to publish'}
-              </span>
+              </button>
             </div>
-          </button>
+          </div>
         ))}
       </div>
     </div>
-  );
+  )
 }

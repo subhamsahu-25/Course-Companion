@@ -11,8 +11,14 @@ import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
 // Connection to the external Vector Database
 import { Chroma } from "@langchain/community/vectorstores/chroma";
 
+// Ingestion — turns an uploaded file into chunks in the vector store.
+import { ingestSingleDocument, removeDocumentChunks } from "./ingest-logic.js";
+
 const app = express();
-app.use(express.json());
+// Raised from the default 100kb limit: the backend sends uploaded files
+// here as base64 JSON, which needs headroom for anything near the 50MB
+// upload cap the backend enforces.
+app.use(express.json({ limit: "65mb" }));
 
 // 0. Service-to-service auth.
 // This service exposes internal endpoints (approve/reject a TA review, read
@@ -42,6 +48,11 @@ console.log("✅ RAG service connected to MongoDB");
 const reviewQueueItemSchema = new mongoose.Schema(
     {
         studentId: { type: String, default: null },
+        // Persisted so history can be scoped per course/module later —
+        // previously this only lived transiently in the request body used
+        // for retrieval filtering, so /my-answers had no way to tell which
+        // module a given question was even about.
+        moduleId: { type: String, default: null, index: true },
         question: { type: String, required: true },
         draftAnswer: { type: String, required: true },
         status: {
@@ -80,7 +91,15 @@ const vectorStore = new Chroma(embeddings, {
     url: process.env.CHROMA_URL || "http://localhost:8000"
 });
 
-const retriever = vectorStore.asRetriever(8);
+const retriever = vectorStore.asRetriever(5);
+
+// Builds a retriever scoped to one module's chunks when a moduleId is
+// given, otherwise falls back to the unfiltered retriever above. Chunks
+// only carry a moduleId once they've gone through ingestSingleDocument
+// (see ingest-logic.js), so older bulk-seeded material without that tag
+// won't match a module-scoped query.
+const getRetriever = (moduleId) =>
+    moduleId ? vectorStore.asRetriever({ k: 5, filter: { moduleId } }) : retriever;
 
 // 3. RAG Pipeline Configuration
 const promptTemplate = PromptTemplate.fromTemplate(`
@@ -95,11 +114,42 @@ Question: {question}
 Answer:
 `);
 
-const formatDocs = (docs) => {
-    const formatted = docs.map((doc, i) => `Chunk ${i + 1}: ${doc.pageContent}`).join("\n\n");
-    console.log("---- RETRIEVED CONTEXT ----\n", formatted, "\n---------------------------");
-    return formatted;
-};
+const formatDocs = (docs) => docs.map((doc, i) => `Chunk ${i + 1}: ${doc.pageContent}`).join("\n\n");
+
+// 3.5 Ingestion — called by the backend right after a document is
+// uploaded (or deleted), so the vector store actually stays in sync with
+// what's in the app. Uploading a document used to only save the file and
+// a DB record; nothing ever told the RAG pipeline the document existed,
+// which is why questions about newly uploaded material always fell
+// through to "I don't know."
+app.post('/ingest', async (req, res) => {
+    try {
+        const { documentId, moduleId, filename, fileBase64 } = req.body;
+
+        if (!documentId || !filename || !fileBase64) {
+            return res.status(400).json({ error: "documentId, filename and fileBase64 are required." });
+        }
+
+        const buffer = Buffer.from(fileBase64, "base64");
+        const result = await ingestSingleDocument({ buffer, filename, documentId, moduleId });
+        res.json(result);
+    } catch (error) {
+        console.error("Error ingesting document:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// Removes a document's chunks (e.g. when it's deleted in the app) so
+// stale content doesn't keep showing up in answers.
+app.delete('/ingest/:documentId', async (req, res) => {
+    try {
+        const removed = await removeDocumentChunks(req.params.documentId);
+        res.json({ removed });
+    } catch (error) {
+        console.error("Error removing document chunks:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 
 // 4. TA Review Queue
 // A draft answer sits here in "pending" status until a TA approves or
@@ -112,13 +162,13 @@ const formatDocs = (docs) => {
 // never the draft itself.
 app.post('/submit-question', async (req, res) => {
     try {
-        const { student_id, question } = req.body;
+        const { student_id, question, module_id } = req.body;
 
         if (!question) return res.status(400).json({ error: "Question is required." });
 
         const ragChain = RunnableSequence.from([
             {
-                context: retriever.pipe(formatDocs),
+                context: getRetriever(module_id).pipe(formatDocs),
                 question: new RunnablePassthrough()
             },
             promptTemplate,
@@ -130,6 +180,7 @@ app.post('/submit-question', async (req, res) => {
 
         const item = await ReviewQueueItem.create({
             studentId: student_id ?? null,
+            moduleId: module_id ?? null,
             question,
             draftAnswer,
         });
@@ -199,6 +250,7 @@ app.get('/my-answers/:studentId', async (req, res) => {
     res.json(
         items.map((item) => ({
             id: item._id.toString(),
+            moduleId: item.moduleId,
             question: item.question,
             status: item.status,
             answer: item.status === 'pending' ? null : item.finalAnswer,
@@ -220,20 +272,6 @@ app.get('/stats/:studentId', async (req, res) => {
     ]);
 
     res.json({ total, pending, approved, rejected });
-});
-import { ingestDocuments } from './ingest-logic.js';
-
-// 12. Internal: re-run ingestion over everything in course_materials.
-// Called by the main backend right after a PDF upload so newly added
-// material becomes searchable without a manual `node ingest.js` step.
-app.post('/ingest', async (req, res) => {
-    try {
-        const result = await ingestDocuments();
-        res.json({ status: 'success', ...result });
-    } catch (error) {
-        console.error("Error during ingestion:", error);
-        res.status(500).json({ error: "Ingestion failed" });
-    }
 });
 
 const PORT = process.env.PORT || 3000;

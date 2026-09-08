@@ -18,6 +18,20 @@ const ragRequest = async (endpoint, options = {}) => {
    return data;
 };
 
+// Sends an uploaded file to the rag service to be chunked, embedded, and
+// added to the vector store — this is the step that was missing entirely
+// before: uploading a document saved the file but never indexed it.
+const ingestDocument = (documentId, moduleId, filename, fileBase64) =>
+   ragRequest("/ingest", {
+      method: "POST",
+      body: JSON.stringify({ documentId, moduleId, filename, fileBase64 }),
+   });
+
+// Best-effort cleanup so a deleted document's chunks stop showing up in
+// answers. Callers should not fail the delete just because this fails.
+const removeIngestedDocument = (documentId) =>
+   ragRequest(`/ingest/${documentId}`, { method: "DELETE" });
+
 const submitQuestion = (studentId, question, moduleId) =>
    ragRequest("/submit-question", {
       method: "POST",
@@ -44,4 +58,4 @@ const getMyAnswers = (studentId) => ragRequest(`/my-answers/${studentId}`);
 
 const getStats = (studentId) => ragRequest(`/stats/${studentId}`);
 
-export { submitQuestion, getReviewQueue, approveAnswer, rejectAnswer, getMyAnswer, getMyAnswers, getStats };
+export { submitQuestion, getReviewQueue, approveAnswer, rejectAnswer, getMyAnswer, getMyAnswers, getStats, ingestDocument, removeIngestedDocument };

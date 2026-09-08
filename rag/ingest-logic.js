@@ -4,11 +4,17 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChromaClient } from "chromadb";
 import { PDFParse } from "pdf-parse";
 
+const COLLECTION_NAME = "course_collection";
+
 class CustomOllamaEmbedder {
+   constructor(baseUrl) {
+      this.baseUrl = baseUrl || process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+   }
+
    async generate(texts) {
       const embeddings = [];
       for (const text of texts) {
-         const response = await fetch("http://localhost:11434/api/embeddings", {
+         const response = await fetch(`${this.baseUrl}/api/embeddings`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
@@ -23,6 +29,122 @@ class CustomOllamaEmbedder {
    }
 }
 
+// Both ingest.js and the old version of this file hardcoded
+// `{ host: "localhost", port: 8000 }`, ignoring CHROMA_URL entirely. That
+// happened to work only because localhost:8000 is also the default. Reading
+// CHROMA_URL here means this still works out of the box, but also works if
+// Chroma ever runs somewhere else (e.g. a docker-compose service name).
+function getChromaClient() {
+   const url = process.env.CHROMA_URL || "http://localhost:8000";
+   const parsed = new URL(url);
+   return new ChromaClient({
+      host: parsed.hostname,
+      port: parsed.port ? Number(parsed.port) : 8000,
+      ssl: parsed.protocol === "https:",
+   });
+}
+
+async function getCollection() {
+   const client = getChromaClient();
+   const embedder = new CustomOllamaEmbedder();
+   return client.getOrCreateCollection({
+      name: COLLECTION_NAME,
+      embeddingFunction: embedder,
+   });
+}
+
+// Extracts plain text from a file buffer. Returns `null` (not a string) for
+// file types we have no text-extraction path for yet (video/image/slides) —
+// callers use that to distinguish "nothing to index" from "indexed, but
+// empty".
+async function extractText(buffer, filename) {
+   const ext = path.extname(filename).toLowerCase();
+
+   if (ext === ".pdf") {
+      let parser;
+      try {
+         parser = new PDFParse({ data: buffer });
+         const result = await parser.getText();
+         return result?.text || "";
+      } finally {
+         if (parser) await parser.destroy();
+      }
+   }
+
+   if (ext === ".txt") {
+      return buffer.toString("utf-8");
+   }
+
+   return null;
+}
+
+// Removes every chunk previously ingested for a given document. Scoped to
+// `documentId` via a metadata filter, so — unlike the old bulk ingest,
+// which wiped the whole collection — this never touches any other
+// document's chunks.
+export async function removeDocumentChunks(documentId, collection) {
+   const col = collection || (await getCollection());
+   const existing = await col.get({ where: { documentId } });
+   if (existing.ids.length > 0) {
+      await col.delete({ ids: existing.ids });
+   }
+   return existing.ids.length;
+}
+
+// Ingest (or re-ingest) a single uploaded document into the shared
+// collection. This is what actually makes an uploaded document answerable
+// by the RAG pipeline — it's called from the backend right after a
+// document is saved (see document.controller.js).
+//
+// Chunks are tagged with `documentId` and `moduleId` metadata so that:
+//   - re-uploading/replacing a file can cleanly remove its old chunks first
+//     (see removeDocumentChunks) instead of piling up duplicates, and
+//   - retrieval can eventually be scoped to a module/course (see
+//     server.js's /submit-question), instead of searching every course's
+//     material at once.
+export async function ingestSingleDocument({ buffer, filename, documentId, moduleId }) {
+   if (!documentId) throw new Error("documentId is required");
+   if (!buffer || !filename) throw new Error("buffer and filename are required");
+
+   const text = await extractText(buffer, filename);
+   if (text === null) {
+      return { skipped: true, reason: `No text-extraction support for this file type: ${filename}` };
+   }
+   if (text.trim().length === 0) {
+      return { skipped: true, reason: `No readable text found in ${filename}` };
+   }
+
+   const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 500,
+      chunkOverlap: 150,
+   });
+
+   const chunks = await textSplitter.createDocuments([text], [{ source: filename }]);
+
+   const collection = await getCollection();
+
+   // Clear out any chunks left over from a previous ingest of this same
+   // document (e.g. the file was replaced) before adding the new ones.
+   await removeDocumentChunks(documentId, collection);
+
+   const metadata = { source: filename, documentId };
+   if (moduleId) metadata.moduleId = moduleId;
+
+   const ids = chunks.map((_, i) => `doc_${documentId}_chunk_${i}`);
+   await collection.add({
+      ids,
+      documents: chunks.map((c) => c.pageContent),
+      metadatas: chunks.map(() => metadata),
+   });
+
+   return { skipped: false, chunksIngested: chunks.length };
+}
+
+// Bulk seed path — reads every PDF in ./course_materials and replaces the
+// entire collection with their contents. This is the original ingestion
+// logic (still used by `node ingest.js` for manually seeding demo course
+// materials); it is NOT used by the live upload flow anymore, which calls
+// ingestSingleDocument above instead.
 export async function ingestDocuments() {
    const directoryPath = "./course_materials";
    const absolutePath = path.resolve(directoryPath);
@@ -39,7 +161,6 @@ export async function ingestDocuments() {
    const files = fs.readdirSync(directoryPath);
 
    for (const file of files) {
-      // Skip hidden Windows files, temporary Word locks, and macOS system files
       if (file.startsWith("$") || file.startsWith("~") || file.startsWith(".")) {
          continue;
       }
@@ -88,9 +209,7 @@ export async function ingestDocuments() {
    );
 
    console.log("3. Connecting to ChromaDB & local Ollama...");
-   const client = new ChromaClient({ host: "localhost", port: 8000, ssl: false });
-
-   const embedder = new CustomOllamaEmbedder();
+   const collection = await getCollection();
 
    // IMPORTANT: we no longer delete/recreate the collection here.
    // server.js opens a Chroma vectorstore connection once at startup and
@@ -101,11 +220,6 @@ export async function ingestDocuments() {
    // restarted. Instead, we get-or-create the same collection and just
    // clear out its existing documents, so the collection's identity never
    // changes and server.js keeps working without a restart.
-   const collection = await client.getOrCreateCollection({
-      name: "course_collection",
-      embeddingFunction: embedder
-   });
-
    const existing = await collection.get();
    if (existing.ids.length > 0) {
       await collection.delete({ ids: existing.ids });
