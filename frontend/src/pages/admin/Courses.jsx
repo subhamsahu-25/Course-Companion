@@ -84,6 +84,11 @@ export default function AdminCourses({ onPageChange }) {
 
     try {
       await deleteCourse(course._id);
+
+      if (justCreated?._id === course._id) {
+        setJustCreated(null);
+      }
+
       await loadCourses();
     } catch (err) {
       setError(err.message);
