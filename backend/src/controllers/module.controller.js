@@ -7,6 +7,7 @@ import { Course } from "../models/course.model.js";
 import { Question } from "../models/question.model.js";
 import { Answer } from "../models/answer.model.js";
 import { Document } from "../models/document.model.js";
+import { assertCourseAccess } from "../utils/course-access.js";
 
 const createModule = asyncHandler(async (req, res) => {
    const { title, description, course: courseId, order } = req.body;
@@ -42,6 +43,12 @@ const createModule = asyncHandler(async (req, res) => {
 const getModulesByCourse = asyncHandler(async (req, res) => {
    const { id: courseId } = req.params;
 
+   const course = await Course.findById(courseId);
+   if (!course) {
+      throw new ApiError(404, "Course not found");
+   }
+   assertCourseAccess(course, req.user);
+
    const modules = await Module.find({ course: courseId })
       .sort({ order: 1 })
       .populate({ path: "documents", options: { sort: { order: 1 } } })
@@ -56,12 +63,14 @@ const getModuleById = asyncHandler(async (req, res) => {
    const { moduleId } = req.params;
 
    const module = await Module.findById(moduleId)
+      .populate("course")
       .populate({ path: "documents", options: { sort: { order: 1 } } })
       .populate({ path: "questions", options: { sort: { order: 1 } } });
 
    if (!module) {
       throw new ApiError(404, "Module not found");
    }
+   assertCourseAccess(module.course, req.user);
 
    return res
       .status(200)

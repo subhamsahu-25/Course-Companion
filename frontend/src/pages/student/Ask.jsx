@@ -1,45 +1,29 @@
 // frontend/src/pages/student/Ask.jsx
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import {
   askQuestion,
-  getMyAnswer,
-  getMyAnswers,
   getCourses,
   getModulesByCourse,
 } from '../../api/client.js';
 
-const STATUS_LABELS = {
-  pending: 'Awaiting TA review',
-  approved: 'TA-reviewed answer',
-  rejected: 'TA response',
-};
-
-export default function StudentAsk({ initialModuleId }) {
+export default function StudentAsk({ initialModuleId, onPageChange }) {
   const [question, setQuestion] = useState('');
 
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
 
   const [modulesForCourse, setModulesForCourse] = useState([]);
-  const [selectedModuleId, setSelectedModuleId] = useState('');
+  const [selectedModuleId, setSelectedModuleId] = useState(
+    initialModuleId || '',
+  );
   const [loadingModules, setLoadingModules] = useState(false);
 
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
-  // The full, unfiltered history from the backend. What's actually shown
-  // on screen is derived from this + the current course/module selection —
-  // see `visibleHistory` below.
-  const [allAnswers, setAllAnswers] = useState([]);
-  const [loadingHistory, setLoadingHistory] = useState(true);
-
-  const pollRef = useRef(null);
-
   useEffect(() => {
     loadCourses();
-    loadHistory();
-    return () => clearTimeout(pollRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -90,70 +74,17 @@ export default function StudentAsk({ initialModuleId }) {
     }
   }
 
-  async function loadHistory() {
-    setLoadingHistory(true);
-    try {
-      const res = await getMyAnswers();
-      setAllAnswers(res.data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoadingHistory(false);
-    }
-  }
-
-  // Updates one item in place once it's answered, rather than appending —
-  // the optimistic "pending" entry added in submitQuestion already holds
-  // this question's spot in the list.
-  function pollForAnswer(requestId) {
-    getMyAnswer(requestId)
-      .then((res) => {
-        const { status, answer } = res.data;
-
-        if (status === 'pending') {
-          pollRef.current = setTimeout(() => pollForAnswer(requestId), 4000);
-          return;
-        }
-
-        setAllAnswers((old) =>
-          old.map((item) =>
-            item.id === requestId ? { ...item, status, answer } : item,
-          ),
-        );
-      })
-      .catch(() => {
-        // if a lookup fails mid-poll, stop trying rather than looping forever
-      });
-  }
-
   async function submitQuestion(event) {
     event.preventDefault();
     if (!question.trim() || !selectedModuleId) return;
 
     setSubmitting(true);
     setError(null);
+    setSent(false);
 
     try {
-      const res = await askQuestion(question, selectedModuleId);
-      const { request_id } = res.data;
-
-      // Show it in the history immediately as pending, scoped to the
-      // module it was actually asked about, instead of waiting on the
-      // first poll tick or a manual refresh.
-      setAllAnswers((old) => [
-        {
-          id: request_id,
-          moduleId: selectedModuleId,
-          question,
-          status: 'pending',
-          answer: null,
-          createdAt: new Date().toISOString(),
-        },
-        ...old,
-      ]);
-
+      await askQuestion(question, selectedModuleId);
       setSent(true);
-      pollForAnswer(request_id);
       setQuestion('');
     } catch (err) {
       setError(err.message);
@@ -161,18 +92,6 @@ export default function StudentAsk({ initialModuleId }) {
       setSubmitting(false);
     }
   }
-
-  // Strictly scoped: only questions asked about the exact module currently
-  // selected. Nothing from other modules, even in the same course, and
-  // nothing from other courses.
-  const visibleHistory = selectedModuleId
-    ? allAnswers.filter((item) => item.moduleId === selectedModuleId)
-    : [];
-
-  const selectedCourse = courses.find((c) => c._id === selectedCourseId);
-  const selectedModule = modulesForCourse.find(
-    (m) => m._id === selectedModuleId,
-  );
 
   return (
     <div>
@@ -281,80 +200,19 @@ export default function StudentAsk({ initialModuleId }) {
 
       {sent && (
         <div className="mt-4 rounded-lg border border-[#B8D5E4] bg-[#EAF4F8] p-4 text-sm text-[#1D3557]">
-          Your question was submitted to the TA review queue. It'll appear below
-          once reviewed.
+          Your question was submitted to the TA review queue.{' '}
+          {onPageChange && (
+            <button
+              onClick={() =>
+                onPageChange('student-history', { moduleId: selectedModuleId })
+              }
+              className="font-medium text-[#457B9D] hover:underline"
+            >
+              View it in your history
+            </button>
+          )}
         </div>
       )}
-
-      <div className="mt-10">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#457B9D]">
-            {selectedCourse && selectedModule
-              ? `Questions — ${selectedCourse.title} / ${selectedModule.title}`
-              : 'Your questions'}
-          </h2>
-
-          <button
-            onClick={loadHistory}
-            disabled={loadingHistory}
-            className="text-sm text-[#457B9D] hover:underline disabled:opacity-60"
-          >
-            {loadingHistory ? 'Refreshing…' : 'Refresh'}
-          </button>
-        </div>
-
-        <div className="mt-4 space-y-4">
-          {!selectedModuleId && (
-            <p className="text-sm text-[#8AA0AE]">
-              Select a course and module above to see your question history for
-              it.
-            </p>
-          )}
-
-          {selectedModuleId &&
-            visibleHistory.length === 0 &&
-            !loadingHistory && (
-              <p className="text-sm text-[#8AA0AE]">
-                Nothing asked in this module yet — ask a question above.
-              </p>
-            )}
-
-          {visibleHistory.map((item) => (
-            <div
-              key={item.id}
-              className="rounded-xl border border-[#C9D9E3] bg-[#E7F1F6] p-5"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="text-[18px] font-semibold text-[#2B2D42]">
-                  {item.question}
-                </div>
-
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-                    item.status === 'approved'
-                      ? 'bg-green-100 text-green-700'
-                      : item.status === 'rejected'
-                        ? 'bg-red-100 text-red-600'
-                        : 'bg-amber-100 text-amber-700'
-                  }`}
-                >
-                  {STATUS_LABELS[item.status] || item.status}
-                </span>
-              </div>
-
-              {item.status === 'pending' ? (
-                <p className="mt-3 text-[15px] leading-6 text-[#647D8D] italic">
-                  Still being reviewed by a TA.
-                </p>
-              ) : (
-                <p className="mt-3 text-[15px] leading-6 text-[#354F61]">
-                  {item.answer}
-                </p>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

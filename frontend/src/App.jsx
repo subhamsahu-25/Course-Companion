@@ -10,12 +10,15 @@ import StudentDashboard from './pages/student/Dashboard.jsx';
 import StudentCourses from './pages/student/Courses.jsx';
 import StudentModules from './pages/student/Modules.jsx';
 import StudentAsk from './pages/student/Ask.jsx';
+import StudentHistory from './pages/student/History.jsx';   // add this
 
 import ReviewQueue from './pages/ta/ReviewQueue.jsx';
 
 import AdminCourses from './pages/admin/Courses.jsx';
 import AdminModules from './pages/admin/Modules.jsx';
 import AdminUpload from './pages/admin/Upload.jsx';
+
+import JoinCourse from './pages/JoinCourse.jsx';
 
 function defaultPageForRole(role) {
   if (role === 'ta') return 'ta-review';
@@ -104,8 +107,19 @@ export default function App() {
       case 'student-ask':
         return <StudentAsk initialModuleId={selectedModuleId} />;
 
+      case 'student-history': 
+        return <StudentHistory onPageChange={changePage} />;
+
+      case 'student-join':
+        return (
+          <JoinCourse onPageChange={changePage} redirectTo="student-courses" />
+        );
+
       case 'ta-review':
         return <ReviewQueue />;
+
+      case 'ta-join':
+        return <JoinCourse onPageChange={changePage} redirectTo="ta-review" />;
 
       case 'admin-courses':
         return <AdminCourses onPageChange={changePage} />;

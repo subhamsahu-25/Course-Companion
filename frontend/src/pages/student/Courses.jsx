@@ -1,38 +1,40 @@
 // frontend/src/pages/student/Courses.jsx
-import { useState, useEffect } from 'react'
-import { getCourses, getModulesByCourse } from '../../api/client.js'
+import { useState, useEffect } from 'react';
+import { getCourses, getModulesByCourse } from '../../api/client.js';
 
-export default function StudentCourses({ onPageChange }) {
-  const [courses, setCourses] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+export default function StudentCourses({
+  onPageChange,
+  modulesPage = 'student-modules',
+}) {
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadCourses()
-  }, [])
+    loadCourses();
+  }, []);
 
   async function loadCourses() {
-    setLoading(true)
     try {
-      const coursesRes = await getCourses()
+      const coursesRes = await getCourses();
 
       const withModuleCounts = await Promise.all(
         coursesRes.data.map(async (course) => {
-          const modulesRes = await getModulesByCourse(course._id)
-          return { ...course, moduleCount: modulesRes.data.length }
-        })
-      )
+          const modulesRes = await getModulesByCourse(course._id);
+          return { ...course, moduleCount: modulesRes.data.length };
+        }),
+      );
 
-      setCourses(withModuleCounts)
+      setCourses(withModuleCounts);
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading courses...</p>
+    return <p className="text-sm text-[#647D8D]">Loading courses...</p>;
   }
 
   return (
@@ -42,9 +44,7 @@ export default function StudentCourses({ onPageChange }) {
           Course material
         </div>
 
-        <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">
-          Courses
-        </h1>
+        <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">Courses</h1>
 
         <p className="mt-2 text-[17px] text-[#647D8D]">
           Browse a course to see its modules.
@@ -59,17 +59,13 @@ export default function StudentCourses({ onPageChange }) {
 
       <div className="mt-8 space-y-4">
         {courses.length === 0 && !error && (
-          <p className="text-sm text-[#8AA0AE]">
-            No courses available yet.
-          </p>
+          <p className="text-sm text-[#8AA0AE]">No courses available yet.</p>
         )}
 
         {courses.map((course) => (
           <button
             key={course._id}
-            onClick={() =>
-              onPageChange('student-modules', { courseId: course._id })
-            }
+            onClick={() => onPageChange(modulesPage, { courseId: course._id })}
             className="flex w-full flex-col gap-4 rounded-xl border border-[#C9D9E3] bg-[#E7F1F6] p-5 text-left transition hover:border-[#457B9D] sm:flex-row sm:items-center"
           >
             <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-xl text-[#457B9D] shadow-sm">
@@ -88,8 +84,7 @@ export default function StudentCourses({ onPageChange }) {
               )}
 
               <div className="mt-1 text-xs text-[#7390A1]">
-                {course.moduleCount} module
-                {course.moduleCount !== 1 ? 's' : ''}
+                {course.moduleCount} module{course.moduleCount !== 1 ? 's' : ''}
               </div>
             </div>
 
@@ -98,5 +93,5 @@ export default function StudentCourses({ onPageChange }) {
         ))}
       </div>
     </div>
-  )
+  );
 }

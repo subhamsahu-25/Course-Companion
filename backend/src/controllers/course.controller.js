@@ -7,6 +7,7 @@ import { Module } from "../models/module.model.js";
 import { Question } from "../models/question.model.js";
 import { Document } from "../models/document.model.js";
 import { Answer } from "../models/answer.model.js";
+import { assertCourseAccess, generateUniqueJoinCode } from "../utils/course-access.js";
 
 const createCourse = asyncHandler(async (req, res) => {
    const { title, description, tags } = req.body;
@@ -18,12 +19,15 @@ const createCourse = asyncHandler(async (req, res) => {
       throw new ApiError(409, "A course with this title already exists");
    }
 
+   const joinCode = await generateUniqueJoinCode(Course);
+
    const course = await Course.create({
       title,
       slug,
       description,
       tags,
       instructor: req.user._id,
+      joinCode,
    });
 
    return res
@@ -31,10 +35,56 @@ const createCourse = asyncHandler(async (req, res) => {
       .json(new ApiResponse(201, course, "Course created successfully"));
 });
 
+// Lets a student or TA self-enroll with the 5-digit code the
+// instructor/admin shared with them. Which list they're added to
+// (students vs tas) is decided by their existing account role — there's
+// no separate "student code" vs "TA code".
+const joinCourseByCode = asyncHandler(async (req, res) => {
+   const { code } = req.body;
+
+   if (!code || !/^\d{5}$/.test(code)) {
+      throw new ApiError(400, "Enter the 5-digit course code.");
+   }
+
+   const course = await Course.findOne({ joinCode: code });
+   if (!course) {
+      throw new ApiError(404, "No course found with that code.");
+   }
+
+   const userId = req.user._id;
+
+   if (req.user.role === "student") {
+      if (!course.students.some((id) => id.toString() === userId.toString())) {
+         course.students.push(userId);
+         await course.save();
+      }
+   } else if (req.user.role === "ta") {
+      if (!course.tas.some((id) => id.toString() === userId.toString())) {
+         course.tas.push(userId);
+         await course.save();
+      }
+   } else {
+      // admin/instructor already have access without joining — treat as a
+      // harmless no-op rather than an error, so the same form can't
+      // confuse someone about whether it "worked".
+   }
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, course, `Joined "${course.title}"`));
+});
+
 const getAllCourses = asyncHandler(async (req, res) => {
    const filter = {};
-   if (!["admin", "instructor", "ta"].includes(req.user?.role)) {
+
+   // Students and TAs only ever see courses they've joined with a code —
+   // "published" alone no longer implies visible to everyone. Admins and
+   // instructors keep seeing every course, same as before.
+   if (req.user?.role === "student") {
       filter.isPublished = true;
+      filter.students = req.user._id;
+   } else if (req.user?.role === "ta") {
+      filter.tas = req.user._id;
    }
 
    const courses = await Course.find(filter)
@@ -60,6 +110,8 @@ const getCourseById = asyncHandler(async (req, res) => {
    if (!course) {
       throw new ApiError(404, "Course not found");
    }
+
+   assertCourseAccess(course, req.user);
 
    return res
       .status(200)
@@ -134,6 +186,7 @@ const deleteCourse = asyncHandler(async (req, res) => {
 
 export {
    createCourse,
+   joinCourseByCode,
    getAllCourses,
    getCourseById,
    updateCourse,

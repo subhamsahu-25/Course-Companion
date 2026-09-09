@@ -1,10 +1,15 @@
 const studentLinks = [
    ['student-dashboard', 'Dashboard'],
+   ['student-join', 'Join a course'],
    ['student-courses', 'Courses'],
    ['student-ask', 'Ask a question'],
+   ['student-history', 'History'],
 ]
 
-const taLinks = [['ta-review', 'Review queue']]
+const taLinks = [
+   ['ta-review', 'Review queue'],
+   ['ta-join', 'Join a course'],
+]
 
 const adminLinks = [
    ['admin-courses', 'Courses'],

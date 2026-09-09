@@ -1,22 +1,22 @@
 # Summary
 
-Date : 2026-09-05 21:39:11
+Date : 2026-09-10 01:53:42
 
 Directory c:\\PADHAI\\webwiz hackathon\\rag
 
-Total : 4 files,  3935 codes, 23 comments, 47 blanks, all 4005 lines
+Total : 7 files,  4388 codes, 140 comments, 95 blanks, all 4623 lines
 
 Summary / [Details](details.md) / [Diff Summary](diff.md) / [Diff Details](diff-details.md)
 
 ## Languages
 | language | files | code | comment | blank | total |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| JSON | 2 | 3,740 | 0 | 2 | 3,742 |
-| JavaScript | 2 | 195 | 23 | 45 | 263 |
+| JSON | 2 | 3,941 | 0 | 2 | 3,943 |
+| JavaScript | 5 | 447 | 140 | 93 | 680 |
 
 ## Directories
 | path | files | code | comment | blank | total |
 | :--- | ---: | ---: | ---: | ---: | ---: |
-| . | 4 | 3,935 | 23 | 47 | 4,005 |
+| . | 7 | 4,388 | 140 | 95 | 4,623 |
 
 Summary / [Details](details.md) / [Diff Summary](diff.md) / [Diff Details](diff-details.md)

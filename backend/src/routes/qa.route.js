@@ -11,6 +11,7 @@ import {
    getMyAnswer,
    getMyAnswers,
    getStats,
+   getModuleHistory,
 } from "../controllers/qa.controller.js";
 
 router.route("/ask").post(authGuard, askQuestion);
@@ -21,5 +22,6 @@ router.route("/stats").get(authGuard, getStats);
 router.route("/queue").get(authGuard, roleGuard("ta", "admin"), getReviewQueue);
 router.route("/queue/:id/approve").post(authGuard, roleGuard("ta", "admin"), approveQuestion);
 router.route("/queue/:id/reject").post(authGuard, roleGuard("ta", "admin"), rejectQuestion);
+router.route("/history/:moduleId").get(authGuard, roleGuard("ta", "admin"), getModuleHistory);
 
 export default router;

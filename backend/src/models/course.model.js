@@ -29,6 +29,23 @@ const courseSchema = new Schema(
          ref: 'User',
          required: true
       },
+      // 5-digit numeric code, shared by the instructor/admin with students
+      // and TAs so they can self-enroll instead of every course being
+      // visible to every account platform-wide.
+      joinCode: {
+         type: String,
+         required: true,
+         unique: true,
+         index: true
+      },
+      students: [{
+         type: Schema.Types.ObjectId,
+         ref: 'User'
+      }],
+      tas: [{
+         type: Schema.Types.ObjectId,
+         ref: 'User'
+      }],
       modules: [{
          type: Schema.Types.ObjectId,
          ref: 'Module'

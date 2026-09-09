@@ -292,6 +292,17 @@ app.post('/review-queue/purge', async (req, res) => {
     }
 });
 
+// Full history for one module, any status — powers the TA "History"
+// view, where a TA picks a specific module and wants to see everything
+// ever asked in it (pending, approved, and rejected alike), not just
+// what's still awaiting review.
+app.get('/module-history/:moduleId', async (req, res) => {
+    const items = await ReviewQueueItem.find({ moduleId: req.params.moduleId })
+        .sort({ createdAt: -1 })
+        .lean();
+    res.json(items);
+});
+
 // 7. TA-facing: approve a draft, optionally editing it before it goes out.
 app.post('/review-queue/:id/approve', async (req, res) => {
     const item = await ReviewQueueItem.findById(req.params.id);

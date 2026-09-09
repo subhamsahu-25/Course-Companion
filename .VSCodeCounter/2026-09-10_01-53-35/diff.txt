@@ -1,0 +1,128 @@
+Date : 2026-09-10 01:53:35
+Directory : c:\PADHAI\webwiz hackathon\frontend
+Total : 72 files,  1124 codes, -98 comments, -53 blanks, all 973 lines
+
+Languages
++----------------+------------+------------+------------+------------+------------+
+| language       | files      | code       | comment    | blank      | total      |
++----------------+------------+------------+------------+------------+------------+
+| JavaScript JSX |         16 |      2,502 |         79 |        363 |      2,944 |
+| JSON           |          5 |        788 |          0 |         -1 |        787 |
+| Markdown       |          1 |         33 |          0 |         11 |         44 |
+| PostCSS        |          1 |         16 |          0 |          3 |         19 |
+| HTML           |          1 |         12 |          0 |          1 |         13 |
+| Ignore         |          1 |         -2 |          0 |          0 |         -2 |
+| JavaScript     |         47 |     -2,225 |       -177 |       -430 |     -2,832 |
++----------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                  | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                     |         72 |      1,124 |        -98 |        -53 |        973 |
+| . (Files)                                                                             |          6 |      3,204 |          0 |         17 |      3,221 |
+| ..                                                                                    |         47 |     -4,727 |       -193 |       -476 |     -5,396 |
+| ..\backend                                                                            |         47 |     -4,727 |       -193 |       -476 |     -5,396 |
+| ..\backend (Files)                                                                    |          4 |     -2,344 |          0 |         -3 |     -2,347 |
+| ..\backend\scripts                                                                    |          1 |        -29 |        -20 |        -10 |        -59 |
+| ..\backend\src                                                                        |         42 |     -2,354 |       -173 |       -463 |     -2,990 |
+| ..\backend\src (Files)                                                                |          2 |        -50 |         -4 |        -11 |        -65 |
+| ..\backend\src\controllers                                                            |          7 |     -1,062 |        -72 |       -251 |     -1,385 |
+| ..\backend\src\db                                                                     |          1 |        -15 |          0 |         -3 |        -18 |
+| ..\backend\src\middlewares                                                            |          5 |       -144 |        -28 |        -35 |       -207 |
+| ..\backend\src\models                                                                 |          6 |       -397 |        -21 |        -24 |       -442 |
+| ..\backend\src\routes                                                                 |          7 |       -211 |        -20 |        -57 |       -288 |
+| ..\backend\src\services                                                               |          2 |        -70 |         -7 |        -17 |        -94 |
+| ..\backend\src\utils                                                                  |          6 |       -152 |        -15 |        -23 |       -190 |
+| ..\backend\src\validators                                                             |          6 |       -253 |         -6 |        -42 |       -301 |
+| src                                                                                   |         19 |      2,647 |         95 |        406 |      3,148 |
+| src (Files)                                                                           |          3 |        160 |         11 |         35 |        206 |
+| src\api                                                                               |          1 |        103 |         16 |         36 |        155 |
+| src\components                                                                        |          1 |         36 |          0 |          7 |         43 |
+| src\layouts                                                                           |          1 |         58 |          5 |          7 |         70 |
+| src\pages                                                                             |         12 |      2,264 |         63 |        317 |      2,644 |
+| src\pages (Files)                                                                     |          3 |        355 |          9 |         42 |        406 |
+| src\pages\admin                                                                       |          3 |        712 |         10 |        102 |        824 |
+| src\pages\student                                                                     |          5 |        766 |         23 |        117 |        906 |
+| src\pages\ta                                                                          |          1 |        431 |         21 |         56 |        508 |
+| src\utils                                                                             |          1 |         26 |          0 |          4 |         30 |
++---------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| filename                                                                              | language       | code       | comment    | blank      | total      |
++---------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| c:\PADHAI\webwiz hackathon\backend\.prettierignore                                    | Ignore         |         -2 |          0 |          0 |         -2 |
+| c:\PADHAI\webwiz hackathon\backend\.prettierrc                                        | JSON           |        -10 |          0 |         -1 |        -11 |
+| c:\PADHAI\webwiz hackathon\backend\package-lock.json                                  | JSON           |     -2,301 |          0 |         -1 |     -2,302 |
+| c:\PADHAI\webwiz hackathon\backend\package.json                                       | JSON           |        -31 |          0 |         -1 |        -32 |
+| c:\PADHAI\webwiz hackathon\backend\scripts\migrate-soft-delete.js                     | JavaScript     |        -29 |        -20 |        -10 |        -59 |
+| c:\PADHAI\webwiz hackathon\backend\src\app.js                                         | JavaScript     |        -35 |         -4 |         -8 |        -47 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\answer.controller.js               | JavaScript     |       -105 |         -5 |        -27 |       -137 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\auth.controller.js                 | JavaScript     |       -322 |        -16 |        -81 |       -419 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\course.controller.js               | JavaScript     |       -148 |        -11 |        -35 |       -194 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\document.controller.js             | JavaScript     |       -157 |        -19 |        -31 |       -207 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\module.controller.js               | JavaScript     |       -120 |         -2 |        -29 |       -151 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\qa.controller.js                   | JavaScript     |        -82 |        -16 |        -20 |       -118 |
+| c:\PADHAI\webwiz hackathon\backend\src\controllers\question.controller.js             | JavaScript     |       -128 |         -3 |        -28 |       -159 |
+| c:\PADHAI\webwiz hackathon\backend\src\db\db.js                                       | JavaScript     |        -15 |          0 |         -3 |        -18 |
+| c:\PADHAI\webwiz hackathon\backend\src\middlewares\auth.middleware.js                 | JavaScript     |        -34 |        -10 |        -10 |        -54 |
+| c:\PADHAI\webwiz hackathon\backend\src\middlewares\error-handler.middleware.js        | JavaScript     |        -44 |         -8 |        -11 |        -63 |
+| c:\PADHAI\webwiz hackathon\backend\src\middlewares\handle-upload-errors.middleware.js | JavaScript     |        -16 |         -6 |         -2 |        -24 |
+| c:\PADHAI\webwiz hackathon\backend\src\middlewares\upload.middleware.js               | JavaScript     |        -36 |         -2 |         -7 |        -45 |
+| c:\PADHAI\webwiz hackathon\backend\src\middlewares\validator.middleware.js            | JavaScript     |        -14 |         -2 |         -5 |        -21 |
+| c:\PADHAI\webwiz hackathon\backend\src\models\answer.model.js                         | JavaScript     |        -57 |         -1 |         -3 |        -61 |
+| c:\PADHAI\webwiz hackathon\backend\src\models\course.model.js                         | JavaScript     |        -70 |         -4 |         -3 |        -77 |
+| c:\PADHAI\webwiz hackathon\backend\src\models\document.model.js                       | JavaScript     |        -56 |         -5 |         -3 |        -64 |
+| c:\PADHAI\webwiz hackathon\backend\src\models\module.model.js                         | JavaScript     |        -50 |         -3 |         -3 |        -56 |
+| c:\PADHAI\webwiz hackathon\backend\src\models\question.model.js                       | JavaScript     |        -51 |         -1 |         -3 |        -55 |
+| c:\PADHAI\webwiz hackathon\backend\src\models\user.model.js                           | JavaScript     |       -113 |         -7 |         -9 |       -129 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\answer.route.js                         | JavaScript     |        -27 |         -5 |         -8 |        -40 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\auth.route.js                           | JavaScript     |        -34 |         -2 |        -15 |        -51 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\course.route.js                         | JavaScript     |        -35 |         -4 |         -8 |        -47 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\document.route.js                       | JavaScript     |        -38 |         -2 |         -7 |        -47 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\module.route.js                         | JavaScript     |        -32 |         -2 |         -7 |        -41 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\qa.route.js                             | JavaScript     |        -20 |         -1 |         -4 |        -25 |
+| c:\PADHAI\webwiz hackathon\backend\src\routes\question.route.js                       | JavaScript     |        -25 |         -4 |         -8 |        -37 |
+| c:\PADHAI\webwiz hackathon\backend\src\server.js                                      | JavaScript     |        -15 |          0 |         -3 |        -18 |
+| c:\PADHAI\webwiz hackathon\backend\src\services\answer-workflow.service.js            | JavaScript     |        -27 |         -1 |         -5 |        -33 |
+| c:\PADHAI\webwiz hackathon\backend\src\services\rag.service.js                        | JavaScript     |        -43 |         -6 |        -12 |        -61 |
+| c:\PADHAI\webwiz hackathon\backend\src\utils\api-error.js                             | JavaScript     |        -23 |          0 |         -2 |        -25 |
+| c:\PADHAI\webwiz hackathon\backend\src\utils\api-response.js                          | JavaScript     |         -9 |          0 |         -1 |        -10 |
+| c:\PADHAI\webwiz hackathon\backend\src\utils\async-handler.js                         | JavaScript     |         -8 |          0 |         -1 |         -9 |
+| c:\PADHAI\webwiz hackathon\backend\src\utils\constants.js                             | JavaScript     |        -12 |         -1 |         -3 |        -16 |
+| c:\PADHAI\webwiz hackathon\backend\src\utils\course-access.js                         | JavaScript     |        -32 |        -14 |         -8 |        -54 |
+| c:\PADHAI\webwiz hackathon\backend\src\utils\mail.js                                  | JavaScript     |        -68 |          0 |         -8 |        -76 |
+| c:\PADHAI\webwiz hackathon\backend\src\validators\answer.validator.js                 | JavaScript     |        -32 |         -2 |         -6 |        -40 |
+| c:\PADHAI\webwiz hackathon\backend\src\validators\auth.validator.js                   | JavaScript     |        -82 |          0 |        -10 |        -92 |
+| c:\PADHAI\webwiz hackathon\backend\src\validators\course.validator.js                 | JavaScript     |        -50 |          0 |         -9 |        -59 |
+| c:\PADHAI\webwiz hackathon\backend\src\validators\document.validator.js               | JavaScript     |        -23 |         -4 |         -4 |        -31 |
+| c:\PADHAI\webwiz hackathon\backend\src\validators\module.validator.js                 | JavaScript     |        -27 |          0 |         -5 |        -32 |
+| c:\PADHAI\webwiz hackathon\backend\src\validators\question.validator.js               | JavaScript     |        -39 |          0 |         -8 |        -47 |
+| c:\PADHAI\webwiz hackathon\frontend\README.md                                         | Markdown       |         33 |          0 |         11 |         44 |
+| c:\PADHAI\webwiz hackathon\frontend\eslint.config.js                                  | JavaScript     |         20 |          0 |          2 |         22 |
+| c:\PADHAI\webwiz hackathon\frontend\index.html                                        | HTML           |         12 |          0 |          1 |         13 |
+| c:\PADHAI\webwiz hackathon\frontend\package-lock.json                                 | JSON           |      3,101 |          0 |          1 |      3,102 |
+| c:\PADHAI\webwiz hackathon\frontend\package.json                                      | JSON           |         29 |          0 |          1 |         30 |
+| c:\PADHAI\webwiz hackathon\frontend\src\App.jsx                                       | JavaScript JSX |        135 |         11 |         31 |        177 |
+| c:\PADHAI\webwiz hackathon\frontend\src\api\client.js                                 | JavaScript     |        103 |         16 |         36 |        155 |
+| c:\PADHAI\webwiz hackathon\frontend\src\components\Sidebar.jsx                        | JavaScript JSX |         36 |          0 |          7 |         43 |
+| c:\PADHAI\webwiz hackathon\frontend\src\index.css                                     | PostCSS        |         16 |          0 |          3 |         19 |
+| c:\PADHAI\webwiz hackathon\frontend\src\layouts\RoleLayout.jsx                        | JavaScript JSX |         58 |          5 |          7 |         70 |
+| c:\PADHAI\webwiz hackathon\frontend\src\main.jsx                                      | JavaScript JSX |          9 |          0 |          1 |         10 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\JoinCourse.jsx                          | JavaScript JSX |         85 |          7 |         14 |        106 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\Login.jsx                               | JavaScript JSX |        106 |          1 |         14 |        121 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\Signup.jsx                              | JavaScript JSX |        164 |          1 |         14 |        179 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Courses.jsx                       | JavaScript JSX |        201 |          4 |         30 |        235 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Modules.jsx                       | JavaScript JSX |        240 |          3 |         32 |        275 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Upload.jsx                        | JavaScript JSX |        271 |          3 |         40 |        314 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Ask.jsx                         | JavaScript JSX |        183 |          9 |         27 |        219 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Courses.jsx                     | JavaScript JSX |         80 |          1 |         17 |         98 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Dashboard.jsx                   | JavaScript JSX |         89 |          1 |         15 |        105 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\History.jsx                     | JavaScript JSX |        243 |          9 |         33 |        285 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Modules.jsx                     | JavaScript JSX |        171 |          3 |         25 |        199 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\ta\ReviewQueue.jsx                      | JavaScript JSX |        431 |         21 |         56 |        508 |
+| c:\PADHAI\webwiz hackathon\frontend\src\utils\roleLinks.js                            | JavaScript     |         26 |          0 |          4 |         30 |
+| c:\PADHAI\webwiz hackathon\frontend\vite.config.js                                    | JavaScript     |          9 |          0 |          1 |         10 |
+| Total                                                                                 |                |      1,124 |        -98 |        -53 |        973 |
++---------------------------------------------------------------------------------------+----------------+------------+------------+------------+------------+

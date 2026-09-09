@@ -71,6 +71,15 @@ export const updateCourse = (courseId, updates) =>
 export const deleteCourse = (courseId) =>
   request(`/courses/${courseId}`, { method: 'DELETE' })
 
+// Joins the caller into a course via its 5-digit code. Which list they
+// land in (students vs tas) is decided server-side from their own account
+// role — this call doesn't need to know or pass that.
+export const joinCourse = (code) =>
+  request('/courses/join', {
+    method: 'POST',
+    body: JSON.stringify({ code }),
+  })
+
 // ---- Modules ---------------------------------------------------------------
 
 export const getModulesByCourse = (courseId) =>
@@ -131,6 +140,8 @@ export const getMyAnswers = () => request('/qa/my-answers')
 export const getStats = () => request('/qa/stats')
 
 export const getReviewQueue = () => request('/qa/queue')
+
+export const getModuleHistory = (moduleId) => request(`/qa/history/${moduleId}`)
 
 export const approveAnswer = (id, editedAnswer) =>
   request(`/qa/queue/${id}/approve`, {

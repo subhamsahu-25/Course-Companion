@@ -58,4 +58,31 @@ const getMyAnswers = (studentId) => ragRequest(`/my-answers/${studentId}`);
 
 const getStats = (studentId) => ragRequest(`/stats/${studentId}`);
 
-export { submitQuestion, getReviewQueue, approveAnswer, rejectAnswer, getMyAnswer, getMyAnswers, getStats, ingestDocument, removeIngestedDocument };
+// Purges every Q&A history item tied to any of the given modules. Used
+// when a course is hard-deleted — the rag service owns ReviewQueueItem in
+// its own MongoDB connection, so the backend can't delete these rows
+// directly and has to ask the rag service to do it.
+const purgeReviewQueueForModules = (moduleIds) =>
+   ragRequest("/review-queue/purge", {
+      method: "POST",
+      body: JSON.stringify({ moduleIds }),
+   });
+
+// Every question ever asked in a module, any status — used by the TA
+// "History" view, unlike /review-queue which only ever returns pending
+// items.
+const getModuleHistory = (moduleId) => ragRequest(`/module-history/${moduleId}`);
+
+export {
+   submitQuestion,
+   getReviewQueue,
+   approveAnswer,
+   rejectAnswer,
+   getMyAnswer,
+   getMyAnswers,
+   getStats,
+   ingestDocument,
+   removeIngestedDocument,
+   purgeReviewQueueForModules,
+   getModuleHistory,
+};

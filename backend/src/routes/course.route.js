@@ -4,6 +4,7 @@ const router = Router();
 
 import {
    createCourse,
+   joinCourseByCode,
    getAllCourses,
    getCourseById,
    updateCourse,
@@ -19,9 +20,12 @@ import {
    updateCourseValidator
 } from "../validators/course.validator.js";
 
-// public — anyone can browse published courses
+// students/TAs must join with a code first — see getAllCourses /
+// getCourseById in the controller for the enrollment check.
 router.route("/").get(authGuard, getAllCourses);
 router.route("/:id").get(authGuard, courseIdParamValidator(), validate, getCourseById);
+
+router.route("/join").post(authGuard, joinCourseByCode);
 
 // secure — instructor/admin only
 router
@@ -34,7 +38,7 @@ router
       authGuard,
       roleGuard("instructor", "admin"),
       courseIdParamValidator(),
-      updateCourseValidator(), 
+      updateCourseValidator(),
       validate,
       updateCourse
    )

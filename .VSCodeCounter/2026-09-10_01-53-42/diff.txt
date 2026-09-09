@@ -1,0 +1,76 @@
+Date : 2026-09-10 01:53:42
+Directory : c:\PADHAI\webwiz hackathon\rag
+Total : 32 files,  -1463 codes, 45 comments, -328 blanks, all -1746 lines
+
+Languages
++----------------+------------+------------+------------+------------+------------+
+| language       | files      | code       | comment    | blank      | total      |
++----------------+------------+------------+------------+------------+------------+
+| JSON           |          4 |        811 |          0 |          0 |        811 |
+| JavaScript     |          9 |        289 |        124 |         50 |        463 |
+| HTML           |          1 |        -12 |          0 |         -1 |        -13 |
+| PostCSS        |          1 |        -16 |          0 |         -3 |        -19 |
+| Markdown       |          1 |        -33 |          0 |        -11 |        -44 |
+| JavaScript JSX |         16 |     -2,502 |        -79 |       -363 |     -2,944 |
++----------------+------------+------------+------------+------------+------------+
+
+Directories
++---------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                | files      | code       | comment    | blank      | total      |
++---------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                   |         32 |     -1,463 |         45 |       -328 |     -1,746 |
+| . (Files)                                                           |          7 |      4,388 |        140 |         95 |      4,623 |
+| ..                                                                  |         25 |     -5,851 |        -95 |       -423 |     -6,369 |
+| ..\frontend                                                         |         25 |     -5,851 |        -95 |       -423 |     -6,369 |
+| ..\frontend (Files)                                                 |          6 |     -3,204 |          0 |        -17 |     -3,221 |
+| ..\frontend\src                                                     |         19 |     -2,647 |        -95 |       -406 |     -3,148 |
+| ..\frontend\src (Files)                                             |          3 |       -160 |        -11 |        -35 |       -206 |
+| ..\frontend\src\api                                                 |          1 |       -103 |        -16 |        -36 |       -155 |
+| ..\frontend\src\components                                          |          1 |        -36 |          0 |         -7 |        -43 |
+| ..\frontend\src\layouts                                             |          1 |        -58 |         -5 |         -7 |        -70 |
+| ..\frontend\src\pages                                               |         12 |     -2,264 |        -63 |       -317 |     -2,644 |
+| ..\frontend\src\pages (Files)                                       |          3 |       -355 |         -9 |        -42 |       -406 |
+| ..\frontend\src\pages\admin                                         |          3 |       -712 |        -10 |       -102 |       -824 |
+| ..\frontend\src\pages\student                                       |          5 |       -766 |        -23 |       -117 |       -906 |
+| ..\frontend\src\pages\ta                                            |          1 |       -431 |        -21 |        -56 |       -508 |
+| ..\frontend\src\utils                                               |          1 |        -26 |          0 |         -4 |        -30 |
++---------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++---------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| filename                                                            | language       | code       | comment    | blank      | total      |
++---------------------------------------------------------------------+----------------+------------+------------+------------+------------+
+| c:\PADHAI\webwiz hackathon\frontend\README.md                       | Markdown       |        -33 |          0 |        -11 |        -44 |
+| c:\PADHAI\webwiz hackathon\frontend\eslint.config.js                | JavaScript     |        -20 |          0 |         -2 |        -22 |
+| c:\PADHAI\webwiz hackathon\frontend\index.html                      | HTML           |        -12 |          0 |         -1 |        -13 |
+| c:\PADHAI\webwiz hackathon\frontend\package-lock.json               | JSON           |     -3,101 |          0 |         -1 |     -3,102 |
+| c:\PADHAI\webwiz hackathon\frontend\package.json                    | JSON           |        -29 |          0 |         -1 |        -30 |
+| c:\PADHAI\webwiz hackathon\frontend\src\App.jsx                     | JavaScript JSX |       -135 |        -11 |        -31 |       -177 |
+| c:\PADHAI\webwiz hackathon\frontend\src\api\client.js               | JavaScript     |       -103 |        -16 |        -36 |       -155 |
+| c:\PADHAI\webwiz hackathon\frontend\src\components\Sidebar.jsx      | JavaScript JSX |        -36 |          0 |         -7 |        -43 |
+| c:\PADHAI\webwiz hackathon\frontend\src\index.css                   | PostCSS        |        -16 |          0 |         -3 |        -19 |
+| c:\PADHAI\webwiz hackathon\frontend\src\layouts\RoleLayout.jsx      | JavaScript JSX |        -58 |         -5 |         -7 |        -70 |
+| c:\PADHAI\webwiz hackathon\frontend\src\main.jsx                    | JavaScript JSX |         -9 |          0 |         -1 |        -10 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\JoinCourse.jsx        | JavaScript JSX |        -85 |         -7 |        -14 |       -106 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\Login.jsx             | JavaScript JSX |       -106 |         -1 |        -14 |       -121 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\Signup.jsx            | JavaScript JSX |       -164 |         -1 |        -14 |       -179 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Courses.jsx     | JavaScript JSX |       -201 |         -4 |        -30 |       -235 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Modules.jsx     | JavaScript JSX |       -240 |         -3 |        -32 |       -275 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\admin\Upload.jsx      | JavaScript JSX |       -271 |         -3 |        -40 |       -314 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Ask.jsx       | JavaScript JSX |       -183 |         -9 |        -27 |       -219 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Courses.jsx   | JavaScript JSX |        -80 |         -1 |        -17 |        -98 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Dashboard.jsx | JavaScript JSX |        -89 |         -1 |        -15 |       -105 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\History.jsx   | JavaScript JSX |       -243 |         -9 |        -33 |       -285 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\student\Modules.jsx   | JavaScript JSX |       -171 |         -3 |        -25 |       -199 |
+| c:\PADHAI\webwiz hackathon\frontend\src\pages\ta\ReviewQueue.jsx    | JavaScript JSX |       -431 |        -21 |        -56 |       -508 |
+| c:\PADHAI\webwiz hackathon\frontend\src\utils\roleLinks.js          | JavaScript     |        -26 |          0 |         -4 |        -30 |
+| c:\PADHAI\webwiz hackathon\frontend\vite.config.js                  | JavaScript     |         -9 |          0 |         -1 |        -10 |
+| c:\PADHAI\webwiz hackathon\rag\checkCollection.js                   | JavaScript     |         24 |          0 |          3 |         27 |
+| c:\PADHAI\webwiz hackathon\rag\checkRetrieval.js                    | JavaScript     |         28 |          0 |          5 |         33 |
+| c:\PADHAI\webwiz hackathon\rag\ingest-logic.js                      | JavaScript     |        162 |         50 |         35 |        247 |
+| c:\PADHAI\webwiz hackathon\rag\ingest.js                            | JavaScript     |          3 |          1 |          1 |          5 |
+| c:\PADHAI\webwiz hackathon\rag\package-lock.json                    | JSON           |      3,907 |          0 |          1 |      3,908 |
+| c:\PADHAI\webwiz hackathon\rag\package.json                         | JSON           |         34 |          0 |          1 |         35 |
+| c:\PADHAI\webwiz hackathon\rag\server.js                            | JavaScript     |        230 |         89 |         49 |        368 |
+| Total                                                               |                |     -1,463 |         45 |       -328 |     -1,746 |
++---------------------------------------------------------------------+----------------+------------+------------+------------+------------+

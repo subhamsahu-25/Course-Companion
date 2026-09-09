@@ -8,6 +8,7 @@ import { Document } from "../models/document.model.js";
 import { Module } from "../models/module.model.js";
 import { ALLOWED_MIME_TYPES } from "../middlewares/upload.middleware.js";
 import * as ragService from "../services/rag.service.js";
+import { assertCourseAccess } from "../utils/course-access.js";
 
 // Only these produce plain text the rag service knows how to chunk today.
 // Other types (video/image/link/etc.) are stored and streamable but never
@@ -91,6 +92,12 @@ const uploadDocument = asyncHandler(async (req, res) => {
 const getDocumentsByModule = asyncHandler(async (req, res) => {
    const { moduleId } = req.params;
 
+   const module = await Module.findById(moduleId).populate("course");
+   if (!module) {
+      throw new ApiError(404, "Module not found");
+   }
+   assertCourseAccess(module.course, req.user);
+
    const documents = await Document.find({ module: moduleId })
       .sort({ order: 1 })
       .lean();
@@ -103,10 +110,14 @@ const getDocumentsByModule = asyncHandler(async (req, res) => {
 const getDocumentById = asyncHandler(async (req, res) => {
    const { id } = req.params;
 
-   const document = await Document.findById(id);
+   const document = await Document.findById(id).populate({
+      path: "module",
+      populate: { path: "course" },
+   });
    if (!document) {
       throw new ApiError(404, "Document not found");
    }
+   assertCourseAccess(document.module.course, req.user);
 
    return res
       .status(200)
@@ -116,10 +127,14 @@ const getDocumentById = asyncHandler(async (req, res) => {
 const streamDocumentFile = asyncHandler(async (req, res) => {
    const { id } = req.params;
 
-   const document = await Document.findById(id);
+   const document = await Document.findById(id).populate({
+      path: "module",
+      populate: { path: "course" },
+   });
    if (!document?.url) {
       throw new ApiError(404, "Document not found");
    }
+   assertCourseAccess(document.module.course, req.user);
 
    const filename = path.basename(document.url);
    const filePath = path.resolve("uploads", filename);

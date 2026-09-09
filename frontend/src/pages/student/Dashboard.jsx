@@ -1,49 +1,27 @@
 // frontend/src/pages/student/Dashboard.jsx
-import { useState, useEffect } from 'react'
-import { getCourses, getModulesByCourse, getStats } from '../../api/client.js'
-
-const cardColors = ['#1D3557', '#457B9D', '#6C9BB5', '#8AAFC4']
+import { useState, useEffect } from 'react';
+import { getStats } from '../../api/client.js';
 
 export default function StudentDashboard({ onPageChange }) {
-  const [courses, setCourses] = useState([])
-  const [stats, setStats] = useState(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(null)
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    loadDashboard()
-  }, [])
+    loadStats();
+  }, []);
 
-  async function loadDashboard() {
+  async function loadStats() {
+    setLoading(true);
+    setError(null);
     try {
-      const [coursesRes, statsRes] = await Promise.all([
-        getCourses(),
-        getStats(),
-      ])
-
-      const withModuleCounts = await Promise.all(
-        coursesRes.data.map(async (course, i) => {
-          const modulesRes = await getModulesByCourse(course._id)
-          return {
-            id: course._id,
-            name: course.title,
-            moduleCount: modulesRes.data.length,
-            color: cardColors[i % cardColors.length],
-          }
-        })
-      )
-
-      setCourses(withModuleCounts)
-      setStats(statsRes.data)
+      const res = await getStats();
+      setStats(res.data);
     } catch (err) {
-      setError(err.message)
+      setError(err.message);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
-
-  if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading your dashboard...</p>
   }
 
   return (
@@ -58,7 +36,7 @@ export default function StudentDashboard({ onPageChange }) {
         </h1>
 
         <p className="mt-1 text-[17px] text-[#647D8D]">
-          Your courses and how your questions have been going.
+          Your questions across the courses you're currently enrolled in.
         </p>
       </div>
 
@@ -68,72 +46,46 @@ export default function StudentDashboard({ onPageChange }) {
         </div>
       )}
 
-      {stats && (
-        <div className="mt-8 grid grid-cols-3 gap-3 sm:gap-5">
-          <div className="rounded-xl border border-[#D9E1E7] bg-white p-4 text-center sm:p-5">
-            <div className="text-[27px] font-bold text-[#1D3557]">
-              {stats.total}
-            </div>
-            <div className="mt-1 text-xs text-[#647D8D] sm:text-sm">
-              questions asked
-            </div>
-          </div>
-
-          <div className="rounded-xl border border-[#D9E1E7] bg-white p-4 text-center sm:p-5">
-            <div className="text-[27px] font-bold text-[#1D3557]">
-              {stats.approved}
-            </div>
-            <div className="mt-1 text-xs text-[#647D8D] sm:text-sm">
-              answered
+      {loading ? (
+        <p className="mt-8 text-sm text-[#647D8D]">Loading...</p>
+      ) : (
+        <div className="mt-8 grid gap-5 sm:grid-cols-3">
+          <div className="rounded-2xl bg-[#1D3557] p-6 text-white shadow-sm">
+            <div className="text-[40px] font-bold">{stats?.total ?? 0}</div>
+            <div className="mt-1 text-[15px] text-white/85">
+              Questions asked
             </div>
           </div>
 
-          <div className="rounded-xl border border-[#D9E1E7] bg-white p-4 text-center sm:p-5">
-            <div className="text-[27px] font-bold text-[#1D3557]">
-              {stats.pending}
-            </div>
-            <div className="mt-1 text-xs text-[#647D8D] sm:text-sm">
-              pending review
+          <div className="rounded-2xl bg-[#457B9D] p-6 text-white shadow-sm">
+            <div className="text-[40px] font-bold">{stats?.approved ?? 0}</div>
+            <div className="mt-1 text-[15px] text-white/85">Answered</div>
+          </div>
+
+          <div className="rounded-2xl bg-[#6C9BB5] p-6 text-white shadow-sm">
+            <div className="text-[40px] font-bold">{stats?.pending ?? 0}</div>
+            <div className="mt-1 text-[15px] text-white/85">
+              Awaiting TA review
             </div>
           </div>
         </div>
       )}
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
-        {courses.length === 0 && (
-          <p className="text-sm text-[#8AA0AE]">
-            No courses available yet.
-          </p>
-        )}
-
-        {courses.map((course) => (
-          <button
-            key={course.id}
-            onClick={() =>
-              onPageChange('student-modules', { courseId: course.id })
-            }
-            className="rounded-2xl p-6 text-left text-white shadow-sm transition hover:-translate-y-0.5"
-            style={{ backgroundColor: course.color }}
-          >
-            <div className="text-[21px] font-semibold">{course.name}</div>
-
-            <p className="mt-2 text-[15px] text-white/85">
-              {course.moduleCount} module
-              {course.moduleCount !== 1 ? 's' : ''}
-            </p>
-
-            <div className="mt-5 text-sm text-white/80">
-              Browse modules →
-            </div>
-          </button>
-        ))}
-
         <button
           onClick={() => onPageChange('student-courses')}
-          className="min-h-37.5 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#457B9D] transition hover:border-[#457B9D] hover:bg-[#F5F9FB]"
+          className="min-h-30 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#457B9D] transition hover:border-[#457B9D] hover:bg-[#F5F9FB]"
+        >
+          <div className="text-2xl">→</div>
+          <div className="mt-2">Browse your courses</div>
+        </button>
+
+        <button
+          onClick={() => onPageChange('student-ask')}
+          className="min-h-30 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#457B9D] transition hover:border-[#457B9D] hover:bg-[#F5F9FB]"
         >
           <div className="text-2xl">+</div>
-          <div className="mt-2">Browse all courses</div>
+          <div className="mt-2">Ask a question</div>
         </button>
       </div>
 
@@ -148,5 +100,5 @@ export default function StudentDashboard({ onPageChange }) {
         </p>
       </div>
     </div>
-  )
+  );
 }
