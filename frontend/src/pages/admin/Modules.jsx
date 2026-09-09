@@ -231,7 +231,9 @@ export default function AdminModules({ courseId, onPageChange }) {
                 </div>
 
                 <button
-                  onClick={() => onPageChange('admin-upload')}
+                  onClick={() =>
+                    onPageChange('admin-upload', { moduleId: mod._id })
+                  }
                   className="rounded-lg bg-[#F1F5F8] p-4 text-left transition hover:bg-[#E7F1F6]"
                 >
                   <div className="text-[27px] font-bold text-[#1D3557]">+</div>
