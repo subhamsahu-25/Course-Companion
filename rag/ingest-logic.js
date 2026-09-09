@@ -3,29 +3,36 @@ import path from 'path';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { ChromaClient } from "chromadb";
 import { PDFParse } from "pdf-parse";
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 
 const COLLECTION_NAME = "course_collection";
 
-class CustomOllamaEmbedder {
-   constructor(baseUrl) {
-      this.baseUrl = baseUrl || process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+// Swapped from CustomOllamaEmbedder to Gemini's embedding model. This MUST
+// stay in sync with whatever embeds queries at search time (see the
+// `embeddings` client in server.js) — if ingestion and querying use
+// different embedding models, the resulting vectors live in different
+// spaces and similarity search silently returns garbage.
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+   console.error("GEMINI_API_KEY is not set — refusing to start.");
+   process.exit(1);
+}
+
+class GeminiChromaEmbedder {
+   constructor() {
+      this.client = new GoogleGenerativeAIEmbeddings({
+         apiKey: GEMINI_API_KEY,
+         // Must match the model used in server.js at query time — see the
+         // comment there for why text-embedding-004 was replaced.
+         model: "gemini-embedding-001",
+      });
    }
 
+   // Chroma's JS client expects an embedding function with this exact
+   // `generate(texts)` shape, so we keep the method name even though the
+   // underlying call is now LangChain's `embedDocuments`.
    async generate(texts) {
-      const embeddings = [];
-      for (const text of texts) {
-         const response = await fetch(`${this.baseUrl}/api/embeddings`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-               model: "nomic-embed-text",
-               prompt: text
-            })
-         });
-         const data = await response.json();
-         embeddings.push(data.embedding);
-      }
-      return embeddings;
+      return this.client.embedDocuments(texts);
    }
 }
 
@@ -46,7 +53,7 @@ function getChromaClient() {
 
 async function getCollection() {
    const client = getChromaClient();
-   const embedder = new CustomOllamaEmbedder();
+   const embedder = new GeminiChromaEmbedder();
    return client.getOrCreateCollection({
       name: COLLECTION_NAME,
       embeddingFunction: embedder,
@@ -208,7 +215,7 @@ export async function ingestDocuments() {
       documents.map(doc => doc.metadata)
    );
 
-   console.log("3. Connecting to ChromaDB & local Ollama...");
+   console.log("3. Connecting to ChromaDB & Gemini...");
    const collection = await getCollection();
 
    // IMPORTANT: we no longer delete/recreate the collection here.

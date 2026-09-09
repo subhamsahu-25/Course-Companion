@@ -5,8 +5,9 @@ import { PromptTemplate } from "@langchain/core/prompts";
 import { StringOutputParser } from "@langchain/core/output_parsers";
 import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables";
 
-// Local Ollama AI modules
-import { ChatOllama, OllamaEmbeddings } from "@langchain/ollama";
+// Gemini AI modules (swapped from local Ollama — free hosted API, no local
+// model process to keep running once this service is deployed)
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 
 // Connection to the external Vector Database
 import { Chroma } from "@langchain/community/vectorstores/chroma";
@@ -54,7 +55,11 @@ const reviewQueueItemSchema = new mongoose.Schema(
         // module a given question was even about.
         moduleId: { type: String, default: null, index: true },
         question: { type: String, required: true },
-        draftAnswer: { type: String, required: true },
+        // Starts empty and is filled in once generation finishes (see
+        // /submit-question below) — the student no longer waits on the LLM
+        // call, so a record can briefly exist with no draft yet.
+        draftAnswer: { type: String, default: "" },
+        sources: { type: [String], default: [] },
         status: {
             type: String,
             enum: ["pending", "approved", "rejected"],
@@ -69,18 +74,31 @@ reviewQueueItemSchema.index({ studentId: 1, createdAt: -1 });
 
 const ReviewQueueItem = mongoose.model("ReviewQueueItem", reviewQueueItemSchema);
 
-// 1. Initialize local Ollama AI
-const OLLAMA_BASE_URL = process.env.OLLAMA_BASE_URL || "http://localhost:11434";
+// 1. Initialize Gemini AI
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+    console.error("GEMINI_API_KEY is not set — refusing to start.");
+    process.exit(1);
+}
 
-const embeddings = new OllamaEmbeddings({
-    model: "nomic-embed-text",
-    baseUrl: OLLAMA_BASE_URL
+const embeddings = new GoogleGenerativeAIEmbeddings({
+    apiKey: GEMINI_API_KEY,
+    // text-embedding-004 was shut down by Google on Jan 14, 2026 (that's
+    // the 404 you may have seen). gemini-embedding-001 is the current
+    // replacement — note it outputs 3072-dim vectors instead of 768, so
+    // this MUST match whatever ingest-logic.js uses too, or retrieval
+    // breaks silently.
+    model: "gemini-embedding-001",
 });
 
-const llm = new ChatOllama({
-    model: "llama3",
+const llm = new ChatGoogleGenerativeAI({
+    apiKey: GEMINI_API_KEY,
+    // gemini-2.0-flash was shut down by Google on June 1, 2026. Using the
+    // lightweight 3.1 Flash-Lite here since this call is just "answer from
+    // retrieved chunks" — no heavy reasoning needed. Swap to
+    // "gemini-3.6-flash" if answer quality needs to go up.
+    model: "gemini-3.1-flash-lite",
     temperature: 0,
-    baseUrl: OLLAMA_BASE_URL
 });
 
 // 2. Connect to the existing Vector Database
@@ -103,9 +121,13 @@ const getRetriever = (moduleId) =>
 
 // 3. RAG Pipeline Configuration
 const promptTemplate = PromptTemplate.fromTemplate(`
-You are a helpful teaching assistant. Answer the student's question using ONLY the following context. 
-If the answer is not in the context, say "I don't know."
-Always include citations to the context chunks you used (e.g., [Chunk 1]).
+You are a helpful teaching assistant. Answer the student's question using ONLY the following context.
+
+Rules:
+- Write the answer as plain, direct prose a student would read.
+- Do NOT explain your reasoning, do NOT mention chunk numbers or which chunks you used, do NOT add any notes about your process.
+- If the answer is not in the context, respond with exactly: "I don't know."
+- After the answer, on a new line, list only the chunk numbers you drew from, in this exact format: SOURCES: 1, 3
 
 Context: {context}
 
@@ -115,6 +137,53 @@ Answer:
 `);
 
 const formatDocs = (docs) => docs.map((doc, i) => `Chunk ${i + 1}: ${doc.pageContent}`).join("\n\n");
+
+// Splits the LLM's raw completion into the clean prose answer and a
+// separate list of cited chunk numbers, so the "SOURCES: 1, 3" line the
+// prompt asks for never ends up shown to students as part of the answer
+// text itself.
+function splitAnswerAndSources(raw) {
+    const match = raw.match(/\n?SOURCES:\s*(.+)$/i);
+    if (!match) return { answer: raw.trim(), sources: [] };
+
+    const answer = raw.slice(0, match.index).trim();
+    const sources = match[1]
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+
+    return { answer, sources };
+}
+
+// Runs retrieval + generation for a single queue item and saves the result.
+// Pulled out of the route handler so /submit-question can fire this off
+// without the student's request waiting on it.
+async function generateDraftAnswer(item) {
+    try {
+        const ragChain = RunnableSequence.from([
+            {
+                context: getRetriever(item.moduleId).pipe(formatDocs),
+                question: new RunnablePassthrough()
+            },
+            promptTemplate,
+            llm,
+            new StringOutputParser()
+        ]);
+
+        const rawAnswer = await ragChain.invoke(item.question);
+        const { answer: draftAnswer, sources } = splitAnswerAndSources(rawAnswer);
+
+        item.draftAnswer = draftAnswer;
+        item.sources = sources;
+        await item.save();
+    } catch (error) {
+        console.error(`Error generating draft answer for ${item._id}:`, error);
+        // Leave draftAnswer empty rather than crashing — the item just
+        // stays invisible to the TA queue (see the /review-queue filter)
+        // until someone notices and investigates, instead of showing a
+        // broken/half-written draft.
+    }
+}
 
 // 3.5 Ingestion — called by the backend right after a document is
 // uploaded (or deleted), so the vector store actually stays in sync with
@@ -158,31 +227,20 @@ app.delete('/ingest/:documentId', async (req, res) => {
 // MongoDB via ReviewQueueItem so it survives restarts/deploys.
 
 // 5. Student-facing: submit a question.
-// Runs the RAG pipeline, but only returns a request id + status —
-// never the draft itself.
+// Responds as soon as the question is saved — generation runs afterward
+// and fills in draftAnswer once it's done. The student was always waiting
+// on nothing they could see (drafts never reach them unapproved), so there
+// was no reason to block the response on the LLM call.
 app.post('/submit-question', async (req, res) => {
     try {
         const { student_id, question, module_id } = req.body;
 
         if (!question) return res.status(400).json({ error: "Question is required." });
 
-        const ragChain = RunnableSequence.from([
-            {
-                context: getRetriever(module_id).pipe(formatDocs),
-                question: new RunnablePassthrough()
-            },
-            promptTemplate,
-            llm,
-            new StringOutputParser()
-        ]);
-
-        const draftAnswer = await ragChain.invoke(question);
-
         const item = await ReviewQueueItem.create({
             studentId: student_id ?? null,
             moduleId: module_id ?? null,
             question,
-            draftAnswer,
         });
 
         res.json({
@@ -191,18 +249,47 @@ app.post('/submit-question', async (req, res) => {
             request_id: item._id.toString()
         });
 
+        // Fire-and-forget: not awaited, runs after the response is sent.
+        generateDraftAnswer(item);
+
     } catch (error) {
         console.error("Error processing question:", error);
-        res.status(500).json({ error: "Internal server error" });
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error" });
+        }
     }
 });
 
 // 6. TA-facing: list everything still awaiting review.
+// Excludes items whose draft is still being generated — an empty
+// draftAnswer means generateDraftAnswer hasn't finished (or failed) yet,
+// and there's nothing for a TA to approve/edit/reject in the meantime.
 app.get('/review-queue', async (req, res) => {
-    const pending = await ReviewQueueItem.find({ status: 'pending' })
+    const pending = await ReviewQueueItem.find({
+        status: 'pending',
+        draftAnswer: { $ne: "" },
+    })
         .sort({ createdAt: 1 })
         .lean();
     res.json(pending);
+});
+
+// Purges every Q&A history item tied to any of the given modules. Called
+// by the backend when a course is hard-deleted, so a course's questions
+// and drafts don't outlive the course itself in this service's own
+// MongoDB collection.
+app.post('/review-queue/purge', async (req, res) => {
+    try {
+        const { moduleIds } = req.body;
+        if (!Array.isArray(moduleIds) || moduleIds.length === 0) {
+            return res.status(400).json({ error: "moduleIds (non-empty array) is required." });
+        }
+        const result = await ReviewQueueItem.deleteMany({ moduleId: { $in: moduleIds } });
+        res.json({ deleted: result.deletedCount });
+    } catch (error) {
+        console.error("Error purging review queue:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // 7. TA-facing: approve a draft, optionally editing it before it goes out.
