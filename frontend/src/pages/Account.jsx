@@ -1,7 +1,14 @@
 // frontend/src/pages/Account.jsx — change-password screen, reachable from
-// every role's sidebar via the shared 'account' page key.
-import { useState } from 'react';
-import { changePassword as changePasswordRequest } from '../api/client.js';
+// every role's sidebar via the shared 'account' page key. Two parts:
+//   1. Know your password → change it directly.
+//   2. Forgot it → get a reset link by email (same flow as the login screen's
+//      "Forgot password?", pre-addressed to your own account email).
+import { useEffect, useState } from 'react';
+import {
+  changePassword as changePasswordRequest,
+  forgotPassword as forgotPasswordRequest,
+  getCurrentUser,
+} from '../api/client.js';
 
 export default function Account() {
   const [oldPassword, setOldPassword] = useState('');
@@ -10,6 +17,26 @@ export default function Account() {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+
+  // Own email, for the forgot-password section — fetched once so the user
+  // never has to type (or mistype) it.
+  const [accountEmail, setAccountEmail] = useState('');
+  const [resetState, setResetState] = useState('idle'); // idle | sending | sent
+  const [resetError, setResetError] = useState(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getCurrentUser()
+      .then((res) => {
+        if (!cancelled) setAccountEmail(res.data?.email || '');
+      })
+      .catch(() => {
+        if (!cancelled) setResetError('Could not load your account email.');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -40,6 +67,22 @@ export default function Account() {
       setError(err.message);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    setResetError(null);
+    if (!accountEmail) {
+      setResetError('Could not determine your account email.');
+      return;
+    }
+    setResetState('sending');
+    try {
+      await forgotPasswordRequest(accountEmail);
+      setResetState('sent');
+    } catch (err) {
+      setResetError(err.message);
+      setResetState('idle');
     }
   }
 
@@ -126,6 +169,37 @@ export default function Account() {
           {submitting ? 'Saving...' : 'Change password'}
         </button>
       </form>
+
+      <div className="mt-8 max-w-125 rounded-xl border border-[#D9E1E7] bg-white p-6">
+        <h2 className="text-lg font-semibold text-[#1D3557]">
+          Forgot your current password?
+        </h2>
+        <p className="mt-1 text-sm text-[#647D8D]">
+          We'll send a reset link to{' '}
+          <strong>{accountEmail || 'your account email'}</strong>. It expires
+          in 20 minutes.
+        </p>
+
+        {resetError && (
+          <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+            {resetError}
+          </div>
+        )}
+        {resetState === 'sent' ? (
+          <div className="mt-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+            Reset link sent — check your inbox (and spam).
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetState === 'sending' || !accountEmail}
+            className="mt-4 rounded-lg border border-[#1D3557] px-5 py-2.5 text-sm font-medium text-[#1D3557] hover:bg-[#EEF3F6] disabled:opacity-60"
+          >
+            {resetState === 'sending' ? 'Sending...' : 'Email me a reset link'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
