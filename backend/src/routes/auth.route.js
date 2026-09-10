@@ -22,7 +22,8 @@ import {
    userLoginValidator,
    userChangeCurrentPasswordValidator,
    userForgotPasswordValidator,
-   userResetForgotPasswordValidator
+   userResetForgotPasswordValidator,
+   userResendEmailVerificationValidator
 } from "../validators/auth.validator.js";
 
 // unsecure routes
@@ -31,6 +32,11 @@ router.route("/register").post(userRegisterValidator(), validate, registerUser);
 router.route("/login").post(userLoginValidator(), validate, loginUser);
 
 router.route("/verify-email/:verificationToken").get(verifyEmail);
+
+// Public on purpose: unverified users have no session, so they can't pass
+// authGuard — and blocking resend behind login would permanently lock out
+// anyone who lost their verification email.
+router.route("/resend-email-verification").post(userResendEmailVerificationValidator(), validate, resendEmailVerification);
 
 router.route("/refresh-token").post(refreshAccessToken);
 
@@ -45,7 +51,5 @@ router.route("/logout").post(authGuard, logoutUser);
 router.route("/current-user").post(authGuard, getCurrentUser);
 
 router.route("/change-password").post(authGuard, userChangeCurrentPasswordValidator(), validate, changeCurrentPassword);
-
-router.route("/resend-email-verification").post(authGuard, resendEmailVerification);
 
 export default router;

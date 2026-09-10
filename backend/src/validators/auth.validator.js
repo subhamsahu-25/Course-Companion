@@ -74,12 +74,35 @@ const userForgotPasswordValidator = () => {
 
 const userResetForgotPasswordValidator = () => {
    return [
-      body("password")
+      // Must match what resetForgotPassword reads (req.body.newPassword) —
+      // validating a different field name 422s every legitimate reset.
+      body("newPassword")
          .trim()
          .notEmpty()
          .withMessage("Password is required") // runs if password is empty ("withMessage" is like the "else" of the above method)
          .isLength({ min: 6, max: 20 })
          .withMessage("Password must be between 6 and 20 characters"), // runs if password is not between 6 and 20 characters ("withMessage" is like the "else" of the above method)
+   ]
+}
+
+// Public resend route takes the same identifier style as login (email OR
+// username) since the caller has no session yet.
+const userResendEmailVerificationValidator = () => {
+   return [
+      body("email")
+         .trim()
+         .optional()
+         .isEmail()
+         .withMessage("Please enter a valid email address"),
+
+      body("username")
+         .trim()
+         .optional()
+         .isLength({ min: 1 })
+         .withMessage("Username is required"),
+      // No "at least one of email/username" rule here — the controller
+      // already 400s when both are missing, and a whole-body custom rule
+      // behaves inconsistently across express-validator versions.
    ]
 }
 
@@ -89,4 +112,5 @@ export {
    userChangeCurrentPasswordValidator, 
    userForgotPasswordValidator,
    userResetForgotPasswordValidator,
+   userResendEmailVerificationValidator,
 };

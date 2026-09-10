@@ -48,7 +48,9 @@ export default function AdminCourses({ onPageChange }) {
 
   async function handleCreateCourse(event) {
     event.preventDefault();
-    if (!newCourseTitle.trim()) return;
+    // Mirrors the backend rule (title: 3–100 chars) so a too-short name is
+    // caught here instead of surfacing as a 422 after submit.
+    if (newCourseTitle.trim().length < 3) return;
 
     setSubmitting(true);
     try {
@@ -139,12 +141,14 @@ export default function AdminCourses({ onPageChange }) {
             type="text"
             value={newCourseTitle}
             onChange={(e) => setNewCourseTitle(e.target.value)}
-            placeholder="Course title (e.g. Electrical Engineering 101)"
+            placeholder="Course title, min 3 characters (e.g. Electrical Engineering 101)"
+            minLength={3}
+            maxLength={100}
             className="flex-1 rounded-md border border-[#C8D6DF] p-2.5 text-sm outline-none focus:border-[#457B9D]"
           />
           <button
             type="submit"
-            disabled={submitting}
+            disabled={submitting || newCourseTitle.trim().length < 3}
             className="rounded-md bg-[#1D3557] px-4 py-2 text-sm text-white disabled:opacity-60"
           >
             Create

@@ -1,4 +1,5 @@
 import { body } from "express-validator";
+import { ApiError } from "../utils/api-error.js";
 
 // runs AFTER multer, so req.file already exists by validation time —
 // this checks the text fields that travel alongside the file in the multipart body
@@ -21,7 +22,7 @@ const createDocumentValidator = () => {
 // so this runs as a plain middleware, not a body() chain
 const validateUploadedFile = (req, res, next) => {
    if (!req.file) {
-      throw new ApiError(422, "validation failed for the incoming data", [
+      throw new ApiError(422, "validation failed for the incoming data", null, [
          { file: "A file is required" },
       ]);
    }

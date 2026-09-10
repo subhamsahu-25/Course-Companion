@@ -4,16 +4,19 @@ const studentLinks = [
    ['student-courses', 'Courses'],
    ['student-ask', 'Ask a question'],
    ['student-history', 'History'],
+   ['account', 'Account'],
 ]
 
 const taLinks = [
    ['ta-review', 'Review queue'],
    ['ta-join', 'Join a course'],
+   ['account', 'Account'],
 ]
 
 const adminLinks = [
    ['admin-courses', 'Courses'],
    ['admin-upload', 'Upload material'],
+   ['account', 'Account'],
 ]
 
 export function linksForRole(role) {

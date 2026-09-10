@@ -7,7 +7,7 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL
 
-async function request(endpoint, options = {}) {
+async function request(endpoint, options = {}, _retried = false) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers: {
@@ -17,10 +17,29 @@ async function request(endpoint, options = {}) {
     credentials: 'include', // sends/receives the auth cookie set at login
   })
 
-  const data = await res.json()
+  const data = await res.json().catch(() => ({}))
+
+  // Silent token refresh: if the access cookie expired mid-session, try one
+  // refresh + retry before surfacing a 401. Auth endpoints themselves are
+  // excluded (a 401 from /auth/login is a real "wrong password", not an
+  // expired session), and we retry at most once to avoid loops.
+  if (res.status === 401 && !_retried && !endpoint.startsWith('/auth/')) {
+    try {
+      await request('/auth/refresh-token', { method: 'POST' }, true)
+      return request(endpoint, options, true)
+    } catch {
+      // Refresh failed too (refresh cookie gone/expired) — fall through
+      // and throw the ORIGINAL error below, not the refresh one.
+    }
+  }
 
   if (!res.ok) {
-    throw new Error(data.message || 'Something went wrong')
+    const err = new Error(data.message || 'Something went wrong')
+    // Surfaced (not string-matched) so pages can branch on status —
+    // e.g. Login shows "resend verification email" only on a 403.
+    err.statusCode = res.status
+    err.errors = data.errors || []
+    throw err
   }
 
   return data
@@ -46,6 +65,41 @@ export const register = (email, username, password, role) =>
   })
 
 export const logout = () => request('/auth/logout', { method: 'POST' })
+
+export const refreshAccessToken = () =>
+  request('/auth/refresh-token', { method: 'POST' })
+
+export const resendEmailVerification = (identifier) => {
+  const isEmail = identifier.includes('@')
+  return request('/auth/resend-email-verification', {
+    method: 'POST',
+    body: JSON.stringify({
+      email: isEmail ? identifier : undefined,
+      username: isEmail ? undefined : identifier,
+    }),
+  })
+}
+
+export const verifyEmailToken = (token) =>
+  request(`/auth/verify-email/${token}`)
+
+export const forgotPassword = (email) =>
+  request('/auth/forgot-password', {
+    method: 'POST',
+    body: JSON.stringify({ email }),
+  })
+
+export const resetPassword = (token, newPassword) =>
+  request(`/auth/reset-password/${token}`, {
+    method: 'POST',
+    body: JSON.stringify({ newPassword }),
+  })
+
+export const changePassword = (oldPassword, newPassword) =>
+  request('/auth/change-password', {
+    method: 'POST',
+    body: JSON.stringify({ oldPassword, newPassword }),
+  })
 
 export const getCurrentUser = () =>
   request('/auth/current-user', { method: 'POST' })
@@ -107,7 +161,8 @@ export const getDocumentFileUrl = (documentId) =>
 
 // File uploads need FormData, not JSON — kept separate since headers differ
 // (no Content-Type here; the browser sets the multipart boundary itself).
-export const uploadDocument = async (moduleId, file, title) => {
+// Same silent-refresh deal as request(): one retry after refresh on a 401.
+export const uploadDocument = async (moduleId, file, title, _retried = false) => {
   const formData = new FormData()
   formData.append('file', file)
   if (title) formData.append('title', title)
@@ -118,9 +173,21 @@ export const uploadDocument = async (moduleId, file, title) => {
     body: formData,
   })
 
-  const data = await res.json()
+  if (res.status === 401 && !_retried) {
+    try {
+      await refreshAccessToken()
+      return uploadDocument(moduleId, file, title, true)
+    } catch {
+      // fall through to the original error below
+    }
+  }
+
+  const data = await res.json().catch(() => ({}))
   if (!res.ok) {
-    throw new Error(data.message || 'Upload failed')
+    const err = new Error(data.message || 'Upload failed')
+    err.statusCode = res.status
+    err.errors = data.errors || []
+    throw err
   }
   return data
 }

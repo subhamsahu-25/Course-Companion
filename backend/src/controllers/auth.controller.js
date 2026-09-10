@@ -67,7 +67,7 @@ const registerUser = asyncHandler(async(req, res) => {
       {
          email: user.email,
          subject: "PLEASE VERIFY YOUR EMAIL",
-         mailgenContent: emailVerificationMailgenContent(user.username, `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`)
+         mailgenContent: emailVerificationMailgenContent(user.username, `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`)
       }
    );
 
@@ -111,6 +111,12 @@ const loginUser = asyncHandler(async(req, res) => {
 
    if(!isPasswordValid)
       throw new ApiError(400, "Password is incorrect");
+
+   // Hard block: unverified users cannot log in. Recovery is the PUBLIC
+   // /resend-email-verification route (no session needed), so a lost
+   // verification email never means a permanently locked account.
+   if(!user.isEmailVerified)
+      throw new ApiError(403, "Please verify your email before logging in. Check your inbox for the verification link.");
 
    // GENERATING ACCESS AND REFRESH TOKENS
    const {accessToken, refreshToken} = await generateAccessAndRefreshToken(user._id);
@@ -221,7 +227,16 @@ const verifyEmail = asyncHandler(async(req, res) => {
 })
 
 const resendEmailVerification = asyncHandler(async(req, res) => {
-   const user = await User.findById(req.user?._id);
+   // PUBLIC route (no authGuard): an unverified user has no session yet,
+   // so we look them up by identifier exactly like loginUser does.
+   const { email, username } = req.body;
+
+   if(!email && !username)
+      throw new ApiError(400, "Email or username is required");
+
+   const user = await User.findOne(
+      email ? { email } : { username }
+   );
 
    if(!user)
       throw new ApiError(404, "User not found");
@@ -238,8 +253,8 @@ const resendEmailVerification = asyncHandler(async(req, res) => {
    await sendEmail(
       {
          email: user?.email,
-         subject: "PASSWORD RESET REQUEST",
-         mailgenContent: forgotPasswordMailgenContent(user.username, `${req.protocol}://${req.get("host")}/api/v1/users/verify-email/${unHashedToken}`)
+         subject: "PLEASE VERIFY YOUR EMAIL",
+         mailgenContent: emailVerificationMailgenContent(user.username, `${req.protocol}://${req.get("host")}/api/v1/auth/verify-email/${unHashedToken}`)
       }
    );
 
@@ -314,10 +329,19 @@ const forgotPasswordRequest = asyncHandler(async(req, res) => {
 
    await user.save({validateBeforeSave: false});
 
+   // The reset link must open the FRONTEND reset page (which POSTs the new
+   // password to /reset-password/:resetToken) — the API route is POST-only,
+   // so linking straight at it from an email would just 404 on click.
+   const frontendBase = (
+      process.env.FRONTEND_URL ||
+      process.env.CORS_ORIGIN?.split(",")[0] ||
+      "http://localhost:5173"
+   ).replace(/\/$/, "");
+
    await sendEmail({
       email: user?.email,
-      subject: "PLEASE VERIFY YOUR EMAIL",
-      mailgenContent: emailVerificationMailgenContent(user.username, `${req.protocol}://${req.get("host")}/api/v1/users/forgot-password/${unHashedToken}`)
+      subject: "RESET YOUR PASSWORD",
+      mailgenContent: forgotPasswordMailgenContent(user.username, `${frontendBase}/?resetToken=${unHashedToken}`)
    });
 
    return res

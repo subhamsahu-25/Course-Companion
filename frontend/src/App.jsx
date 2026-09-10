@@ -3,6 +3,10 @@ import { useEffect, useState } from 'react';
 
 import Login from './pages/Login.jsx';
 import Signup from './pages/Signup.jsx';
+import ForgotPassword from './pages/ForgotPassword.jsx';
+import ResetPassword from './pages/ResetPassword.jsx';
+import VerifyEmail from './pages/VerifyEmail.jsx';
+import Account from './pages/Account.jsx';
 import RoleLayout from './layouts/RoleLayout.jsx';
 import { getCurrentUser, logout as logoutRequest } from './api/client.js';
 
@@ -33,8 +37,17 @@ export default function App() {
   // 'checking' avoids flashing the login screen before we know whether an
   // existing session cookie is still valid.
   const [authStatus, setAuthStatus] = useState('checking');
-  // Which auth screen to show while logged out — 'login' or 'signup'.
+  // Which auth screen to show while logged out — 'login', 'signup',
+  // 'forgot', 'reset', or 'verify'.
   const [authView, setAuthView] = useState('login');
+  // One-shot banner on the login screen (e.g. "check your email" after
+  // signup or after a password reset) — cleared on successful login.
+  const [authNotice, setAuthNotice] = useState(null);
+  // Tokens arriving via email links: backend mails link to
+  // <frontend>/?resetToken=... and <frontend>/?verifyToken=... (query
+  // params, so no SPA route config is needed on Vercel).
+  const [resetToken, setResetToken] = useState(null);
+  const [verifyToken, setVerifyToken] = useState(null);
 
   // Navigation context carried between pages — e.g. which course was
   // clicked on the Courses page, so Modules knows what to load.
@@ -61,8 +74,27 @@ export default function App() {
     };
   }, []);
 
+  // Email-link entry: ?resetToken=... / ?verifyToken=... → jump straight to
+  // the right logged-out screen, then scrub the token from the address bar.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const rt = params.get('resetToken');
+    const vt = params.get('verifyToken');
+    if (rt || vt) {
+      if (rt) {
+        setResetToken(rt);
+        setAuthView('reset');
+      } else {
+        setVerifyToken(vt);
+        setAuthView('verify');
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
+
   function handleLogin(loggedInUser) {
     setUser(loggedInUser);
+    setAuthNotice(null);
     setAuthStatus('authenticated');
     setCurrentPage(defaultPageForRole(loggedInUser.role));
   }
@@ -136,6 +168,9 @@ export default function App() {
       case 'admin-upload':
         return <AdminUpload initialModuleId={selectedModuleId} />;
 
+      case 'account':
+        return <Account />;
+
       default:
         return <div className="rounded-lg bg-white p-6">Page not found</div>;
     }
@@ -153,8 +188,45 @@ export default function App() {
     if (authView === 'signup') {
       return (
         <Signup
-          onSignupSuccess={() => setAuthView('login')}
+          onSignupSuccess={() => {
+            // Login is hard-blocked until the email is verified, so tell
+            // first-time users to check their inbox instead of letting them
+            // walk into a confusing 403.
+            setAuthNotice(
+              'Account created! Check your email for the verification link, then sign in.'
+            );
+            setAuthView('login');
+          }}
           onSwitchToLogin={() => setAuthView('login')}
+        />
+      );
+    }
+
+    if (authView === 'forgot') {
+      return <ForgotPassword onBackToLogin={() => setAuthView('login')} />;
+    }
+
+    if (authView === 'reset') {
+      return (
+        <ResetPassword
+          token={resetToken}
+          onResetSuccess={() => {
+            setResetToken(null);
+            setAuthNotice('Password reset! Sign in with your new password.');
+            setAuthView('login');
+          }}
+        />
+      );
+    }
+
+    if (authView === 'verify') {
+      return (
+        <VerifyEmail
+          token={verifyToken}
+          onBackToLogin={() => {
+            setVerifyToken(null);
+            setAuthView('login');
+          }}
         />
       );
     }
@@ -163,6 +235,8 @@ export default function App() {
       <Login
         onLogin={handleLogin}
         onSwitchToSignup={() => setAuthView('signup')}
+        onSwitchToForgot={() => setAuthView('forgot')}
+        notice={authNotice}
       />
     );
   }

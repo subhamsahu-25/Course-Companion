@@ -1,16 +1,24 @@
 // frontend/src/pages/Login.jsx
 import { useState } from 'react';
-import { login as loginRequest } from '../api/client.js';
+import {
+  login as loginRequest,
+  resendEmailVerification as resendRequest,
+} from '../api/client.js';
 
-export default function Login({ onLogin, onSwitchToSignup }) {
+export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, notice }) {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
+  // Set when the backend 403s on an unverified account — offers an inline
+  // resend instead of a dead-end error.
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendState, setResendState] = useState('idle'); // idle | sending | sent
 
   async function handleSubmit(event) {
     event.preventDefault();
     setError(null);
+    setNeedsVerification(false);
 
     if (!identifier.trim() || !password.trim()) {
       setError('Please fill in all fields.');
@@ -24,8 +32,20 @@ export default function Login({ onLogin, onSwitchToSignup }) {
       onLogin(res.data.user);
     } catch (err) {
       setError(err.message);
+      if (err.statusCode === 403) setNeedsVerification(true);
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleResend() {
+    setResendState('sending');
+    try {
+      await resendRequest(identifier.trim());
+      setResendState('sent');
+    } catch (err) {
+      setError(err.message);
+      setResendState('idle');
     }
   }
 
@@ -89,9 +109,34 @@ export default function Login({ onLogin, onSwitchToSignup }) {
             />
           </div>
 
+          {notice && !error && (
+            <div className="rounded-lg border border-green-200 bg-green-50 p-3 text-sm text-green-700">
+              {notice}
+            </div>
+          )}
+
           {error && (
             <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
               {error}
+            </div>
+          )}
+
+          {needsVerification && (
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
+              {resendState === 'sent' ? (
+                <>Verification email sent — check your inbox (and spam).</>
+              ) : (
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendState === 'sending'}
+                  className="font-medium underline hover:no-underline disabled:opacity-60"
+                >
+                  {resendState === 'sending'
+                    ? 'Sending...'
+                    : 'Resend verification email'}
+                </button>
+              )}
             </div>
           )}
 
@@ -102,6 +147,16 @@ export default function Login({ onLogin, onSwitchToSignup }) {
           >
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
+
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={onSwitchToForgot}
+              className="font-medium text-[#1D3557] hover:underline"
+            >
+              Forgot password?
+            </button>
+          </div>
 
           <p className="text-center text-sm text-[#457B9D]">
             Don't have an account?{' '}
