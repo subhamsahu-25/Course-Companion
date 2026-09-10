@@ -3,6 +3,7 @@ import {ApiResponse} from "../utils/api-response.js";
 import {ApiError} from "../utils/api-error.js";
 import {asyncHandler} from "../utils/async-handler.js";
 import { sendEmail, emailVerificationMailgenContent, forgotPasswordMailgenContent } from "../utils/mail.js";
+import { cookieOptions } from "../utils/cookies.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 const generateAccessAndRefreshToken = async(userId) => {
@@ -119,12 +120,9 @@ const loginUser = asyncHandler(async(req, res) => {
       "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
    )
 
-   // SETTING THE COOKIES
-   const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax"
-   }
+   // SETTING THE COOKIES (flags come from utils/cookies.js so prod can
+   // flip to SameSite=None; Secure for cross-site Vercel → Render auth)
+   const options = cookieOptions()
 
    return res
       .status(200)
@@ -156,10 +154,7 @@ const logoutUser = asyncHandler(async(req, res) => {
       }
    );
 
-   const options = {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production"
-   }
+   const options = cookieOptions()
 
    return res
       .status(200)
@@ -277,11 +272,7 @@ const refreshAccessToken = asyncHandler(async(req, res) => {
       if(incomingRefreshToken !== user.refreshToken)
          throw new ApiError(401, "Refresh Token has expired"); //checking if the received refresh token is present in the db or not
  
-      const options = {
-         httpOnly: true,
-         secure: process.env.NODE_ENV === "production",
-         sameSite: "lax"
-      }
+      const options = cookieOptions()
 
       const {accessToken, refreshToken: newRT} = await generateAccessAndRefreshToken(user._id); //generating new access and refresh token and casting the new refresh token to avoid confusion
 
