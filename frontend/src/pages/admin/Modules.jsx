@@ -302,8 +302,8 @@ function RosterSection({ title, members }) {
           <table className="w-full text-left text-sm">
             <thead>
               <tr className="border-b border-[#D9E1E7] text-xs uppercase text-[#78909F]">
-                <th className="py-2 pr-4 font-medium">Name</th>
-                <th className="py-2 font-medium">Roll no.</th>
+                <th className="w-1/2 py-2 pr-4 font-medium">Name</th>
+                <th className="w-1/2 py-2 font-medium">Roll no.</th>
               </tr>
             </thead>
             <tbody>
