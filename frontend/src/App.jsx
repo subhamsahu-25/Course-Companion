@@ -184,6 +184,36 @@ export default function App() {
     );
   }
 
+  // Email-link screens take priority over EVERYTHING — including an active
+  // session. Otherwise clicking a reset/verify link while logged in just
+  // lands on the dashboard and the token flow never appears.
+  if (resetToken) {
+    return (
+      <ResetPassword
+        token={resetToken}
+        onResetSuccess={() => {
+          setResetToken(null);
+          if (!user) {
+            setAuthNotice('Password reset! Sign in with your new password.');
+            setAuthView('login');
+          }
+        }}
+      />
+    );
+  }
+
+  if (verifyToken) {
+    return (
+      <VerifyEmail
+        token={verifyToken}
+        onBackToLogin={() => {
+          setVerifyToken(null);
+          if (!user) setAuthView('login');
+        }}
+      />
+    );
+  }
+
   if (authStatus === 'anonymous' || !user) {
     if (authView === 'signup') {
       return (
@@ -206,30 +236,8 @@ export default function App() {
       return <ForgotPassword onBackToLogin={() => setAuthView('login')} />;
     }
 
-    if (authView === 'reset') {
-      return (
-        <ResetPassword
-          token={resetToken}
-          onResetSuccess={() => {
-            setResetToken(null);
-            setAuthNotice('Password reset! Sign in with your new password.');
-            setAuthView('login');
-          }}
-        />
-      );
-    }
-
-    if (authView === 'verify') {
-      return (
-        <VerifyEmail
-          token={verifyToken}
-          onBackToLogin={() => {
-            setVerifyToken(null);
-            setAuthView('login');
-          }}
-        />
-      );
-    }
+    // NOTE: 'reset' and 'verify' are handled above (before the auth check)
+    // so email links work whether or not a session is active.
 
     return (
       <Login
