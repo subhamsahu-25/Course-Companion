@@ -1,33 +1,31 @@
-import { ChromaClient } from "chromadb";
+import 'dotenv/config';
+import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { QdrantVectorStore } from "@langchain/qdrant";
 
-class CustomOllamaEmbedder {
-   async generate(texts) {
-      const embeddings = [];
-      for (const text of texts) {
-         const response = await fetch("http://localhost:11434/api/embeddings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "nomic-embed-text", prompt: text })
-         });
-         const data = await response.json();
-         embeddings.push(data.embedding);
-      }
-      return embeddings;
-   }
-}
+const embeddings = new GoogleGenerativeAIEmbeddings({
+   apiKey: process.env.GEMINI_API_KEY,
+   model: "gemini-embedding-001",
+});
 
-const client = new ChromaClient({ host: "localhost", port: 8000, ssl: false });
-const collection = await client.getCollection({
-   name: "course_collection",
-   embeddingFunction: new CustomOllamaEmbedder()
+const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
+   url: process.env.QDRANT_URL,
+   apiKey: process.env.QDRANT_API_KEY,
+   collectionName: process.env.QDRANT_COLLECTION || "course_collection",
 });
 
 const query = process.argv[2] || "what are the july tasks?";
 console.log("Query:", query);
 
-const results = await collection.query({
-   queryTexts: [query],
-   nResults: 5,
-});
+const results = await vectorStore.similaritySearchWithScore(query, 5);
 
-console.log(JSON.stringify(results, null, 2));
+console.log(
+   JSON.stringify(
+      results.map(([doc, score]) => ({
+         score,
+         pageContent: doc.pageContent.slice(0, 300),
+         metadata: doc.metadata,
+      })),
+      null,
+      2
+   )
+);

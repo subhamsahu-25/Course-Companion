@@ -9,8 +9,13 @@ import { RunnableSequence, RunnablePassthrough } from "@langchain/core/runnables
 // model process to keep running once this service is deployed)
 import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 
-// Connection to the external Vector Database
-import { Chroma } from "@langchain/community/vectorstores/chroma";
+// Connection to the managed vector database (Qdrant Cloud free tier)
+import { QdrantVectorStore } from "@langchain/qdrant";
+import {
+    getQdrantClient,
+    getCollectionName,
+    ensureQdrantCollection,
+} from "./qdrant.js";
 
 // Ingestion — turns an uploaded file into chunks in the vector store.
 import { ingestSingleDocument, removeDocumentChunks } from "./ingest-logic.js";
@@ -101,12 +106,17 @@ const llm = new ChatGoogleGenerativeAI({
     temperature: 0,
 });
 
-// 2. Connect to the existing Vector Database
-// This replaces all ingestion code. It simply connects to the database
-// you populated earlier using your separate ingest.js script.
-const vectorStore = new Chroma(embeddings, {
-    collectionName: "course_collection",
-    url: process.env.CHROMA_URL || "http://localhost:8000"
+// 2. Connect to the existing vector collection.
+// Qdrant Cloud persists the vectors server-side, so unlike the old
+// self-hosted Chroma this service is fully stateless — local disk being
+// wiped on every restart/redeploy (Cloud Run / Render free) loses nothing.
+const qdrantClient = getQdrantClient();
+const COLLECTION_NAME = getCollectionName();
+await ensureQdrantCollection(qdrantClient, COLLECTION_NAME);
+const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
+    url: process.env.QDRANT_URL,
+    apiKey: process.env.QDRANT_API_KEY,
+    collectionName: COLLECTION_NAME,
 });
 
 const retriever = vectorStore.asRetriever(5);
@@ -115,9 +125,15 @@ const retriever = vectorStore.asRetriever(5);
 // given, otherwise falls back to the unfiltered retriever above. Chunks
 // only carry a moduleId once they've gone through ingestSingleDocument
 // (see ingest-logic.js), so older bulk-seeded material without that tag
-// won't match a module-scoped query.
+// won't match a module-scoped query. Note the `metadata.` prefix — Qdrant
+// filter syntax requires it.
 const getRetriever = (moduleId) =>
-    moduleId ? vectorStore.asRetriever({ k: 5, filter: { moduleId } }) : retriever;
+    moduleId
+        ? vectorStore.asRetriever({
+            k: 5,
+            filter: { must: [{ key: "metadata.moduleId", match: { value: moduleId } }] },
+        })
+        : retriever;
 
 // 3. RAG Pipeline Configuration
 const promptTemplate = PromptTemplate.fromTemplate(`

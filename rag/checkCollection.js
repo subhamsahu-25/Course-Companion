@@ -1,27 +1,25 @@
-import { ChromaClient } from "chromadb";
+import 'dotenv/config';
+import { getQdrantClient, getCollectionName } from "./qdrant.js";
 
-class CustomOllamaEmbedder {
-   async generate(texts) {
-      const embeddings = [];
-      for (const text of texts) {
-         const response = await fetch("http://localhost:11434/api/embeddings", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ model: "nomic-embed-text", prompt: text })
-         });
-         const data = await response.json();
-         embeddings.push(data.embedding);
-      }
-      return embeddings;
-   }
-}
+const client = getQdrantClient();
+const collectionName = getCollectionName();
 
-const client = new ChromaClient({ host: "localhost", port: 8000, ssl: false });
-const collection = await client.getCollection({
-   name: "course_collection",
-   embeddingFunction: new CustomOllamaEmbedder()
+const info = await client.getCollection(collectionName);
+console.log(
+   JSON.stringify(
+      {
+         collection: collectionName,
+         points: info.points_count,
+         status: info.status,
+      },
+      null,
+      2
+   )
+);
+
+const peek = await client.scroll(collectionName, {
+   limit: 3,
+   with_payload: true,
+   with_vector: false,
 });
-
-console.log("Total chunks:", await collection.count());
-const peek = await collection.peek({ limit: 3 });
-console.log(JSON.stringify(peek, null, 2));
+console.log(JSON.stringify(peek.points.map((p) => p.payload), null, 2));

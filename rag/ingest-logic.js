@@ -1,11 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
-import { ChromaClient } from "chromadb";
+import { QdrantVectorStore } from "@langchain/qdrant";
 import { PDFParse } from "pdf-parse";
 import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import {
+   getQdrantClient,
+   getCollectionName,
+   ensureQdrantCollection,
+} from "./qdrant.js";
 
-const COLLECTION_NAME = "course_collection";
+const COLLECTION_NAME = getCollectionName();
 
 // Swapped from CustomOllamaEmbedder to Gemini's embedding model. This MUST
 // stay in sync with whatever embeds queries at search time (see the
@@ -18,45 +23,25 @@ if (!GEMINI_API_KEY) {
    process.exit(1);
 }
 
-class GeminiChromaEmbedder {
-   constructor() {
-      this.client = new GoogleGenerativeAIEmbeddings({
-         apiKey: GEMINI_API_KEY,
-         // Must match the model used in server.js at query time — see the
-         // comment there for why text-embedding-004 was replaced.
-         model: "gemini-embedding-001",
-      });
-   }
-
-   // Chroma's JS client expects an embedding function with this exact
-   // `generate(texts)` shape, so we keep the method name even though the
-   // underlying call is now LangChain's `embedDocuments`.
-   async generate(texts) {
-      return this.client.embedDocuments(texts);
-   }
-}
-
-// Both ingest.js and the old version of this file hardcoded
-// `{ host: "localhost", port: 8000 }`, ignoring CHROMA_URL entirely. That
-// happened to work only because localhost:8000 is also the default. Reading
-// CHROMA_URL here means this still works out of the box, but also works if
-// Chroma ever runs somewhere else (e.g. a docker-compose service name).
-function getChromaClient() {
-   const url = process.env.CHROMA_URL || "http://localhost:8000";
-   const parsed = new URL(url);
-   return new ChromaClient({
-      host: parsed.hostname,
-      port: parsed.port ? Number(parsed.port) : 8000,
-      ssl: parsed.protocol === "https:",
+function getEmbeddings() {
+   return new GoogleGenerativeAIEmbeddings({
+      apiKey: GEMINI_API_KEY,
+      // Must match the model used in server.js at query time — see the
+      // comment there for why text-embedding-004 was replaced.
+      model: "gemini-embedding-001",
    });
 }
 
-async function getCollection() {
-   const client = getChromaClient();
-   const embedder = new GeminiChromaEmbedder();
-   return client.getOrCreateCollection({
-      name: COLLECTION_NAME,
-      embeddingFunction: embedder,
+// Store handle for writes. Qdrant is addressed by collection name on every
+// call (no stale in-memory collection ID like the old Chroma client had),
+// so recreating the collection mid-run is always safe.
+async function getVectorStore() {
+   const client = getQdrantClient();
+   await ensureQdrantCollection(client, COLLECTION_NAME);
+   return QdrantVectorStore.fromExistingCollection(getEmbeddings(), {
+      url: process.env.QDRANT_URL,
+      apiKey: process.env.QDRANT_API_KEY,
+      collectionName: COLLECTION_NAME,
    });
 }
 
@@ -85,17 +70,25 @@ async function extractText(buffer, filename) {
    return null;
 }
 
+const documentFilter = (documentId) => ({
+   must: [{ key: "metadata.documentId", match: { value: documentId } }],
+});
+
 // Removes every chunk previously ingested for a given document. Scoped to
 // `documentId` via a metadata filter, so — unlike the old bulk ingest,
 // which wiped the whole collection — this never touches any other
 // document's chunks.
-export async function removeDocumentChunks(documentId, collection) {
-   const col = collection || (await getCollection());
-   const existing = await col.get({ where: { documentId } });
-   if (existing.ids.length > 0) {
-      await col.delete({ ids: existing.ids });
+export async function removeDocumentChunks(documentId) {
+   const client = getQdrantClient();
+   await ensureQdrantCollection(client, COLLECTION_NAME);
+   const { count } = await client.count(COLLECTION_NAME, {
+      filter: documentFilter(documentId),
+      exact: true,
+   });
+   if (count > 0) {
+      await client.delete(COLLECTION_NAME, { filter: documentFilter(documentId) });
    }
-   return existing.ids.length;
+   return count;
 }
 
 // Ingest (or re-ingest) a single uploaded document into the shared
@@ -128,21 +121,17 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
 
    const chunks = await textSplitter.createDocuments([text], [{ source: filename }]);
 
-   const collection = await getCollection();
-
    // Clear out any chunks left over from a previous ingest of this same
    // document (e.g. the file was replaced) before adding the new ones.
-   await removeDocumentChunks(documentId, collection);
+   await removeDocumentChunks(documentId);
 
    const metadata = { source: filename, documentId };
    if (moduleId) metadata.moduleId = moduleId;
 
-   const ids = chunks.map((_, i) => `doc_${documentId}_chunk_${i}`);
-   await collection.add({
-      ids,
-      documents: chunks.map((c) => c.pageContent),
-      metadatas: chunks.map(() => metadata),
-   });
+   const vectorStore = await getVectorStore();
+   await vectorStore.addDocuments(
+      chunks.map((c) => ({ pageContent: c.pageContent, metadata }))
+   );
 
    return { skipped: false, chunksIngested: chunks.length };
 }
@@ -215,31 +204,25 @@ export async function ingestDocuments() {
       documents.map(doc => doc.metadata)
    );
 
-   console.log("3. Connecting to ChromaDB & Gemini...");
-   const collection = await getCollection();
+   console.log("3. Connecting to Qdrant & Gemini...");
+   const client = getQdrantClient();
 
-   // IMPORTANT: we no longer delete/recreate the collection here.
-   // server.js opens a Chroma vectorstore connection once at startup and
-   // caches a reference to the collection as it exists at that moment.
-   // Deleting and recreating the collection (even with the same name)
-   // gives it a new internal ID, which makes that cached reference stale
-   // and causes ChromaNotFoundError on every query until server.js is
-   // restarted. Instead, we get-or-create the same collection and just
-   // clear out its existing documents, so the collection's identity never
-   // changes and server.js keeps working without a restart.
-   const existing = await collection.get();
-   if (existing.ids.length > 0) {
-      await collection.delete({ ids: existing.ids });
-      console.log(`Cleared ${existing.ids.length} existing chunks.`);
+   // Wipe the collection so a re-seed never piles up duplicates. Unlike the
+   // old Chroma setup (where delete + recreate broke server.js's cached
+   // collection handle until restart), Qdrant is addressed by name on every
+   // call, so the running server keeps working without a restart.
+   try {
+      await client.deleteCollection(COLLECTION_NAME);
+   } catch {
+      // Collection didn't exist yet — nothing to wipe.
    }
+   await ensureQdrantCollection(client, COLLECTION_NAME);
 
    console.log("4. Pushing vectors to database...");
-   const ids = chunks.map((_, i) => `chunk_${Date.now()}_${i}`);
-   await collection.add({
-      ids: ids,
-      documents: chunks.map(c => c.pageContent),
-      metadatas: chunks.map(c => ({ source: c.metadata.source }))
-   });
+   const vectorStore = await getVectorStore();
+   await vectorStore.addDocuments(
+      chunks.map((c) => ({ pageContent: c.pageContent, metadata: c.metadata }))
+   );
 
    console.log(`🎉 Ingestion complete! Saved ${chunks.length} chunks.`);
    return { chunksIngested: chunks.length, filesProcessed: documents.length };
