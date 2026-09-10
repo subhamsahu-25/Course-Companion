@@ -10,6 +10,8 @@ import {
 } from '../../api/client.js';
 
 export default function AdminUpload({ initialModuleId } = {}) {
+  const [courses, setCourses] = useState([]);
+  const [selectedCourse, setSelectedCourse] = useState('');
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [documents, setDocuments] = useState([]);
@@ -27,16 +29,26 @@ export default function AdminUpload({ initialModuleId } = {}) {
         const modulesPerCourse = await Promise.all(
           coursesRes.data.map((c) => getModulesByCourse(c._id)),
         );
-        const flat = modulesPerCourse.flatMap((res) => res.data);
+        // Tag every module with its course — the module payload doesn't
+        // reliably carry it, and the course dropdown needs the mapping.
+        const flat = modulesPerCourse.flatMap((res, i) =>
+          res.data.map((m) => ({ ...m, courseId: coursesRes.data[i]._id })),
+        );
         if (ignore?.()) return;
+        setCourses(coursesRes.data);
         setModules(flat);
 
-        if (flat.length > 0) {
-          // Prefer the module the admin actually clicked "+ upload material"
-          // on, if it's still valid — otherwise fall back to the first one.
-          const hasInitialModule = flat.some((m) => m._id === initialModuleId);
-          setSelectedModule(hasInitialModule ? initialModuleId : flat[0]._id);
-        }
+        // Prefer the module the admin actually clicked "+ upload material"
+        // on (plus its course) — otherwise first course + its first module.
+        const initial = flat.find((m) => m._id === initialModuleId);
+        const courseId = initial
+          ? initial.courseId
+          : coursesRes.data[0]?._id || '';
+        setSelectedCourse(courseId);
+        const inCourse = flat.filter((m) => m.courseId === courseId);
+        setSelectedModule(
+          initial ? initial._id : inCourse[0]?._id || '',
+        );
       } catch (err) {
         if (ignore?.()) return;
         setError(err.message);
@@ -81,6 +93,14 @@ export default function AdminUpload({ initialModuleId } = {}) {
       cancelled = true;
     };
   }, [loadDocuments]);
+
+  function handleCourseChange(courseId) {
+    setSelectedCourse(courseId);
+    // Reset the module to the first one in the newly picked course —
+    // keeping the old module would silently upload into another course.
+    const inCourse = modules.filter((m) => m.courseId === courseId);
+    setSelectedModule(inCourse[0]?._id || '');
+  }
 
   function addFiles(fileList) {
     setError('');
@@ -164,15 +184,43 @@ export default function AdminUpload({ initialModuleId } = {}) {
 
       <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-6 shadow-sm">
         <label
-          htmlFor="module"
+          htmlFor="course"
           className="block text-sm font-medium text-[#2B2D42]"
+        >
+          Course
+        </label>
+
+        {courses.length === 0 ? (
+          <p className="mt-2 text-sm text-[#8AA0AE]">
+            No courses exist yet — create one on the Courses page first.
+          </p>
+        ) : (
+          <select
+            id="course"
+            value={selectedCourse}
+            onChange={(event) => handleCourseChange(event.target.value)}
+            className="mt-2 w-full rounded-md border border-[#C8D6DF] bg-white p-3 text-sm text-[#2B2D42] outline-none focus:border-[#457B9D]"
+          >
+            {courses.map((course) => (
+              <option key={course._id} value={course._id}>
+                {course.title}
+              </option>
+            ))}
+          </select>
+        )}
+
+        <label
+          htmlFor="module"
+          className="mt-5 block text-sm font-medium text-[#2B2D42]"
         >
           Module
         </label>
 
-        {modules.length === 0 ? (
+        {modules.filter((m) => m.courseId === selectedCourse).length ===
+        0 ? (
           <p className="mt-2 text-sm text-[#8AA0AE]">
-            No modules exist yet — create one on the Courses page first.
+            No modules in this course yet — create one on the Courses page
+            first.
           </p>
         ) : (
           <select
@@ -181,11 +229,13 @@ export default function AdminUpload({ initialModuleId } = {}) {
             onChange={(event) => setSelectedModule(event.target.value)}
             className="mt-2 w-full rounded-md border border-[#C8D6DF] bg-white p-3 text-sm text-[#2B2D42] outline-none focus:border-[#457B9D]"
           >
-            {modules.map((mod) => (
-              <option key={mod._id} value={mod._id}>
-                {mod.title}
-              </option>
-            ))}
+            {modules
+              .filter((m) => m.courseId === selectedCourse)
+              .map((mod) => (
+                <option key={mod._id} value={mod._id}>
+                  {mod.title}
+                </option>
+              ))}
           </select>
         )}
 
