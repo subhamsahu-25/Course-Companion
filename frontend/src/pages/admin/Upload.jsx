@@ -9,7 +9,7 @@ import {
   getDocumentFileUrl,
 } from '../../api/client.js';
 
-export default function AdminUpload() {
+export default function AdminUpload({ initialModuleId } = {}) {
   const [modules, setModules] = useState([]);
   const [selectedModule, setSelectedModule] = useState('');
   const [documents, setDocuments] = useState([]);
@@ -20,21 +20,30 @@ export default function AdminUpload() {
   const [uploading, setUploading] = useState(false);
   const [uploaded, setUploaded] = useState(false);
 
-  const loadModules = useCallback(async ({ ignore } = {}) => {
-    try {
-      const coursesRes = await getCourses();
-      const modulesPerCourse = await Promise.all(
-        coursesRes.data.map((c) => getModulesByCourse(c._id)),
-      );
-      const flat = modulesPerCourse.flatMap((res) => res.data);
-      if (ignore?.()) return;
-      setModules(flat);
-      if (flat.length > 0) setSelectedModule(flat[0]._id);
-    } catch (err) {
-      if (ignore?.()) return;
-      setError(err.message);
-    }
-  }, []);
+  const loadModules = useCallback(
+    async ({ ignore } = {}) => {
+      try {
+        const coursesRes = await getCourses();
+        const modulesPerCourse = await Promise.all(
+          coursesRes.data.map((c) => getModulesByCourse(c._id)),
+        );
+        const flat = modulesPerCourse.flatMap((res) => res.data);
+        if (ignore?.()) return;
+        setModules(flat);
+
+        if (flat.length > 0) {
+          // Prefer the module the admin actually clicked "+ upload material"
+          // on, if it's still valid — otherwise fall back to the first one.
+          const hasInitialModule = flat.some((m) => m._id === initialModuleId);
+          setSelectedModule(hasInitialModule ? initialModuleId : flat[0]._id);
+        }
+      } catch (err) {
+        if (ignore?.()) return;
+        setError(err.message);
+      }
+    },
+    [initialModuleId],
+  );
 
   const loadDocuments = useCallback(
     async ({ ignore } = {}) => {
