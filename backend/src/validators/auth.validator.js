@@ -26,7 +26,14 @@ const userRegisterValidator = () => {
 
       body("fullname")
          .trim()
-         .optional()
+         .optional(),
+
+      body("rollNo")
+         .trim()
+         .notEmpty()
+         .withMessage("Roll number is required")
+         .isLength({ max: 30 })
+         .withMessage("Roll number must not exceed 30 characters"),
    ]
 }
 

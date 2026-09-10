@@ -37,6 +37,13 @@ const userSchema = new Schema(
          type: String,
          trim: true
       },
+      // Student/TA roll number, collected at signup. Optional at the schema
+      // level so pre-existing accounts (created before this field existed)
+      // keep working — signup validation requires it for new accounts.
+      rollNo: {
+         type: String,
+         trim: true
+      },
       password: {
          type: String,
          required: [true, "Password is required"],

@@ -58,10 +58,10 @@ export const login = (identifier, password) => {
   })
 }
 
-export const register = (email, username, password, role) =>
+export const register = (email, username, password, role, rollNo) =>
   request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, username, password, role }),
+    body: JSON.stringify({ email, username, password, role, rollNo }),
   })
 
 export const logout = () => request('/auth/logout', { method: 'POST' })

@@ -105,6 +105,8 @@ const getCourseById = asyncHandler(async (req, res) => {
 
    const course = await Course.findById(id)
       .populate("instructor", "username fullname")
+      .populate("students", "username fullName rollNo")
+      .populate("tas", "username fullName rollNo")
       .populate({
          path: "modules",
          options: { sort: { order: 1 } },

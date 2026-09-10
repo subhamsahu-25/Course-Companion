@@ -5,6 +5,7 @@ import { register as registerRequest } from '../api/client.js';
 export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
+  const [rollNo, setRollNo] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [error, setError] = useState(null);
@@ -14,7 +15,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
     event.preventDefault();
     setError(null);
 
-    if (!email.trim() || !username.trim() || !password.trim()) {
+    if (!email.trim() || !username.trim() || !rollNo.trim() || !password.trim()) {
       setError('Please fill in all fields.');
       return;
     }
@@ -27,7 +28,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
     setSubmitting(true);
 
     try {
-      await registerRequest(email.trim(), username.trim(), password, role);
+      await registerRequest(email.trim(), username.trim(), password, role, rollNo.trim());
       onSignupSuccess();
     } catch (err) {
       setError(err.message);
@@ -96,6 +97,24 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             />
           </div>
           
+          <div>
+            <label
+              htmlFor="rollNo"
+              className="text-sm font-medium text-[#2B2D42]"
+            >
+              Roll Number
+            </label>
+            <input
+              id="rollNo"
+              type="text"
+              value={rollNo}
+              onChange={(e) => setRollNo(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+              placeholder="e.g. 2024CS001"
+              autoComplete="off"
+            />
+          </div>
+
           <div>
             <label
               htmlFor="role"

@@ -271,6 +271,59 @@ export default function AdminModules({ courseId, onPageChange }) {
           );
         })}
       </div>
+
+      <RosterSection
+        title="Enrolled students"
+        members={course?.students || []}
+      />
+      <RosterSection
+        title="Teaching assistants"
+        members={course?.tas || []}
+      />
+    </div>
+  );
+}
+
+// One roster table (name + roll no.) reused for the students and TAs
+// sections. Pre-rollNo accounts show "—" instead of a blank cell.
+function RosterSection({ title, members }) {
+  return (
+    <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-6 shadow-sm">
+      <div className="text-[16px] font-semibold text-[#1D3557]">
+        {title} ({members.length})
+      </div>
+
+      {members.length === 0 ? (
+        <p className="mt-3 text-sm text-[#8AA0AE]">
+          Nobody here yet — members appear once they join with the course code.
+        </p>
+      ) : (
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="border-b border-[#D9E1E7] text-xs uppercase text-[#78909F]">
+                <th className="py-2 pr-4 font-medium">Name</th>
+                <th className="py-2 font-medium">Roll no.</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr
+                  key={m._id}
+                  className="border-b border-[#F1F4F6] last:border-0"
+                >
+                  <td className="py-2.5 pr-4 text-[#2B2D42]">
+                    {m.fullName || m.username}
+                  </td>
+                  <td className="py-2.5 font-mono text-[#457B9D]">
+                    {m.rollNo || '—'}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

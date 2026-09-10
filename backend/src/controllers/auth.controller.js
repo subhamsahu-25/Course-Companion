@@ -23,7 +23,7 @@ const generateAccessAndRefreshToken = async(userId) => {
 
 const registerUser = asyncHandler(async(req, res) => {
    // ACCEPTING THE DATA COMING FROM FRONTEND (FOR NOW - BODY)
-   const { email, username, password, role } = req.body;
+   const { email, username, password, role, rollNo } = req.body;
 
    // Anyone can self-register as a student, instructor, or TA, but never as
    // admin — admin accounts must be granted by an existing admin, not chosen
@@ -52,6 +52,7 @@ const registerUser = asyncHandler(async(req, res) => {
       email,
       password,
       role: requestedRole,
+      rollNo,
       isEmailVerified: false,
    });
 
