@@ -68,6 +68,15 @@ const purgeReviewQueueForModules = (moduleIds) =>
       body: JSON.stringify({ moduleIds }),
    });
 
+// Purges ONE member's Q&A history within the given modules. Used when a
+// student/TA is removed from a course — scoped to their studentId so
+// everyone else's history survives (unlike purgeReviewQueueForModules).
+const purgeMemberHistory = (studentId, moduleIds) =>
+   ragRequest("/review-queue/purge-member", {
+      method: "POST",
+      body: JSON.stringify({ studentId, moduleIds }),
+   });
+
 // Every question ever asked in a module, any status — used by the TA
 // "History" view, unlike /review-queue which only ever returns pending
 // items.
@@ -84,5 +93,6 @@ export {
    ingestDocument,
    removeIngestedDocument,
    purgeReviewQueueForModules,
+   purgeMemberHistory,
    getModuleHistory,
 };

@@ -125,6 +125,9 @@ export const updateCourse = (courseId, updates) =>
 export const deleteCourse = (courseId) =>
   request(`/courses/${courseId}`, { method: 'DELETE' })
 
+export const removeCourseMember = (courseId, userId) =>
+  request(`/courses/${courseId}/members/${userId}`, { method: 'DELETE' })
+
 // Joins the caller into a course via its 5-digit code. Which list they
 // land in (students vs tas) is decided server-side from their own account
 // role — this call doesn't need to know or pass that.

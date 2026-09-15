@@ -7,6 +7,7 @@ import {
   deleteModule,
   getDocumentsByModule,
   getDocumentFileUrl,
+  removeCourseMember,
 } from '../../api/client.js';
 
 export default function AdminModules({ courseId, onPageChange }) {
@@ -275,10 +276,16 @@ export default function AdminModules({ courseId, onPageChange }) {
       <RosterSection
         title="Enrolled students"
         members={course?.students || []}
+        courseId={course?._id}
+        onChanged={loadAll}
+        setError={setError}
       />
       <RosterSection
         title="Teaching assistants"
         members={course?.tas || []}
+        courseId={course?._id}
+        onChanged={loadAll}
+        setError={setError}
       />
     </div>
   );
@@ -286,7 +293,23 @@ export default function AdminModules({ courseId, onPageChange }) {
 
 // One roster table (name + roll no.) reused for the students and TAs
 // sections. Pre-rollNo accounts show "—" instead of a blank cell.
-function RosterSection({ title, members }) {
+// Removing pulls the member out of the course (instantly revoking access,
+// which is membership-based everywhere) and purges their Q&A history in
+// this course's modules.
+function RosterSection({ title, members, courseId, onChanged, setError }) {
+  async function handleRemove(member) {
+    const confirmed = window.confirm(
+      `Remove "${member.fullName || member.username}" from this course? They will lose access immediately, and their Q&A history in this course will be deleted.`,
+    );
+    if (!confirmed) return;
+    try {
+      await removeCourseMember(courseId, member._id);
+      await onChanged();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-6 shadow-sm">
       <div className="text-[16px] font-semibold text-[#1D3557]">
@@ -303,7 +326,10 @@ function RosterSection({ title, members }) {
             <thead>
               <tr className="border-b border-[#D9E1E7] text-xs uppercase text-[#78909F]">
                 <th className="w-1/2 py-2 pr-4 font-medium">Name</th>
-                <th className="w-1/2 py-2 font-medium">Roll no.</th>
+                <th className="py-2 pr-4 font-medium">Roll no.</th>
+                <th className="py-2 text-right font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -315,8 +341,16 @@ function RosterSection({ title, members }) {
                   <td className="py-2.5 pr-4 text-[#2B2D42]">
                     {m.fullName || m.username}
                   </td>
-                  <td className="py-2.5 font-mono text-[#457B9D]">
+                  <td className="py-2.5 pr-4 font-mono text-[#457B9D]">
                     {m.rollNo || '—'}
+                  </td>
+                  <td className="py-2.5 text-right">
+                    <button
+                      onClick={() => handleRemove(m)}
+                      className="text-xs text-[#B4636A] hover:underline"
+                    >
+                      Remove
+                    </button>
                   </td>
                 </tr>
               ))}

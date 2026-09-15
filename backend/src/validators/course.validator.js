@@ -30,6 +30,18 @@ const courseIdParamValidator = () => {
    ]
 }
 
+// DELETE /courses/:id/members/:userId — both ids must be real ObjectIds.
+const courseMemberParamValidator = () => {
+   return [
+      param("id")
+         .isMongoId()
+         .withMessage("Invalid course id"),
+      param("userId")
+         .isMongoId()
+         .withMessage("Invalid user id"),
+   ]
+}
+
 const updateCourseValidator = () => {
    return [
       body("title")
@@ -56,4 +68,4 @@ const updateCourseValidator = () => {
    ]
 }
 
-export { createCourseValidator, courseIdParamValidator, updateCourseValidator };
+export { createCourseValidator, courseIdParamValidator, courseMemberParamValidator, updateCourseValidator };

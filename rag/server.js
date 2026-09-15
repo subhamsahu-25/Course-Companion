@@ -308,6 +308,23 @@ app.post('/review-queue/purge', async (req, res) => {
     }
 });
 
+// Purges one member's Q&A history within the given modules. Called by the
+// backend when a student/TA is removed from a course — unlike /purge above
+// (which wipes a whole course), this is scoped to a single studentId so
+// everyone else's history survives.
+app.post('/review-queue/purge-member', async (req, res) => {
+    try {
+        const { studentId, moduleIds } = req.body;
+        if (!studentId || !Array.isArray(moduleIds) || moduleIds.length === 0) {
+            return res.status(400).json({ error: "studentId and moduleIds (non-empty array) are required." });
+        }
+        const result = await ReviewQueueItem.deleteMany({ studentId, moduleId: { $in: moduleIds } });
+        res.json({ deleted: result.deletedCount });
+    } catch (error) {
+        console.error("Error purging member history:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
 // Full history for one module, any status — powers the TA "History"
 // view, where a TA picks a specific module and wants to see everything
 // ever asked in it (pending, approved, and rejected alike), not just

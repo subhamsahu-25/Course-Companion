@@ -9,6 +9,7 @@ import {
    getCourseById,
    updateCourse,
    deleteCourse,
+   removeCourseMember,
 } from "../controllers/course.controller.js";
 
 import { authGuard, roleGuard } from "../middlewares/auth.middleware.js";
@@ -17,6 +18,7 @@ import { validate } from "../middlewares/validator.middleware.js";
 import {
    createCourseValidator,
    courseIdParamValidator,
+   courseMemberParamValidator,
    updateCourseValidator
 } from "../validators/course.validator.js";
 
@@ -26,6 +28,18 @@ router.route("/").get(authGuard, getAllCourses);
 router.route("/:id").get(authGuard, courseIdParamValidator(), validate, getCourseById);
 
 router.route("/join").post(authGuard, joinCourseByCode);
+
+// secure — admin, or the instructor who owns the course (ownership is
+// re-checked inside the controller, roleGuard alone can't know that)
+router
+   .route("/:id/members/:userId")
+   .delete(
+      authGuard,
+      roleGuard("instructor", "admin"),
+      courseMemberParamValidator(),
+      validate,
+      removeCourseMember
+   );
 
 // secure — instructor/admin only
 router

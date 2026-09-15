@@ -230,6 +230,61 @@ const deleteCourse = asyncHandler(async (req, res) => {
       .json(new ApiResponse(200, {}, "Course deleted permanently !"));
 });
 
+// Removes a student/TA from a course. Access is membership-based everywhere
+// (getAllCourses filters by students/tas, assertCourseAccess checks them),
+// so pulling the id out of both lists instantly locks the member out of
+// everything in the course. Their Q&A history in this course's modules is
+// purged too — otherwise their questions/answers would linger in TA history
+// views and personal stats after they're gone.
+const removeCourseMember = asyncHandler(async (req, res) => {
+   const { id, userId } = req.params;
+
+   const course = await Course.findById(id);
+   if (!course) {
+      throw new ApiError(404, "Course not found");
+   }
+
+   if (
+      req.user.role !== "admin" &&
+      course.instructor.toString() !== req.user._id.toString()
+   ) {
+      throw new ApiError(403, "You are not allowed to manage this course's members");
+   }
+
+   const wasMember =
+      course.students.some((s) => s.toString() === userId) ||
+      course.tas.some((t) => t.toString() === userId);
+
+   if (!wasMember) {
+      throw new ApiError(404, "User is not a member of this course");
+   }
+
+   course.students = course.students.filter((s) => s.toString() !== userId);
+   course.tas = course.tas.filter((t) => t.toString() !== userId);
+   await course.save();
+
+   // Best-effort cascade into the rag service's own collection (same
+   // reasoning as deleteCourse: a down rag service shouldn't block the
+   // removal itself, worst case stale history lingers until retried).
+   let historyDeleted = 0;
+   const moduleIds = await Module.find({ course: course._id }).distinct("_id");
+   if (moduleIds.length > 0) {
+      try {
+         const result = await ragService.purgeMemberHistory(
+            userId,
+            moduleIds.map((mid) => mid.toString())
+         );
+         historyDeleted = result?.deleted || 0;
+      } catch (err) {
+         console.error(`Failed to purge history for removed member ${userId} in course ${course._id}:`, err.message);
+      }
+   }
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, { historyDeleted }, "Member removed from the course"));
+});
+
 export {
    createCourse,
    joinCourseByCode,
@@ -237,4 +292,5 @@ export {
    getCourseById,
    updateCourse,
    deleteCourse,
+   removeCourseMember,
 };
