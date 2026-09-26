@@ -13,12 +13,14 @@ const sendEmail = async (options) => {
    const emailTextual = mailGenerator.generatePlaintext({ body: options.mailgenContent })
    const emailHtml = mailGenerator.generate({ body: options.mailgenContent })
 
+    // Generic SMTP_* names with MAILTRAP_* fallback, so switching providers
+    // (Mailtrap sandbox ↔ Gmail) is env-only, never a code change.
     const transporter = Nodemailer.createTransport({
-       host: process.env.MAILTRAP_SMTP_HOST,
-       port: process.env.MAILTRAP_SMTP_PORT,
+       host: process.env.SMTP_HOST || process.env.MAILTRAP_SMTP_HOST,
+       port: process.env.SMTP_PORT || process.env.MAILTRAP_SMTP_PORT,
        auth: {
-          user: process.env.MAILTRAP_SMTP_USER,
-          pass: process.env.MAILTRAP_SMTP_PASS
+          user: process.env.SMTP_USER || process.env.MAILTRAP_SMTP_USER,
+          pass: process.env.SMTP_PASS || process.env.MAILTRAP_SMTP_PASS
        },
        // Hosted sandboxes (Railway free) often filter/slow SMTP egress —
        // fail fast instead of hanging the request for minutes.
@@ -27,8 +29,10 @@ const sendEmail = async (options) => {
        socketTimeout: 15000,
     })
 
-   const mail = {
-      from: "Course Companion <no-reply@course-companion.local>",
+    const mail = {
+       // Gmail only sends from the authenticated account — keep the
+       // friendly display name, but the address must be yours.
+       from: process.env.SMTP_FROM || "Course Companion <no-reply@course-companion.local>",
       to: options.email,
       subject: options.subject,
       text: emailTextual,
