@@ -319,7 +319,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
                   className="flex items-center justify-between gap-4 rounded-lg border border-[#3f6593] bg-white/5 p-3"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm text-[#c0e6fd]">
+                    <div className="break-all text-sm text-[#c0e6fd]">
                       {file.name}
                     </div>
                     <div className="mt-1 text-xs text-[#80aad3]">
@@ -347,7 +347,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
         {progress && (
           <div className="mt-4 rounded-xl border border-[#3f6593] bg-white/5 p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
-              <div className="min-w-0 truncate text-[#c0e6fd]">
+              <div className="min-w-0 flex-1 truncate text-[#c0e6fd]">
                 {progress.fileCount > 1
                   ? `File ${progress.fileIndex} of ${progress.fileCount}: `
                   : ''}
@@ -399,7 +399,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
                       href={getDocumentFileUrl(doc._id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="truncate text-sm font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
+                      className="block break-all text-sm font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
                     >
                       {doc.title}
                     </a>

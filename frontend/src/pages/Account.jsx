@@ -188,7 +188,9 @@ export default function Account() {
               </div>
               <div className="flex gap-2">
                 <dt className="w-24 shrink-0 text-[#80aad3]">Email</dt>
-                <dd className="text-[#c0e6fd]">{profile?.email || '—'}</dd>
+                <dd className="min-w-0 flex-1 break-all text-[#c0e6fd]">
+                  {profile?.email || '—'}
+                </dd>
               </div>
               <div className="flex gap-2">
                 <dt className="w-24 shrink-0 text-[#80aad3]">Role</dt>
@@ -287,7 +289,7 @@ export default function Account() {
         <h2 className="text-lg font-semibold text-[#c0e6fd]">
           Forgot your current password?
         </h2>
-        <p className="mt-1 text-sm text-[#80aad3]">
+        <p className="mt-1 break-words text-sm text-[#80aad3]">
           We&apos;ll send a reset link to{' '}
           <strong>{accountEmail || 'your account email'}</strong>. It expires in
           20 minutes.

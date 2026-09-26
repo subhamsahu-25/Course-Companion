@@ -227,7 +227,7 @@ export default function AdminModules({ courseId, onPageChange }) {
                       rel="noopener noreferrer"
                       className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-4 py-2.5 text-sm text-[#c0e6fd] shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
                     >
-                      <span className="truncate">{doc.title}</span>
+                      <span className="min-w-0 flex-1 break-all">{doc.title}</span>
                       <span className="shrink-0 text-xs uppercase text-[#80aad3]">
                         {doc.type}
                       </span>
