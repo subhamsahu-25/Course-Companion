@@ -108,21 +108,25 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
         </nav>
 
         {open ? (
-          <button
-            onClick={onLogout}
-            className="mt-10 w-full rounded-md border-t border-[#3f6593] px-2 pt-5 text-left text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
-          >
-            Log out
-          </button>
+          <div className="mt-10 border-t border-[#3f6593] pt-3">
+            <button
+              onClick={onLogout}
+              className="w-full rounded-md px-3 py-2.5 text-left text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
+            >
+              Log out
+            </button>
+          </div>
         ) : (
           <Tooltip>
             <TooltipTrigger asChild>
-              <button
-                onClick={onLogout}
-                className="mt-10 w-full rounded-md border-t border-[#3f6593] pt-5 text-center text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
-              >
-                ↩
-              </button>
+              <div className="mt-10 border-t border-[#3f6593] pt-3">
+                <button
+                  onClick={onLogout}
+                  className="w-full rounded-md px-3 py-2.5 text-center text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
+                >
+                  ↩
+                </button>
+              </div>
             </TooltipTrigger>
             <TooltipContent>
               <p>Log out</p>
@@ -193,12 +197,14 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
                 </button>
               ))}
             </nav>
-            <button
-              onClick={onLogout}
-              className="mt-10 w-full rounded-md border-t border-[#3f6593] px-2 pt-5 text-left text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
-            >
-              Log out
-            </button>
+            <div className="mt-10 border-t border-[#3f6593] pt-3">
+              <button
+                onClick={onLogout}
+                className="w-full rounded-md px-3 py-2.5 text-left text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
+              >
+                Log out
+              </button>
+            </div>
           </aside>
         </div>
       )}
