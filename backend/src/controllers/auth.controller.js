@@ -70,8 +70,13 @@ const registerUser = asyncHandler(async(req, res) => {
    user.emailVerificationExpiry = tokenExpiry;
    await user.save({validateBeforeSave: false});
 
-   // SENDING THE EMAIL VERIFICATION EMAIL
-   await sendEmail(
+   // Fire-and-forget: the account + token are already saved above, and
+   // sendEmail() logs its own failures. Awaiting it here made signup hang
+   // for minutes when SMTP egress is slow/filtered (then the frontend timed
+   // out and showed "failed" for an account that actually exists). A lost
+   // email is recoverable via resend-email-verification; a hung signup
+   // is not.
+   sendEmail(
       {
          email: user.email,
          subject: "PLEASE VERIFY YOUR EMAIL",

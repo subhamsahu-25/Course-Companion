@@ -13,14 +13,19 @@ const sendEmail = async (options) => {
    const emailTextual = mailGenerator.generatePlaintext({ body: options.mailgenContent })
    const emailHtml = mailGenerator.generate({ body: options.mailgenContent })
 
-   const transporter = Nodemailer.createTransport({
-      host: process.env.MAILTRAP_SMTP_HOST,
-      port: process.env.MAILTRAP_SMTP_PORT,
-      auth: {
-         user: process.env.MAILTRAP_SMTP_USER,
-         pass: process.env.MAILTRAP_SMTP_PASS
-      }
-   })
+    const transporter = Nodemailer.createTransport({
+       host: process.env.MAILTRAP_SMTP_HOST,
+       port: process.env.MAILTRAP_SMTP_PORT,
+       auth: {
+          user: process.env.MAILTRAP_SMTP_USER,
+          pass: process.env.MAILTRAP_SMTP_PASS
+       },
+       // Hosted sandboxes (Railway free) often filter/slow SMTP egress —
+       // fail fast instead of hanging the request for minutes.
+       connectionTimeout: 10000,
+       greetingTimeout: 10000,
+       socketTimeout: 15000,
+    })
 
    const mail = {
       from: "Course Companion <no-reply@course-companion.local>",
