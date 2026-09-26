@@ -2,16 +2,31 @@
 const ragRequest = async (endpoint, options = {}) => {
    const RAG_SERVICE_URL = process.env.RAG_SERVICE_URL;
 
-   const response = await fetch(`${RAG_SERVICE_URL}${endpoint}`, {
-      ...options,
-      headers: {
-         "Content-Type": "application/json",
-         "x-service-key": process.env.RAG_SERVICE_KEY,
-         ...options.headers,
-      },
-   });
+   let response;
+   try {
+      response = await fetch(`${RAG_SERVICE_URL}${endpoint}`, {
+         ...options,
+         headers: {
+            "Content-Type": "application/json",
+            "x-service-key": process.env.RAG_SERVICE_KEY,
+            ...options.headers,
+         },
+      });
+   } catch (err) {
+      throw new Error(`RAG service unreachable: ${err.message}`);
+   }
 
-   const data = await response.json();
+   // Asleep/crashed RAG answers via Railway's proxy with an HTML error
+   // page — parsing that as JSON produced the infamous
+   // "Unexpected token '<'" 500s. Name the real cause instead.
+   const contentType = response.headers.get("content-type") || "";
+   if (contentType.includes("text/html")) {
+      throw new Error(
+         `RAG service unavailable (HTTP ${response.status}) — it may be waking from sleep; retry in a minute.`
+      );
+   }
+
+   const data = await response.json().catch(() => ({}));
    if (!response.ok) {
       throw new Error(data.error || "RAG service error");
    }
