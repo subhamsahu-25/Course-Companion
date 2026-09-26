@@ -39,6 +39,16 @@ async function request(endpoint, options = {}, _retried = false) {
     credentials: 'include', // sends/receives the auth cookie set at login
   });
 
+  // A web page (Vercel index.html, Railway error page) instead of JSON
+  // means the request never reached the API — wrong base URL, sleeping
+  // or crashed service. Say so plainly instead of a JSON parse error.
+  const contentType = res.headers.get('content-type') || '';
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `The server returned a web page instead of data (${res.status}). The backend at ${BASE_URL} may be down or misconfigured.`,
+    );
+  }
+
   const data = await res.json().catch(() => ({}));
 
   // Keep the header channel in sync whenever the backend hands us tokens.
