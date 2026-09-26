@@ -9,6 +9,11 @@ import { Module } from "../models/module.model.js";
 import { ALLOWED_MIME_TYPES } from "../middlewares/upload.middleware.js";
 import * as ragService from "../services/rag.service.js";
 import { assertCourseAccess } from "../utils/course-access.js";
+import {
+   uploadDocumentToCloudinary,
+   deleteFromCloudinary,
+   cloudinary,
+} from "../utils/cloudinary.js";
 
 // Only these produce plain text the rag service knows how to chunk today.
 // Other types (video/image/link/etc.) are stored and streamable but never
@@ -27,8 +32,6 @@ const uploadDocument = asyncHandler(async (req, res) => {
 
    const module = await Module.findById(moduleId).populate("course");
    if (!module) {
-      // clean up the orphaned file we already saved to disk
-      fs.unlink(req.file.path, () => { });
       throw new ApiError(404, "Module not found");
    }
 
@@ -36,17 +39,34 @@ const uploadDocument = asyncHandler(async (req, res) => {
       req.user.role !== "admin" &&
       module.course.instructor.toString() !== req.user._id.toString()
    ) {
-      fs.unlink(req.file.path, () => { });
       throw new ApiError(403, "You are not allowed to upload to this module");
    }
 
    const ext = path.extname(req.file.originalname).toLowerCase();
    const docType = ALLOWED_MIME_TYPES[req.file.mimetype] || (ext === ".pdf" ? "pdf" : "other");
+
+   // Durable storage FIRST: Cloudinary. Railway's disk is ephemeral — every
+   // redeploy used to wipe uploads/ and orphan DB records ("File is not
+   // available"). Nothing touches disk anymore; the buffer goes to
+   // Cloudinary and (below) to the RAG ingester.
+   let fileUrl, publicId;
+   try {
+      const uploaded = await uploadDocumentToCloudinary(
+         req.file.buffer,
+         req.file.originalname
+      );
+      fileUrl = uploaded.secure_url;
+      publicId = uploaded.public_id;
+   } catch (err) {
+      throw new ApiError(502, `File storage failed: ${err.message || err}`);
+   }
+
    const document = await Document.create({
       title: title || req.file.originalname,
       module: moduleId,
       type: docType,
-      url: `/uploads/${req.file.filename}`,
+      url: fileUrl,
+      cloudinaryPublicId: publicId,
       fileSizeBytes: req.file.size,
    });
 
@@ -54,9 +74,7 @@ const uploadDocument = asyncHandler(async (req, res) => {
    await module.save();
 
    // Kick off indexing so this document is actually answerable by the RAG
-   // pipeline. This used to not happen at all — the file was saved and a
-   // DB record created, but nothing ever told the rag service it existed,
-   // so questions about it always fell through to "I don't know."
+   // pipeline.
    //
    // Awaited (not fire-and-forget) so the response can honestly report
    // whether indexing worked, but a failure here doesn't fail the upload —
@@ -64,12 +82,11 @@ const uploadDocument = asyncHandler(async (req, res) => {
    // retried later.
    if (INDEXABLE_TYPES.has(docType)) {
       try {
-         const fileBuffer = fs.readFileSync(req.file.path);
          const result = await ragService.ingestDocument(
             document._id.toString(),
             moduleId,
             req.file.originalname,
-            fileBuffer.toString("base64"),
+            req.file.buffer.toString("base64"),
          );
 
          if (result?.skipped) {
@@ -136,6 +153,14 @@ const streamDocumentFile = asyncHandler(async (req, res) => {
    }
    assertCourseAccess(document.module.course, req.user);
 
+   // Cloudinary-hosted files (everything uploaded since durable storage):
+   // access stays checked here, then hand off to the CDN.
+   if (/^https?:\/\//i.test(document.url || "")) {
+      return res.redirect(document.url);
+   }
+
+   // Legacy local-disk records (pre-Cloudinary uploads, plus localhost
+   // dev) — kept as a fallback path.
    const filename = path.basename(document.url);
    const filePath = path.resolve("uploads", filename);
 
@@ -190,6 +215,25 @@ const deleteDocument = asyncHandler(async (req, res) => {
          await ragService.removeIngestedDocument(document._id.toString());
       } catch (err) {
          console.error(`Failed to remove ingested chunks for document ${document._id}:`, err.message);
+      }
+   }
+
+   // Best-effort Cloudinary cleanup (PDFs may live under image or raw
+   // type depending on how Cloudinary classified them — try both).
+   if (document.cloudinaryPublicId) {
+      try {
+         await deleteFromCloudinary(document.cloudinaryPublicId);
+      } catch {
+         try {
+            await cloudinary.uploader.destroy(document.cloudinaryPublicId, {
+               resource_type: "raw",
+            });
+         } catch (err) {
+            console.error(
+               `Failed to remove Cloudinary file for document ${document._id}:`,
+               err.message
+            );
+         }
       }
    }
 

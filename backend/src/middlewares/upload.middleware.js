@@ -1,14 +1,6 @@
 // middleware/upload.middleware.js
 import multer from "multer";
-import path from "path";
-import fs from "fs";
 
-const UPLOAD_DIR = "uploads";
-
-// ensure the uploads directory exists before multer ever tries to write to it
-if (!fs.existsSync(UPLOAD_DIR)) {
-   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
-}
 const ALLOWED_MIME_TYPES = {
    "application/pdf": "pdf",
    "text/plain": "article",
@@ -19,18 +11,17 @@ const ALLOWED_MIME_TYPES = {
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
 
-const storage = multer.diskStorage({
-   destination: (req, file, cb) => cb(null, "uploads/"),
-   filename: (req, file, cb) => {
-      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
-      cb(null, `${unique}${path.extname(file.originalname)}`);
-   },
-});
+// Memory storage (not disk): Railway's disk is ephemeral and every
+// redeploy wiped uploads/, orphaning DB records ("File is not available").
+// Files go straight from the buffer to Cloudinary (durable) and to the
+// RAG ingester (base64) — nothing ever needs to touch disk.
+const storage = multer.memoryStorage();
 
 const fileFilter = (req, file, cb) => {
-   const ext = path.extname(file.originalname).toLowerCase();
    const allowedExt = [".pdf", ".txt"];
-   if (ALLOWED_MIME_TYPES[file.mimetype] || allowedExt.includes(ext)) {
+   const ext = (file.originalname || "").toLowerCase();
+   const hasAllowedExt = allowedExt.some((e) => ext.endsWith(e));
+   if (ALLOWED_MIME_TYPES[file.mimetype] || hasAllowedExt) {
       return cb(null, true);
    }
    return cb(new Error(`Unsupported file type: ${file.mimetype}`), false);

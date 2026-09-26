@@ -17,11 +17,36 @@ const configureCloudinary = () => {
 
 configureCloudinary();
 
-const uploadToCloudinary = (buffer, folder = "course-companion/avatars") => {
+const uploadToCloudinary = (
+   buffer,
+   folder = "course-companion/avatars",
+   resourceType = "image"
+) => {
    configureCloudinary();
    return new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
-         { folder, resource_type: "image" },
+         { folder, resource_type: resourceType },
+         (error, result) => {
+            if (error) return reject(error);
+            resolve(result);
+         }
+      );
+      stream.end(buffer);
+   });
+};
+
+// Course documents (PDF/TXT) — "auto" lets Cloudinary serve each type
+// correctly instead of forcing image semantics onto a PDF.
+const uploadDocumentToCloudinary = (buffer, originalname) => {
+   const publicId = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+   return new Promise((resolve, reject) => {
+      configureCloudinary();
+      const stream = cloudinary.uploader.upload_stream(
+         {
+            folder: "course-companion/documents",
+            public_id: publicId,
+            resource_type: "auto",
+         },
          (error, result) => {
             if (error) return reject(error);
             resolve(result);
@@ -51,4 +76,4 @@ const publicIdFromUrl = (url) => {
    return after;
 };
 
-export { cloudinary, uploadToCloudinary, deleteFromCloudinary, publicIdFromUrl };
+export { cloudinary, uploadToCloudinary, uploadDocumentToCloudinary, deleteFromCloudinary, publicIdFromUrl };

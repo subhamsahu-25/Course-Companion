@@ -23,6 +23,13 @@ const documentSchema = new Schema({
    url: { // for hosted files / external links
       type: String
    },
+   // Cloudinary asset id for durable document storage (see upload
+   // middleware note about Railway's ephemeral disk). Needed to delete
+   // the file from Cloudinary when the document is deleted.
+   cloudinaryPublicId: {
+      type: String,
+      trim: true
+   },
    // Whether this document has been chunked + embedded into the RAG
    // vector store yet. Only pdf/article (txt) files can be indexed today —
    // other types (video/slides/link/other) stay false since there's no
