@@ -16,7 +16,7 @@ function estimateIndexSeconds(file) {
   const mb = file.size / 1024 / 1024;
   return Math.min(180, Math.max(10, Math.round(8 + mb * 5)));
 }
-export default function AdminUpload({ initialModuleId } = {}) {
+export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
   const [courses, setCourses] = useState([]);
   const [selectedCourse, setSelectedCourse] = useState('');
   const [modules, setModules] = useState([]);
@@ -220,6 +220,16 @@ export default function AdminUpload({ initialModuleId } = {}) {
     : 0;
   return (
     <div>
+      {onPageChange && selectedCourse && (
+        <button
+          onClick={() =>
+            onPageChange('admin-modules', { courseId: selectedCourse })
+          }
+          className="mb-4 rounded-md border border-[#3f6593] px-3 py-1.5 text-sm text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
+        >
+          ← Back to modules
+        </button>
+      )}
       <div>
         <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
           Administration

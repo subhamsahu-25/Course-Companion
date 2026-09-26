@@ -178,7 +178,12 @@ export default function App() {
         );
 
       case 'admin-upload':
-        return <AdminUpload initialModuleId={selectedModuleId} />;
+        return (
+          <AdminUpload
+            initialModuleId={selectedModuleId}
+            onPageChange={changePage}
+          />
+        );
 
       case 'account':
         return <Account />;

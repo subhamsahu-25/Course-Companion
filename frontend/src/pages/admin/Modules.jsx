@@ -116,7 +116,7 @@ export default function AdminModules({ courseId, onPageChange }) {
     <div>
       <button
         onClick={() => onPageChange('admin-courses')}
-        className="text-sm text-[#80aad3] hover:text-[#c0e6fd] hover:opacity-80"
+        className="rounded-md border border-[#3f6593] px-3 py-1.5 text-sm text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
       >
         ← Back to courses
       </button>
