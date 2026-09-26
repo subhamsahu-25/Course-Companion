@@ -5,6 +5,7 @@ import {
   getModulesByCourse,
   createModule,
   deleteModule,
+  deleteDocument,
   getDocumentFileUrl,
   removeCourseMember,
 } from '../../api/client.js';
@@ -74,6 +75,19 @@ export default function AdminModules({ courseId, onPageChange }) {
     if (!confirmed) return;
     try {
       await deleteModule(mod._id);
+      await loadAll();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  async function handleDeleteDocument(doc, event) {
+    event.stopPropagation();
+    const confirmed = window.confirm(
+      `Delete "${doc.title}"? The file and its indexed RAG content will be removed.`,
+    );
+    if (!confirmed) return;
+    try {
+      await deleteDocument(doc._id);
       await loadAll();
     } catch (err) {
       setError(err.message);
@@ -218,18 +232,28 @@ export default function AdminModules({ courseId, onPageChange }) {
                     </p>
                   )}
                   {mod.documents.map((doc) => (
-                    <a
+                    <div
                       key={doc._id}
-                      href={getDocumentFileUrl(doc._id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
                       className="flex items-center justify-between gap-3 rounded-lg bg-white/5 px-4 py-2.5 text-sm text-[#c0e6fd] shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
                     >
-                      <span className="min-w-0 flex-1 break-all">{doc.title}</span>
+                      <a
+                        href={getDocumentFileUrl(doc._id)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="min-w-0 flex-1 break-all hover:underline hover:opacity-80"
+                      >
+                        {doc.title}
+                      </a>
                       <span className="shrink-0 text-xs uppercase text-[#80aad3]">
                         {doc.type}
                       </span>
-                    </a>
+                      <button
+                        onClick={(e) => handleDeleteDocument(doc, e)}
+                        className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"
+                      >
+                        Delete
+                      </button>
+                    </div>
                   ))}
                 </div>
               )}
