@@ -129,22 +129,22 @@ export default function StudentHistory({ onPageChange }) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Your history
         </div>
 
-        <h1 className="mt-1 font-serif text-[34px] text-[#1D3557]">
+        <h1 className="mt-1 font-sans text-[34px] text-[#2B124C]">
           Question history
         </h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Pick a course and module to see everything you've asked there, and its
           review status.
         </p>
       </div>
 
-      <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-5 shadow-sm">
-        <label htmlFor="course" className="text-sm font-medium text-[#2B2D42]">
+      <div className="mt-8 rounded-xl border border-[#DFB6B2] bg-white p-5 shadow-sm">
+        <label htmlFor="course" className="text-sm font-medium text-[#190019]">
           Course
         </label>
 
@@ -153,7 +153,7 @@ export default function StudentHistory({ onPageChange }) {
           value={selectedCourseId}
           onChange={(e) => handleCourseChange(e.target.value)}
           disabled={loadingCourses}
-          className="mt-2 w-full rounded-lg border border-[#C8D6DF] bg-[#FBFCFD] p-3 text-[15px] text-[#2B2D42] outline-none focus:border-[#457B9D] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
+          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-[15px] text-[#190019] outline-none focus:border-[#854F6C] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
         >
           <option value="">
             {loadingCourses ? 'Loading courses…' : 'Select a course…'}
@@ -167,7 +167,7 @@ export default function StudentHistory({ onPageChange }) {
 
         <label
           htmlFor="module"
-          className="mt-4 block text-sm font-medium text-[#2B2D42]"
+          className="mt-4 block text-sm font-medium text-[#190019]"
         >
           Module
         </label>
@@ -177,7 +177,7 @@ export default function StudentHistory({ onPageChange }) {
           value={selectedModuleId}
           onChange={(e) => setSelectedModuleId(e.target.value)}
           disabled={!selectedCourseId || loadingModules}
-          className="mt-2 w-full rounded-lg border border-[#C8D6DF] bg-[#FBFCFD] p-3 text-[15px] text-[#2B2D42] outline-none focus:border-[#457B9D] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
+          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-[15px] text-[#190019] outline-none focus:border-[#854F6C] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
         >
           {!selectedCourseId && <option value="">Select a course first</option>}
           {selectedCourseId && loadingModules && (
@@ -204,7 +204,7 @@ export default function StudentHistory({ onPageChange }) {
 
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#457B9D]">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#854F6C]">
             {selectedCourse && selectedModule
               ? `Questions — ${selectedCourse.title} / ${selectedModule.title}`
               : 'Your questions'}
@@ -213,7 +213,7 @@ export default function StudentHistory({ onPageChange }) {
           <button
             onClick={loadHistory}
             disabled={loadingHistory}
-            className="text-sm text-[#457B9D] hover:underline disabled:opacity-60"
+            className="text-sm text-[#854F6C] hover:underline disabled:opacity-60"
           >
             {loadingHistory ? 'Refreshing…' : 'Refresh'}
           </button>
@@ -221,7 +221,7 @@ export default function StudentHistory({ onPageChange }) {
 
         <div className="mt-4 space-y-4">
           {!selectedModuleId && (
-            <p className="text-sm text-[#8AA0AE]">
+            <p className="text-sm text-[#854F6C]">
               Select a course and module above to see your question history for
               it.
             </p>
@@ -230,13 +230,13 @@ export default function StudentHistory({ onPageChange }) {
           {selectedModuleId &&
             visibleHistory.length === 0 &&
             !loadingHistory && (
-              <p className="text-sm text-[#8AA0AE]">
+              <p className="text-sm text-[#854F6C]">
                 Nothing asked in this module yet.{' '}
                 <button
                   onClick={() =>
                     onPageChange('student-ask', { moduleId: selectedModuleId })
                   }
-                  className="font-medium text-[#457B9D] hover:underline"
+                  className="font-medium text-[#854F6C] hover:underline"
                 >
                   Ask one
                 </button>
@@ -249,7 +249,7 @@ export default function StudentHistory({ onPageChange }) {
               className="rounded-xl border border-[#C9D9E3] bg-[#E7F1F6] p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="text-[18px] font-semibold text-[#2B2D42]">
+                <div className="text-[18px] font-semibold text-[#190019]">
                   {item.question}
                 </div>
 
@@ -267,7 +267,7 @@ export default function StudentHistory({ onPageChange }) {
               </div>
 
               {item.status === 'pending' ? (
-                <p className="mt-3 text-[15px] leading-6 text-[#647D8D] italic">
+                <p className="mt-3 text-[15px] leading-6 text-[#854F6C] italic">
                   Still being reviewed by a TA.
                 </p>
               ) : (

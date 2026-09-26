@@ -169,29 +169,29 @@ export default function AdminUpload({ initialModuleId } = {}) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Administration
         </div>
 
-        <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">
+        <h1 className="mt-1 font-sans text-[36px] text-[#2B124C]">
           Upload material
         </h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Add course documents to a module.
         </p>
       </div>
 
-      <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-6 shadow-sm">
+      <div className="mt-8 rounded-xl border border-[#DFB6B2] bg-white p-6 shadow-sm">
         <label
           htmlFor="course"
-          className="block text-sm font-medium text-[#2B2D42]"
+          className="block text-sm font-medium text-[#190019]"
         >
           Course
         </label>
 
         {courses.length === 0 ? (
-          <p className="mt-2 text-sm text-[#8AA0AE]">
+          <p className="mt-2 text-sm text-[#854F6C]">
             No courses exist yet — create one on the Courses page first.
           </p>
         ) : (
@@ -199,7 +199,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
             id="course"
             value={selectedCourse}
             onChange={(event) => handleCourseChange(event.target.value)}
-            className="mt-2 w-full rounded-md border border-[#C8D6DF] bg-white p-3 text-sm text-[#2B2D42] outline-none focus:border-[#457B9D]"
+            className="mt-2 w-full rounded-md border border-[#DFB6B2] bg-white p-3 text-sm text-[#190019] outline-none focus:border-[#854F6C]"
           >
             {courses.map((course) => (
               <option key={course._id} value={course._id}>
@@ -211,14 +211,14 @@ export default function AdminUpload({ initialModuleId } = {}) {
 
         <label
           htmlFor="module"
-          className="mt-5 block text-sm font-medium text-[#2B2D42]"
+          className="mt-5 block text-sm font-medium text-[#190019]"
         >
           Module
         </label>
 
         {modules.filter((m) => m.courseId === selectedCourse).length ===
         0 ? (
-          <p className="mt-2 text-sm text-[#8AA0AE]">
+          <p className="mt-2 text-sm text-[#854F6C]">
             No modules in this course yet — create one on the Courses page
             first.
           </p>
@@ -227,7 +227,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
             id="module"
             value={selectedModule}
             onChange={(event) => setSelectedModule(event.target.value)}
-            className="mt-2 w-full rounded-md border border-[#C8D6DF] bg-white p-3 text-sm text-[#2B2D42] outline-none focus:border-[#457B9D]"
+            className="mt-2 w-full rounded-md border border-[#DFB6B2] bg-white p-3 text-sm text-[#190019] outline-none focus:border-[#854F6C]"
           >
             {modules
               .filter((m) => m.courseId === selectedCourse)
@@ -241,11 +241,11 @@ export default function AdminUpload({ initialModuleId } = {}) {
 
         <label
           htmlFor="files"
-          className="mt-6 block cursor-pointer rounded-xl border-2 border-dashed border-[#B9CAD5] bg-[#F8FAFB] p-10 text-center transition hover:border-[#457B9D] hover:bg-[#F3F8FA]"
+          className="mt-6 block cursor-pointer rounded-xl border-2 border-dashed border-[#B9CAD5] bg-[#F8FAFB] p-10 text-center transition hover:border-[#854F6C] hover:bg-[#F3F8FA]"
         >
-          <div className="text-3xl text-[#457B9D]">↑</div>
+          <div className="text-3xl text-[#854F6C]">↑</div>
 
-          <div className="mt-2 text-[17px] font-medium text-[#2B2D42]">
+          <div className="mt-2 text-[17px] font-medium text-[#190019]">
             Choose files to upload
           </div>
 
@@ -271,7 +271,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
 
         {files.length > 0 && (
           <div className="mt-5">
-            <div className="mb-2 text-sm font-medium text-[#2B2D42]">
+            <div className="mb-2 text-sm font-medium text-[#190019]">
               Selected files
             </div>
 
@@ -279,10 +279,10 @@ export default function AdminUpload({ initialModuleId } = {}) {
               {files.map((file, index) => (
                 <div
                   key={`${file.name}-${index}`}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-[#D9E1E7] bg-[#F8FAFB] p-3"
+                  className="flex items-center justify-between gap-4 rounded-lg border border-[#DFB6B2] bg-[#F8FAFB] p-3"
                 >
                   <div className="min-w-0">
-                    <div className="truncate text-sm text-[#2B2D42]">
+                    <div className="truncate text-sm text-[#190019]">
                       {file.name}
                     </div>
 
@@ -293,7 +293,7 @@ export default function AdminUpload({ initialModuleId } = {}) {
 
                   <button
                     onClick={() => removeFile(index)}
-                    className="shrink-0 text-sm text-[#457B9D] hover:text-[#1D3557]"
+                    className="shrink-0 text-sm text-[#854F6C] hover:text-[#2B124C]"
                   >
                     Remove
                   </button>
@@ -306,30 +306,30 @@ export default function AdminUpload({ initialModuleId } = {}) {
         <button
           onClick={handleUpload}
           disabled={!files.length || uploading || !selectedModule}
-          className="mt-6 rounded-md bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-6 rounded-md bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#522B5B] disabled:cursor-not-allowed disabled:opacity-40"
         >
           {uploading ? 'Uploading...' : 'Add to module'}
         </button>
 
         {uploaded && (
-          <div className="mt-4 rounded-lg border border-[#B8D5E4] bg-[#EAF4F8] p-3 text-sm text-[#1D3557]">
+          <div className="mt-4 rounded-lg border border-[#B8D5E4] bg-[#EAF4F8] p-3 text-sm text-[#2B124C]">
             Files added successfully.
           </div>
         )}
       </div>
 
       {selectedModule && (
-        <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-6 shadow-sm">
-          <div className="text-[16px] font-semibold text-[#1D3557]">
+        <div className="mt-8 rounded-xl border border-[#DFB6B2] bg-white p-6 shadow-sm">
+          <div className="text-[16px] font-semibold text-[#2B124C]">
             Documents in this module
           </div>
 
           {loadingDocs && (
-            <p className="mt-3 text-sm text-[#647D8D]">Loading...</p>
+            <p className="mt-3 text-sm text-[#854F6C]">Loading...</p>
           )}
 
           {!loadingDocs && documents.length === 0 && (
-            <p className="mt-3 text-sm text-[#8AA0AE]">
+            <p className="mt-3 text-sm text-[#854F6C]">
               No documents uploaded to this module yet.
             </p>
           )}
@@ -339,14 +339,14 @@ export default function AdminUpload({ initialModuleId } = {}) {
               {documents.map((doc) => (
                 <div
                   key={doc._id}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-[#D9E1E7] bg-[#F8FAFB] p-3"
+                  className="flex items-center justify-between gap-4 rounded-lg border border-[#DFB6B2] bg-[#F8FAFB] p-3"
                 >
                   <div className="min-w-0">
                     <a
                       href={getDocumentFileUrl(doc._id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="truncate text-sm font-medium text-[#1D3557] hover:underline"
+                      className="truncate text-sm font-medium text-[#2B124C] hover:underline"
                     >
                       {doc.title}
                     </a>

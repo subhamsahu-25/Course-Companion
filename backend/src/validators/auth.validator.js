@@ -24,16 +24,25 @@ const userRegisterValidator = () => {
          .isLength({ min: 6, max: 20 })
          .withMessage("Password must be between 6 and 20 characters"), // runs if password is not between 6 and 20 characters ("withMessage" is like the "else" of the above method)
 
-      body("fullname")
-         .trim()
-         .optional(),
-
-      body("rollNo")
+       body("fullName")
          .trim()
          .notEmpty()
-         .withMessage("Roll number is required")
+         .withMessage("Full name is required")
+         .isLength({ max: 60 })
+         .withMessage("Full name must not exceed 60 characters"),
+
+       body("rollNo")
+         .trim()
+         .optional({ values: "falsy" })
          .isLength({ max: 30 })
-         .withMessage("Roll number must not exceed 30 characters"),
+         .withMessage("Roll number must not exceed 30 characters")
+         .custom((value, { req }) => {
+            const role = req.body?.role;
+            if ((role === "student" || role === "ta") && !value) {
+               throw new Error("Roll number is required");
+            }
+            return true;
+         }),
    ]
 }
 
@@ -113,11 +122,23 @@ const userResendEmailVerificationValidator = () => {
    ]
 }
 
+const userUpdateProfileValidator = () => {
+   return [
+      body("fullName")
+         .trim()
+         .notEmpty()
+         .withMessage("Full name is required")
+         .isLength({ max: 60 })
+         .withMessage("Full name must not exceed 60 characters"),
+   ]
+}
+
 export {
    userRegisterValidator,
    userLoginValidator,
-   userChangeCurrentPasswordValidator, 
+   userChangeCurrentPasswordValidator,
    userForgotPasswordValidator,
    userResetForgotPasswordValidator,
    userResendEmailVerificationValidator,
+   userUpdateProfileValidator,
 };

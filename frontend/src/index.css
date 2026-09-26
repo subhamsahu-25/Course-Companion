@@ -1,10 +1,20 @@
 @import "tailwindcss";
 
+@theme {
+  --color-ink: #190019;
+  --color-primary: #2b124c;
+  --color-secondary: #522b5b;
+  --color-muted: #854f6c;
+  --color-blush: #dfb6b2;
+  --color-cream: #fbe4d8;
+  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+}
+
 body {
   margin: 0;
-  font-family: Arial, Helvetica, sans-serif;
-  color: #2B2D42;
-  background: #F8F9FA;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  color: #190019;
+  background: #fbe4d8;
 }
 
 button,

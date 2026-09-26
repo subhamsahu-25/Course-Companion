@@ -6,6 +6,8 @@ import {
    loginUser,
    logoutUser,
    getCurrentUser,
+   updateProfile,
+   updateAvatar,
    verifyEmail,
    resendEmailVerification,
    refreshAccessToken,
@@ -23,8 +25,11 @@ import {
    userChangeCurrentPasswordValidator,
    userForgotPasswordValidator,
    userResetForgotPasswordValidator,
-   userResendEmailVerificationValidator
+   userResendEmailVerificationValidator,
+   userUpdateProfileValidator
 } from "../validators/auth.validator.js";
+import { avatarUpload } from "../middlewares/avatar-upload.middleware.js";
+import { handleUpload } from "../middlewares/handle-upload-errors.middleware.js";
 
 // unsecure routes
 router.route("/register").post(userRegisterValidator(), validate, registerUser);
@@ -51,5 +56,11 @@ router.route("/logout").post(authGuard, logoutUser);
 router.route("/current-user").post(authGuard, getCurrentUser);
 
 router.route("/change-password").post(authGuard, userChangeCurrentPasswordValidator(), validate, changeCurrentPassword);
+
+router.route("/profile").patch(authGuard, userUpdateProfileValidator(), validate, updateProfile);
+
+router
+   .route("/avatar")
+   .post(authGuard, handleUpload(avatarUpload.single("avatar")), updateAvatar);
 
 export default router;

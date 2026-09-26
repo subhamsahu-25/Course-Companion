@@ -27,15 +27,15 @@ export default function StudentDashboard({ onPageChange }) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Student
         </div>
 
-        <h1 className="mt-1 text-[34px] font-bold text-[#2B2D42]">
+        <h1 className="mt-1 text-[34px] font-bold text-[#190019]">
           Your Dashboard
         </h1>
 
-        <p className="mt-1 text-[17px] text-[#647D8D]">
+        <p className="mt-1 text-[17px] text-[#854F6C]">
           Your questions across the courses you're currently enrolled in.
         </p>
       </div>
@@ -47,17 +47,17 @@ export default function StudentDashboard({ onPageChange }) {
       )}
 
       {loading ? (
-        <p className="mt-8 text-sm text-[#647D8D]">Loading...</p>
+        <p className="mt-8 text-sm text-[#854F6C]">Loading...</p>
       ) : (
         <div className="mt-8 grid gap-5 sm:grid-cols-3">
-          <div className="rounded-2xl bg-[#1D3557] p-6 text-white shadow-sm">
+          <div className="rounded-2xl bg-[#2B124C] p-6 text-white shadow-sm">
             <div className="text-[40px] font-bold">{stats?.total ?? 0}</div>
             <div className="mt-1 text-[15px] text-white/85">
               Questions asked
             </div>
           </div>
 
-          <div className="rounded-2xl bg-[#457B9D] p-6 text-white shadow-sm">
+          <div className="rounded-2xl bg-[#854F6C] p-6 text-white shadow-sm">
             <div className="text-[40px] font-bold">{stats?.approved ?? 0}</div>
             <div className="mt-1 text-[15px] text-white/85">Answered</div>
           </div>
@@ -74,7 +74,7 @@ export default function StudentDashboard({ onPageChange }) {
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         <button
           onClick={() => onPageChange('student-courses')}
-          className="min-h-30 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#457B9D] transition hover:border-[#457B9D] hover:bg-[#F5F9FB]"
+          className="min-h-30 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#854F6C] transition hover:border-[#854F6C] hover:bg-[#F5F9FB]"
         >
           <div className="text-2xl">→</div>
           <div className="mt-2">Browse your courses</div>
@@ -82,19 +82,19 @@ export default function StudentDashboard({ onPageChange }) {
 
         <button
           onClick={() => onPageChange('student-ask')}
-          className="min-h-30 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#457B9D] transition hover:border-[#457B9D] hover:bg-[#F5F9FB]"
+          className="min-h-30 rounded-2xl border-2 border-dashed border-[#B7C8D3] bg-white p-6 text-center text-[17px] text-[#854F6C] transition hover:border-[#854F6C] hover:bg-[#F5F9FB]"
         >
           <div className="text-2xl">+</div>
           <div className="mt-2">Ask a question</div>
         </button>
       </div>
 
-      <div className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-5">
-        <div className="text-[16px] font-semibold text-[#1D3557]">
+      <div className="mt-8 rounded-xl border border-[#DFB6B2] bg-white p-5">
+        <div className="text-[16px] font-semibold text-[#2B124C]">
           Quick note
         </div>
 
-        <p className="mt-1 text-[15px] leading-6 text-[#647D8D]">
+        <p className="mt-1 text-[15px] leading-6 text-[#854F6C]">
           Questions are reviewed by a teaching assistant before answers are
           published.
         </p>

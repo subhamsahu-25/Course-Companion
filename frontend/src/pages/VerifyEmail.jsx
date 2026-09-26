@@ -31,10 +31,10 @@ export default function VerifyEmail({ token, onBackToLogin }) {
   }, [token]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#FBE4D8] px-4">
       <div className="w-full max-w-142.5 text-center">
         {status === 'verifying' && (
-          <div className="rounded-xl border border-[#D5DEE5] bg-white p-8 text-[#457B9D]">
+          <div className="rounded-xl border border-[#DFB6B2] bg-white p-8 text-[#854F6C]">
             Verifying your email…
           </div>
         )}
@@ -48,7 +48,7 @@ export default function VerifyEmail({ token, onBackToLogin }) {
             </p>
             <button
               onClick={onBackToLogin}
-              className="mt-4 rounded-lg bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F]"
+              className="mt-4 rounded-lg bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B]"
             >
               Go to sign in
             </button>
@@ -65,7 +65,7 @@ export default function VerifyEmail({ token, onBackToLogin }) {
             </p>
             <button
               onClick={onBackToLogin}
-              className="mt-4 rounded-lg bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F]"
+              className="mt-4 rounded-lg bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B]"
             >
               Back to sign in
             </button>

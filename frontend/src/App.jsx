@@ -56,21 +56,33 @@ export default function App() {
 
   useEffect(() => {
     let cancelled = false;
+    // Fail-safe: never leave the app stuck on "Loading…" if the backend
+    // is down or the request hangs (e.g. backend not running on :8888).
+    const timeout = setTimeout(() => {
+      if (!cancelled) setAuthStatus('anonymous');
+    }, 8000);
 
     getCurrentUser()
       .then((res) => {
         if (cancelled) return;
-        setUser(res.data);
-        setCurrentPage(defaultPageForRole(res.data.role));
-        setAuthStatus('authenticated');
+        clearTimeout(timeout);
+        if (res && res.data) {
+          setUser(res.data);
+          setCurrentPage(defaultPageForRole(res.data.role));
+          setAuthStatus('authenticated');
+        } else {
+          setAuthStatus('anonymous');
+        }
       })
       .catch(() => {
         if (cancelled) return;
+        clearTimeout(timeout);
         setAuthStatus('anonymous');
       });
 
     return () => {
       cancelled = true;
+      clearTimeout(timeout);
     };
   }, []);
 
@@ -178,7 +190,7 @@ export default function App() {
 
   if (authStatus === 'checking') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] text-[#457B9D]">
+      <div className="flex min-h-screen items-center justify-center bg-[#FBE4D8] text-[#854F6C]">
         Loading…
       </div>
     );

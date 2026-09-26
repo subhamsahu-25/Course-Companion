@@ -88,7 +88,7 @@ export default function History({ onPageChange }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading history...</p>;
+    return <p className="text-sm text-[#854F6C]">Loading history...</p>;
   }
 
   const modulesForHistoryCourse = modules.filter(
@@ -99,19 +99,19 @@ export default function History({ onPageChange }) {
     <div>
       <button
         onClick={() => onPageChange('ta-review')}
-        className="text-sm text-[#457B9D] hover:text-[#1D3557]"
+        className="text-sm text-[#854F6C] hover:text-[#2B124C]"
       >
         ← Back to review queue
       </button>
 
       <div className="mt-4">
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Teaching Assistant
         </div>
 
-        <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">History</h1>
+        <h1 className="mt-1 font-sans text-[36px] text-[#2B124C]">History</h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Pick a course, then a module, to see everything ever asked in it.
         </p>
       </div>
@@ -126,7 +126,7 @@ export default function History({ onPageChange }) {
         <select
           value={historyCourseId}
           onChange={(e) => handleHistoryCourseChange(e.target.value)}
-          className="w-full rounded-md border border-[#C8D6DF] bg-white p-2.5 text-sm text-[#2B2D42] outline-none focus:border-[#457B9D] sm:w-64"
+          className="w-full rounded-md border border-[#DFB6B2] bg-white p-2.5 text-sm text-[#190019] outline-none focus:border-[#854F6C] sm:w-64"
         >
           <option value="">Select a course…</option>
           {courses.map((course) => (
@@ -140,7 +140,7 @@ export default function History({ onPageChange }) {
           value={historyModuleId}
           onChange={(e) => handleHistoryModuleChange(e.target.value)}
           disabled={!historyCourseId}
-          className="w-full rounded-md border border-[#C8D6DF] bg-white p-2.5 text-sm text-[#2B2D42] outline-none focus:border-[#457B9D] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5] sm:w-64"
+          className="w-full rounded-md border border-[#DFB6B2] bg-white p-2.5 text-sm text-[#190019] outline-none focus:border-[#854F6C] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5] sm:w-64"
         >
           {!historyCourseId && <option value="">Select a course first</option>}
           {historyCourseId && (
@@ -163,20 +163,20 @@ export default function History({ onPageChange }) {
       )}
 
       {loadingHistory && (
-        <p className="mt-4 text-sm text-[#647D8D]">Loading history...</p>
+        <p className="mt-4 text-sm text-[#854F6C]">Loading history...</p>
       )}
 
       {!loadingHistory &&
         historyModuleId &&
         historyItems.length === 0 &&
         !historyError && (
-          <p className="mt-4 text-sm text-[#8AA0AE]">
+          <p className="mt-4 text-sm text-[#854F6C]">
             Nothing has been asked in this module yet.
           </p>
         )}
 
       {!historyModuleId && (
-        <p className="mt-4 text-sm text-[#8AA0AE]">
+        <p className="mt-4 text-sm text-[#854F6C]">
           Select a course and module above to see its history.
         </p>
       )}
@@ -185,10 +185,10 @@ export default function History({ onPageChange }) {
         {historyItems.map((item) => (
           <div
             key={item._id}
-            className="rounded-xl border border-[#D9E1E7] bg-white p-5"
+            className="rounded-xl border border-[#DFB6B2] bg-white p-5"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-[16px] font-semibold text-[#2B2D42]">
+              <div className="text-[16px] font-semibold text-[#190019]">
                 {item.question}
               </div>
 
@@ -202,7 +202,7 @@ export default function History({ onPageChange }) {
               </span>
             </div>
 
-            <p className="mt-2 text-xs text-[#8AA0AE]">
+            <p className="mt-2 text-xs text-[#854F6C]">
               {new Date(item.createdAt).toLocaleString()}
             </p>
 

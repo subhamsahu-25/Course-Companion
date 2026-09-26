@@ -34,19 +34,19 @@ export default function StudentCourses({
   }
 
   if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading courses...</p>;
+    return <p className="text-sm text-[#854F6C]">Loading courses...</p>;
   }
 
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Course material
         </div>
 
-        <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">Courses</h1>
+        <h1 className="mt-1 font-sans text-[36px] text-[#2B124C]">Courses</h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Browse a course to see its modules.
         </p>
       </div>
@@ -59,21 +59,21 @@ export default function StudentCourses({
 
       <div className="mt-8 space-y-4">
         {courses.length === 0 && !error && (
-          <p className="text-sm text-[#8AA0AE]">No courses available yet.</p>
+          <p className="text-sm text-[#854F6C]">No courses available yet.</p>
         )}
 
         {courses.map((course) => (
           <button
             key={course._id}
             onClick={() => onPageChange(modulesPage, { courseId: course._id })}
-            className="flex w-full flex-col gap-4 rounded-xl border border-[#C9D9E3] bg-[#E7F1F6] p-5 text-left transition hover:border-[#457B9D] sm:flex-row sm:items-center"
+            className="flex w-full flex-col gap-4 rounded-xl border border-[#C9D9E3] bg-[#E7F1F6] p-5 text-left transition hover:border-[#854F6C] sm:flex-row sm:items-center"
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-xl text-[#457B9D] shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-xl text-[#854F6C] shadow-sm">
               📚
             </div>
 
             <div className="flex-1">
-              <div className="text-[19px] font-semibold text-[#2B2D42]">
+              <div className="text-[19px] font-semibold text-[#190019]">
                 {course.title}
               </div>
 
@@ -88,7 +88,7 @@ export default function StudentCourses({
               </div>
             </div>
 
-            <div className="shrink-0 text-lg text-[#457B9D]">→</div>
+            <div className="shrink-0 text-lg text-[#854F6C]">→</div>
           </button>
         ))}
       </div>

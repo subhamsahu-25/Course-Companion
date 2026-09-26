@@ -98,29 +98,29 @@ export default function AdminCourses({ onPageChange }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading courses...</p>;
+    return <p className="text-sm text-[#854F6C]">Loading courses...</p>;
   }
 
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+          <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
             Administration
           </div>
 
-          <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">
+          <h1 className="mt-1 font-sans text-[36px] text-[#2B124C]">
             Courses
           </h1>
 
-          <p className="mt-2 text-[17px] text-[#647D8D]">
+          <p className="mt-2 text-[17px] text-[#854F6C]">
             Manage the courses students and TAs can join.
           </p>
         </div>
 
         <button
           onClick={() => setShowNewCourse((s) => !s)}
-          className="rounded-md bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F]"
+          className="rounded-md bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#522B5B]"
         >
           + New course
         </button>
@@ -135,7 +135,7 @@ export default function AdminCourses({ onPageChange }) {
       {showNewCourse && (
         <form
           onSubmit={handleCreateCourse}
-          className="mt-6 flex flex-col gap-3 rounded-xl border border-[#D9E1E7] bg-white p-4 sm:flex-row"
+          className="mt-6 flex flex-col gap-3 rounded-xl border border-[#DFB6B2] bg-white p-4 sm:flex-row"
         >
           <input
             type="text"
@@ -144,12 +144,12 @@ export default function AdminCourses({ onPageChange }) {
             placeholder="Course title, min 3 characters (e.g. Electrical Engineering 101)"
             minLength={3}
             maxLength={100}
-            className="flex-1 rounded-md border border-[#C8D6DF] p-2.5 text-sm outline-none focus:border-[#457B9D]"
+            className="flex-1 rounded-md border border-[#DFB6B2] p-2.5 text-sm outline-none focus:border-[#854F6C]"
           />
           <button
             type="submit"
             disabled={submitting || newCourseTitle.trim().length < 3}
-            className="rounded-md bg-[#1D3557] px-4 py-2 text-sm text-white disabled:opacity-60"
+            className="rounded-md bg-[#2B124C] px-4 py-2 text-sm text-white disabled:opacity-60"
           >
             Create
           </button>
@@ -179,7 +179,7 @@ export default function AdminCourses({ onPageChange }) {
 
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {courses.length === 0 && (
-          <p className="text-sm text-[#8AA0AE]">
+          <p className="text-sm text-[#854F6C]">
             No courses yet — create one above to get started.
           </p>
         )}
@@ -190,10 +190,10 @@ export default function AdminCourses({ onPageChange }) {
             onClick={() =>
               onPageChange('admin-modules', { courseId: course._id })
             }
-            className="cursor-pointer rounded-xl border border-[#D9E1E7] bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#457B9D] hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-[#DFB6B2] bg-white p-6 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#854F6C] hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-[19px] font-semibold text-[#2B2D42]">
+              <div className="text-[19px] font-semibold text-[#190019]">
                 {course.title}
               </div>
 
@@ -206,20 +206,20 @@ export default function AdminCourses({ onPageChange }) {
             </div>
 
             {course.description && (
-              <p className="mt-2 text-sm text-[#647D8D]">
+              <p className="mt-2 text-sm text-[#854F6C]">
                 {course.description}
               </p>
             )}
 
-            <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-[#F1F4F6] px-2.5 py-1 text-xs text-[#457B9D]">
+            <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-[#F1F4F6] px-2.5 py-1 text-xs text-[#854F6C]">
               Join code
-              <span className="font-mono font-semibold tracking-[0.15em] text-[#1D3557]">
+              <span className="font-mono font-semibold tracking-[0.15em] text-[#2B124C]">
                 {course.joinCode}
               </span>
             </div>
 
             <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-[#457B9D]">
+              <span className="text-sm text-[#854F6C]">
                 {course.moduleCount} module
                 {course.moduleCount !== 1 ? 's' : ''} →
               </span>

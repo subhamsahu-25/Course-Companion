@@ -41,24 +41,24 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Enrollment
         </div>
 
-        <h1 className="mt-1 font-serif text-[34px] text-[#1D3557]">
+        <h1 className="mt-1 font-sans text-[34px] text-[#2B124C]">
           Join a course
         </h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Enter the 5-digit code your instructor shared with you.
         </p>
       </div>
 
       <form
         onSubmit={handleSubmit}
-        className="mt-8 max-w-sm rounded-xl border border-[#D9E1E7] bg-white p-6 shadow-sm"
+        className="mt-8 max-w-sm rounded-xl border border-[#DFB6B2] bg-white p-6 shadow-sm"
       >
-        <label htmlFor="code" className="text-sm font-medium text-[#2B2D42]">
+        <label htmlFor="code" className="text-sm font-medium text-[#190019]">
           Course code
         </label>
 
@@ -69,7 +69,7 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
           value={code}
           onChange={handleCodeChange}
           placeholder="12345"
-          className="mt-2 w-full rounded-lg border border-[#C8D6DF] bg-[#FBFCFD] p-3 text-center text-[22px] tracking-[0.3em] text-[#2B2D42] outline-none placeholder:tracking-normal placeholder:text-[#B7C4CC] focus:border-[#457B9D]"
+          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-center text-[22px] tracking-[0.3em] text-[#190019] outline-none placeholder:tracking-normal placeholder:text-[#DFB6B2] focus:border-[#854F6C]"
         />
 
         {error && (
@@ -81,7 +81,7 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
         <button
           type="submit"
           disabled={submitting || code.length !== 5}
-          className="mt-4 w-full rounded-md bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F] disabled:opacity-60"
+          className="mt-4 w-full rounded-md bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B] disabled:opacity-60"
         >
           {submitting ? 'Joining…' : 'Join course'}
         </button>

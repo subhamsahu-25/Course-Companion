@@ -58,10 +58,10 @@ export const login = (identifier, password) => {
   })
 }
 
-export const register = (email, username, password, role, rollNo) =>
+export const register = (email, username, password, role, rollNo, fullName) =>
   request('/auth/register', {
     method: 'POST',
-    body: JSON.stringify({ email, username, password, role, rollNo }),
+    body: JSON.stringify({ email, username, password, role, rollNo, fullName }),
   })
 
 export const logout = () => request('/auth/logout', { method: 'POST' })
@@ -103,6 +103,43 @@ export const changePassword = (oldPassword, newPassword) =>
 
 export const getCurrentUser = () =>
   request('/auth/current-user', { method: 'POST' })
+
+export const updateProfile = (fullName) =>
+  request('/auth/profile', {
+    method: 'PATCH',
+    body: JSON.stringify({ fullName }),
+  })
+
+// Avatar upload needs FormData (no JSON Content-Type); same one-retry
+// silent refresh on 401 as document uploads.
+export const uploadAvatar = async (file, _retried = false) => {
+  const formData = new FormData()
+  formData.append('avatar', file)
+
+  const res = await fetch(`${BASE_URL}/auth/avatar`, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData,
+  })
+
+  if (res.status === 401 && !_retried) {
+    try {
+      await refreshAccessToken()
+      return uploadAvatar(file, true)
+    } catch {
+      // fall through to the original error below
+    }
+  }
+
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) {
+    const err = new Error(data.message || 'Avatar upload failed')
+    err.statusCode = res.status
+    err.errors = data.errors || []
+    throw err
+  }
+  return data
+}
 
 // ---- Courses ---------------------------------------------------------------
 

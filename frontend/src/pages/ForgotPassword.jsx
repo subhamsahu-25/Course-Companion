@@ -29,13 +29,13 @@ export default function ForgotPassword({ onBackToLogin }) {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-8 sm:px-6">
+    <div className="flex min-h-screen items-center justify-center bg-[#FBE4D8] px-4 py-8 sm:px-6">
       <div className="w-full max-w-142.5">
         <div className="mb-8 text-center sm:mb-10 sm:text-left">
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#457B9D] sm:text-sm">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#854F6C] sm:text-sm">
             Academic Portal
           </div>
-          <h1 className="font-serif text-[38px] leading-[1.05] text-[#1D3557] sm:text-[48px]">
+          <h1 className="font-sans text-[38px] leading-[1.05] text-[#2B124C] sm:text-[48px]">
             Reset your
             <br />
             password
@@ -51,15 +51,15 @@ export default function ForgotPassword({ onBackToLogin }) {
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-xl border border-[#D5DEE5] bg-white p-6 shadow-sm sm:p-8"
+            className="space-y-4 rounded-xl border border-[#DFB6B2] bg-white p-6 shadow-sm sm:p-8"
           >
-            <p className="text-sm text-[#457B9D]">
+            <p className="text-sm text-[#854F6C]">
               Enter the email you signed up with and we'll send you a reset link.
             </p>
             <div>
               <label
                 htmlFor="forgot-email"
-                className="text-sm font-medium text-[#2B2D42]"
+                className="text-sm font-medium text-[#190019]"
               >
                 Email
               </label>
@@ -68,7 +68,7 @@ export default function ForgotPassword({ onBackToLogin }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+                className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
                 placeholder="you@example.com"
                 autoComplete="email"
               />
@@ -83,18 +83,18 @@ export default function ForgotPassword({ onBackToLogin }) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-lg bg-[#1D3557] px-4 py-3 text-sm font-medium text-white hover:bg-[#28476F] disabled:opacity-60"
+              className="w-full rounded-lg bg-[#2B124C] px-4 py-3 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B] disabled:opacity-60"
             >
               {submitting ? 'Sending...' : 'Send reset link'}
             </button>
           </form>
         )}
 
-        <p className="mt-4 text-center text-sm text-[#457B9D]">
+        <p className="mt-4 text-center text-sm text-[#854F6C]">
           <button
             type="button"
             onClick={onBackToLogin}
-            className="font-medium text-[#1D3557] hover:underline"
+            className="font-medium text-[#2B124C] hover:underline"
           >
             Back to sign in
           </button>

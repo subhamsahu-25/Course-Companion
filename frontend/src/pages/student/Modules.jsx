@@ -59,11 +59,11 @@ export default function StudentModules({ courseId, onPageChange }) {
   if (!courseId) {
     return (
       <div className="rounded-lg bg-white p-6">
-        <p className="text-sm text-[#8AA0AE]">
+        <p className="text-sm text-[#854F6C]">
           No course selected —{' '}
           <button
             onClick={() => onPageChange('student-courses')}
-            className="text-[#457B9D] underline"
+            className="text-[#854F6C] underline"
           >
             go back to Courses
           </button>
@@ -74,26 +74,26 @@ export default function StudentModules({ courseId, onPageChange }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-[#647D8D]">Loading modules...</p>;
+    return <p className="text-sm text-[#854F6C]">Loading modules...</p>;
   }
 
   return (
     <div>
       <button
         onClick={() => onPageChange('student-courses')}
-        className="text-sm text-[#457B9D] hover:text-[#1D3557]"
+        className="text-sm text-[#854F6C] hover:text-[#2B124C]"
       >
         ← Back to courses
       </button>
 
       <div className="mt-4">
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           {course?.title}
         </div>
 
-        <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">Modules</h1>
+        <h1 className="mt-1 font-sans text-[36px] text-[#2B124C]">Modules</h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Browse uploaded course material by module.
         </p>
       </div>
@@ -106,7 +106,7 @@ export default function StudentModules({ courseId, onPageChange }) {
 
       <div className="mt-8 space-y-4">
         {modules.length === 0 && !error && (
-          <p className="text-sm text-[#8AA0AE]">
+          <p className="text-sm text-[#854F6C]">
             No modules in this course yet.
           </p>
         )}
@@ -123,7 +123,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                 onClick={() => toggleExpanded(mod._id)}
                 className="flex cursor-pointer flex-col gap-4 sm:flex-row sm:items-center"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-xl text-[#457B9D] shadow-sm">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-white text-xl text-[#854F6C] shadow-sm">
                   📄
                 </div>
 
@@ -136,7 +136,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                     >
                       ▶
                     </span>
-                    <span className="text-[19px] font-semibold text-[#2B2D42]">
+                    <span className="text-[19px] font-semibold text-[#190019]">
                       {mod.title}
                     </span>
                   </div>
@@ -159,7 +159,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                     e.stopPropagation();
                     onPageChange('student-ask', { moduleId: mod._id });
                   }}
-                  className="shrink-0 rounded-md border border-[#AFC4D1] bg-white px-5 py-2 text-sm font-medium text-[#1D3557] hover:bg-[#F6FAFC]"
+                  className="shrink-0 rounded-md border border-[#AFC4D1] bg-white px-5 py-2 text-sm font-medium text-[#2B124C] hover:bg-[#F6FAFC]"
                 >
                   Ask
                 </button>
@@ -179,7 +179,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                       href={getDocumentFileUrl(doc._id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-2.5 text-sm text-[#1D3557] shadow-sm transition hover:bg-[#F6FAFC]"
+                      className="flex items-center justify-between gap-3 rounded-lg bg-white px-4 py-2.5 text-sm text-[#2B124C] shadow-sm transition hover:bg-[#F6FAFC]"
                     >
                       <span className="truncate">{doc.title}</span>
                       <span className="shrink-0 text-xs uppercase text-[#78909F]">

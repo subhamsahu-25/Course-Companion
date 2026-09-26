@@ -1,16 +1,26 @@
-// frontend/src/pages/Account.jsx — change-password screen, reachable from
-// every role's sidebar via the shared 'account' page key. Two parts:
-//   1. Know your password → change it directly.
-//   2. Forgot it → get a reset link by email (same flow as the login screen's
-//      "Forgot password?", pre-addressed to your own account email).
-import { useEffect, useState } from 'react';
+// frontend/src/pages/Account.jsx — profile + password settings, reachable
+// from every role's sidebar via the shared 'account' page key. Three parts:
+//   1. Profile card → avatar (Cloudinary), username, full name, roll no.
+//   2. Know your password → change it directly.
+//   3. Forgot it → get a reset link by email.
+import { useEffect, useRef, useState } from 'react';
 import {
   changePassword as changePasswordRequest,
   forgotPassword as forgotPasswordRequest,
   getCurrentUser,
+  uploadAvatar as uploadAvatarRequest,
 } from '../api/client.js';
 
 export default function Account() {
+  // ---- profile state ----
+  const [profile, setProfile] = useState(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileError, setProfileError] = useState(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const [avatarError, setAvatarError] = useState(null);
+  const fileRef = useRef(null);
+
+  // ---- password state (unchanged) ----
   const [oldPassword, setOldPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,25 +28,57 @@ export default function Account() {
   const [success, setSuccess] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  // Own email, for the forgot-password section — fetched once so the user
-  // never has to type (or mistype) it.
+  // ---- reset-link state (unchanged) ----
   const [accountEmail, setAccountEmail] = useState('');
   const [resetState, setResetState] = useState('idle'); // idle | sending | sent
   const [resetError, setResetError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
+    setProfileLoading(true);
     getCurrentUser()
       .then((res) => {
-        if (!cancelled) setAccountEmail(res.data?.email || '');
+        if (cancelled) return;
+        const user = res.data || res.user || null;
+        setProfile(user);
+        setAccountEmail(user?.email || '');
+        setProfileLoading(false);
       })
       .catch(() => {
-        if (!cancelled) setResetError('Could not load your account email.');
+        if (cancelled) return;
+        setProfileError('Could not load your profile.');
+        setResetError('Could not load your account email.');
+        setProfileLoading(false);
       });
     return () => {
       cancelled = true;
     };
   }, []);
+
+  async function handleAvatarChange(event) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setAvatarError(null);
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setAvatarError('Only JPG, PNG or WebP images are allowed.');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      setAvatarError('Image must be under 5MB.');
+      return;
+    }
+    setAvatarUploading(true);
+    try {
+      const res = await uploadAvatarRequest(file);
+      const updated = res.data || res.user;
+      if (updated) setProfile(updated);
+    } catch (err) {
+      setAvatarError(err.message);
+    } finally {
+      setAvatarUploading(false);
+      if (fileRef.current) fileRef.current.value = '';
+    }
+  }
 
   async function handleSubmit(event) {
     event.preventDefault();
@@ -86,24 +128,115 @@ export default function Account() {
     }
   }
 
+  const showRollNo =
+    profile && (profile.role === 'student' || profile.role === 'ta');
+  const avatarUrl = profile?.avatar || null;
+  const avatarInitial = (profile?.fullName || profile?.username || '?')
+    .charAt(0)
+    .toUpperCase();
+
   return (
     <div>
-      <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+      <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
         Settings
       </div>
-      <h1 className="mt-1 font-serif text-[36px] text-[#1D3557]">Account</h1>
-      <p className="mt-2 text-[17px] text-[#647D8D]">
-        Change the password you sign in with.
+      <h1 className="mt-1 font-sans text-[36px] text-[#2B124C]">Account</h1>
+      <p className="mt-2 text-[17px] text-[#854F6C]">
+        Your profile and sign-in settings.
       </p>
+
+      {/* ---- Profile card ---- */}
+      <div className="mt-6 max-w-125 rounded-xl border border-[#DFB6B2] bg-white p-6">
+        <h2 className="text-lg font-semibold text-[#2B124C]">Profile</h2>
+        {profileLoading ? (
+          <p className="mt-3 text-sm text-[#854F6C]">Loading profile…</p>
+        ) : (
+          <>
+            <div className="mt-4 flex items-center gap-4">
+              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#DFB6B2] text-xl font-semibold text-[#2B124C]">
+                {avatarUrl ? (
+                  <img
+                    src={avatarUrl}
+                    alt="Profile"
+                    className="size-full object-cover"
+                  />
+                ) : (
+                  avatarInitial
+                )}
+              </div>
+              <div>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="hidden"
+                  onChange={handleAvatarChange}
+                />
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  disabled={avatarUploading}
+                  className="rounded-lg border border-[#2B124C] px-4 py-2 text-sm font-medium text-[#2B124C] hover:bg-[#F6E7DE] disabled:opacity-60"
+                >
+                  {avatarUploading ? 'Uploading…' : 'Change photo'}
+                </button>
+              </div>
+            </div>
+            {avatarError && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {avatarError}
+              </div>
+            )}
+
+            <dl className="mt-4 space-y-2 text-[15px]">
+              <div className="flex gap-2">
+                <dt className="w-24 shrink-0 text-[#854F6C]">Full name</dt>
+                <dd className="font-medium text-[#2B124C]">
+                  {profile?.fullName || '—'}
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-24 shrink-0 text-[#854F6C]">Username</dt>
+                <dd className="text-[#2B124C]">
+                  {profile?.username || '—'}
+                </dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-24 shrink-0 text-[#854F6C]">Email</dt>
+                <dd className="text-[#2B124C]">{profile?.email || '—'}</dd>
+              </div>
+              <div className="flex gap-2">
+                <dt className="w-24 shrink-0 text-[#854F6C]">Role</dt>
+                <dd className="text-[#2B124C]">{profile?.role || '—'}</dd>
+              </div>
+              {showRollNo && (
+                <div className="flex gap-2">
+                  <dt className="w-24 shrink-0 text-[#854F6C]">Roll no.</dt>
+                  <dd className="text-[#2B124C]">{profile?.rollNo || '—'}</dd>
+                </div>
+              )}
+            </dl>
+
+            {profileError && (
+              <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+                {profileError}
+              </div>
+            )}
+          </>
+        )}
+      </div>
 
       <form
         onSubmit={handleSubmit}
-        className="mt-6 max-w-125 space-y-4 rounded-xl border border-[#D9E1E7] bg-white p-6"
+        className="mt-6 max-w-125 space-y-4 rounded-xl border border-[#DFB6B2] bg-white p-6"
       >
+        <h2 className="text-lg font-semibold text-[#2B124C]">
+          Change password
+        </h2>
         <div>
           <label
             htmlFor="current-password"
-            className="text-sm font-medium text-[#2B2D42]"
+            className="text-sm font-medium text-[#190019]"
           >
             Current password
           </label>
@@ -112,14 +245,14 @@ export default function Account() {
             type="password"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+            className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
             autoComplete="current-password"
           />
         </div>
         <div>
           <label
             htmlFor="account-new-password"
-            className="text-sm font-medium text-[#2B2D42]"
+            className="text-sm font-medium text-[#190019]"
           >
             New password
           </label>
@@ -128,7 +261,7 @@ export default function Account() {
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+            className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
             placeholder="6–20 characters"
             autoComplete="new-password"
           />
@@ -136,7 +269,7 @@ export default function Account() {
         <div>
           <label
             htmlFor="account-confirm-password"
-            className="text-sm font-medium text-[#2B2D42]"
+            className="text-sm font-medium text-[#190019]"
           >
             Confirm new password
           </label>
@@ -145,7 +278,7 @@ export default function Account() {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+            className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
             autoComplete="new-password"
           />
         </div>
@@ -164,18 +297,18 @@ export default function Account() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-lg bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F] disabled:opacity-60"
+          className="rounded-lg bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B] disabled:opacity-60"
         >
           {submitting ? 'Saving...' : 'Change password'}
         </button>
       </form>
 
-      <div className="mt-8 max-w-125 rounded-xl border border-[#D9E1E7] bg-white p-6">
-        <h2 className="text-lg font-semibold text-[#1D3557]">
+      <div className="mt-8 max-w-125 rounded-xl border border-[#DFB6B2] bg-white p-6">
+        <h2 className="text-lg font-semibold text-[#2B124C]">
           Forgot your current password?
         </h2>
-        <p className="mt-1 text-sm text-[#647D8D]">
-          We'll send a reset link to{' '}
+        <p className="mt-1 text-sm text-[#854F6C]">
+          We&apos;ll send a reset link to{' '}
           <strong>{accountEmail || 'your account email'}</strong>. It expires
           in 20 minutes.
         </p>
@@ -194,7 +327,7 @@ export default function Account() {
             type="button"
             onClick={handleForgotPassword}
             disabled={resetState === 'sending' || !accountEmail}
-            className="mt-4 rounded-lg border border-[#1D3557] px-5 py-2.5 text-sm font-medium text-[#1D3557] hover:bg-[#EEF3F6] disabled:opacity-60"
+            className="mt-4 rounded-lg border border-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#2B124C] hover:bg-[#F6E7DE] disabled:opacity-60"
           >
             {resetState === 'sending' ? 'Sending...' : 'Email me a reset link'}
           </button>

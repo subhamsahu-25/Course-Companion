@@ -4,6 +4,7 @@ import {ApiError} from "../utils/api-error.js";
 import {asyncHandler} from "../utils/async-handler.js";
 import { sendEmail, emailVerificationMailgenContent, forgotPasswordMailgenContent } from "../utils/mail.js";
 import { cookieOptions } from "../utils/cookies.js";
+import { uploadToCloudinary, deleteFromCloudinary, publicIdFromUrl } from "../utils/cloudinary.js";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 const generateAccessAndRefreshToken = async(userId) => {
@@ -23,7 +24,7 @@ const generateAccessAndRefreshToken = async(userId) => {
 
 const registerUser = asyncHandler(async(req, res) => {
    // ACCEPTING THE DATA COMING FROM FRONTEND (FOR NOW - BODY)
-   const { email, username, password, role, rollNo } = req.body;
+   const { email, username, password, role, rollNo, fullName } = req.body;
 
    // Anyone can self-register as a student, instructor, or TA, but never as
    // admin — admin accounts must be granted by an existing admin, not chosen
@@ -52,7 +53,13 @@ const registerUser = asyncHandler(async(req, res) => {
       email,
       password,
       role: requestedRole,
-      rollNo,
+      fullName: fullName?.trim(),
+      // Roll number only matters for students/TAs — instructors skip it.
+      rollNo:
+         requestedRole === AvailableUserRoles.STUDENT ||
+         requestedRole === AvailableUserRoles.TA
+            ? rollNo
+            : undefined,
       isEmailVerified: false,
    });
 
@@ -419,11 +426,62 @@ const changeCurrentPassword = asyncHandler(async(req, res) => {
       )
 });
 
+const updateProfile = asyncHandler(async (req, res) => {
+   const { fullName } = req.body;
+
+   const user = await User.findById(req.user?._id);
+   if (!user) throw new ApiError(404, "User not found");
+
+   if (fullName !== undefined) user.fullName = String(fullName).trim();
+
+   await user.save({ validateBeforeSave: false });
+
+   const updated = await User.findById(user._id).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
+   );
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, updated, "Profile updated successfully"));
+});
+
+const updateAvatar = asyncHandler(async (req, res) => {
+   if (!req.file?.buffer) throw new ApiError(400, "Profile picture is required");
+
+   if (
+      !process.env.CLOUDINARY_CLOUD_NAME ||
+      !process.env.CLOUDINARY_API_KEY ||
+      !process.env.CLOUDINARY_API_SECRET
+   ) {
+      throw new ApiError(500, "Image upload is not configured on the server");
+   }
+
+   const user = await User.findById(req.user?._id);
+   if (!user) throw new ApiError(404, "User not found");
+
+   const result = await uploadToCloudinary(req.file.buffer);
+
+   const oldPublicId = publicIdFromUrl(user.avatar);
+   user.avatar = result.secure_url;
+   await user.save({ validateBeforeSave: false });
+   if (oldPublicId) await deleteFromCloudinary(oldPublicId);
+
+   const updated = await User.findById(user._id).select(
+      "-password -refreshToken -emailVerificationToken -emailVerificationExpiry"
+   );
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, updated, "Profile picture updated successfully"));
+});
+
 export {
-   registerUser, 
+   registerUser,
    loginUser,
    logoutUser,
    getCurrentUser,
+   updateProfile,
+   updateAvatar,
    verifyEmail,
    resendEmailVerification,
    refreshAccessToken,

@@ -50,20 +50,61 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8F9FA] px-4 py-8 sm:px-6">
+    <div className="flex min-h-screen bg-[#FBE4D8]">
+      {/* Brand panel — desktop only */}
+      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-[#190019] p-10 text-[#FBE4D8] lg:flex">
+        <div
+          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-[#522B5B] opacity-60 blur-3xl"
+          aria-hidden
+        />
+        <div
+          className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-[#854F6C] opacity-40 blur-3xl"
+          aria-hidden
+        />
+        <div className="relative">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#DFB6B2]">
+            Academic Portal
+          </div>
+          <h1 className="font-sans text-[48px] font-bold leading-[1.05]">
+            Course
+            <br />
+            Companion
+          </h1>
+          <p className="mt-4 max-w-100 text-[15px] leading-6 text-[#DFB6B2]">
+            A simple place to browse course material, ask questions, and review
+            answers.
+          </p>
+        </div>
+        <ul className="relative space-y-3 text-sm text-[#DFB6B2]">
+          <li className="flex items-center gap-3">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#FBE4D8]">1</span>
+            Browse course material by module
+          </li>
+          <li className="flex items-center gap-3">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#FBE4D8]">2</span>
+            Ask questions, get TA-reviewed answers
+          </li>
+          <li className="flex items-center gap-3">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#FBE4D8]">3</span>
+            Track everything in History
+          </li>
+        </ul>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6">
       <div className="w-full max-w-142.5">
-        <div className="mb-8 text-center sm:mb-10 sm:text-left">
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#457B9D] sm:text-sm">
+        <div className="mb-8 text-center sm:mb-10 sm:text-left lg:hidden">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#854F6C] sm:text-sm">
             Academic Portal
           </div>
 
-          <h1 className="font-serif text-[38px] leading-[1.05] text-[#1D3557] sm:text-[48px] md:text-[56px]">
+          <h1 className="font-sans text-[38px] leading-[1.05] text-[#2B124C] sm:text-[48px] md:text-[56px]">
             Course Companion
             <br />
             Portal
           </h1>
 
-          <p className="mx-auto mt-4 max-w-125 text-[15px] leading-6 text-[#457B9D] sm:mx-0 sm:text-[17px]">
+          <p className="mx-auto mt-4 max-w-125 text-[15px] leading-6 text-[#854F6C] sm:mx-0 sm:text-[17px]">
             A simple place to browse course material, ask questions, and review
             answers.
           </p>
@@ -71,12 +112,12 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
 
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 rounded-xl border border-[#D5DEE5] bg-white p-6 shadow-sm sm:p-8"
+          className="space-y-4 rounded-xl border border-[#DFB6B2] bg-white p-6 shadow-sm sm:p-8"
         >
           <div>
             <label
               htmlFor="identifier"
-              className="text-sm font-medium text-[#2B2D42]"
+              className="text-sm font-medium text-[#190019]"
             >
               Email or Username
             </label>
@@ -85,7 +126,7 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
               type="text"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+              className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
               placeholder="you@example.com or username"
               autoComplete="username"
             />
@@ -94,7 +135,7 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
           <div>
             <label
               htmlFor="password"
-              className="text-sm font-medium text-[#2B2D42]"
+              className="text-sm font-medium text-[#190019]"
             >
               Password
             </label>
@@ -103,7 +144,7 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[#C8D6DF] p-3 text-[15px] outline-none focus:border-[#457B9D]"
+              className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
               placeholder="••••••••"
               autoComplete="current-password"
             />
@@ -143,7 +184,7 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-lg bg-[#1D3557] px-4 py-3 text-sm font-medium text-white hover:bg-[#28476F] disabled:opacity-60"
+            className="w-full rounded-lg bg-[#2B124C] px-4 py-3 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B] disabled:opacity-60"
           >
             {submitting ? 'Signing in...' : 'Sign in'}
           </button>
@@ -152,23 +193,24 @@ export default function Login({ onLogin, onSwitchToSignup, onSwitchToForgot, not
             <button
               type="button"
               onClick={onSwitchToForgot}
-              className="font-medium text-[#1D3557] hover:underline"
+              className="font-medium text-[#2B124C] hover:underline"
             >
               Forgot password?
             </button>
           </div>
 
-          <p className="text-center text-sm text-[#457B9D]">
+          <p className="text-center text-sm text-[#854F6C]">
             Don't have an account?{' '}
             <button
               type="button"
               onClick={onSwitchToSignup}
-              className="font-medium text-[#1D3557] hover:underline"
+              className="font-medium text-[#2B124C] hover:underline"
             >
               Sign up
             </button>
           </p>
         </form>
+      </div>
       </div>
     </div>
   );

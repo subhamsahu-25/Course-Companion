@@ -13,7 +13,7 @@ export default function RoleLayout({
   const roleName = nameForRole(role)
 
   return (
-    <div className="min-h-screen bg-[#F8F9FA]">
+    <div className="min-h-screen bg-[#FBE4D8]">
       <div className="flex min-h-screen">
         <Sidebar
           role={role}
@@ -25,17 +25,17 @@ export default function RoleLayout({
         <div className="flex min-w-0 flex-1 flex-col">
           {/* Mobile top bar — the sidebar is desktop-only, so phones need
               their own way to see where they are and log out. */}
-          <header className="flex items-center justify-between border-b border-[#D9E1E7] bg-white px-4 py-3 md:hidden">
+          <header className="flex items-center justify-between border-b border-[#DFB6B2] bg-white px-4 py-3 md:hidden">
             <div>
-              <div className="text-[17px] font-semibold text-[#1D3557]">
+              <div className="text-[17px] font-semibold text-[#2B124C]">
                 Course Companion
               </div>
-              <div className="text-xs text-[#457B9D]">{roleName}</div>
+              <div className="text-xs text-[#854F6C]">{roleName}</div>
             </div>
 
             <button
               onClick={onLogout}
-              className="text-sm text-[#457B9D] hover:text-[#1D3557]"
+              className="text-sm text-[#854F6C] hover:text-[#2B124C]"
             >
               Log out
             </button>
@@ -47,15 +47,15 @@ export default function RoleLayout({
 
           {/* Mobile bottom tab bar — replaces the sidebar's role as primary
               navigation on small screens, fixed so it's always reachable. */}
-          <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-[#D9E1E7] bg-white md:hidden">
+          <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-[#DFB6B2] bg-white md:hidden">
             {links.map(([page, text]) => (
               <button
                 key={page}
                 onClick={() => onPageChange(page)}
                 className={`flex-1 px-2 py-3 text-center text-xs font-medium transition ${
                   currentPage === page
-                    ? 'text-[#1D3557]'
-                    : 'text-[#8AA0AE]'
+                    ? 'text-[#2B124C]'
+                    : 'text-[#854F6C]'
                 }`}
               >
                 {text}

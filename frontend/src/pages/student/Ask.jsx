@@ -96,24 +96,24 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#457B9D]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
           Ask a question
         </div>
 
-        <h1 className="mt-1 font-serif text-[34px] text-[#1D3557]">
+        <h1 className="mt-1 font-sans text-[34px] text-[#2B124C]">
           Ask a question
         </h1>
 
-        <p className="mt-2 text-[17px] text-[#647D8D]">
+        <p className="mt-2 text-[17px] text-[#854F6C]">
           Ask something about the course material.
         </p>
       </div>
 
       <form
         onSubmit={submitQuestion}
-        className="mt-8 rounded-xl border border-[#D9E1E7] bg-white p-5 shadow-sm"
+        className="mt-8 rounded-xl border border-[#DFB6B2] bg-white p-5 shadow-sm"
       >
-        <label htmlFor="course" className="text-sm font-medium text-[#2B2D42]">
+        <label htmlFor="course" className="text-sm font-medium text-[#190019]">
           Course
         </label>
 
@@ -121,7 +121,7 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
           id="course"
           value={selectedCourseId}
           onChange={(e) => handleCourseChange(e.target.value)}
-          className="mt-2 w-full rounded-lg border border-[#C8D6DF] bg-[#FBFCFD] p-3 text-[15px] text-[#2B2D42] outline-none focus:border-[#457B9D]"
+          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-[15px] text-[#190019] outline-none focus:border-[#854F6C]"
         >
           <option value="">Select a course…</option>
           {courses.map((course) => (
@@ -133,7 +133,7 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
 
         <label
           htmlFor="module"
-          className="mt-4 block text-sm font-medium text-[#2B2D42]"
+          className="mt-4 block text-sm font-medium text-[#190019]"
         >
           Module
         </label>
@@ -143,7 +143,7 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
           value={selectedModuleId}
           onChange={(e) => setSelectedModuleId(e.target.value)}
           disabled={!selectedCourseId || loadingModules}
-          className="mt-2 w-full rounded-lg border border-[#C8D6DF] bg-[#FBFCFD] p-3 text-[15px] text-[#2B2D42] outline-none focus:border-[#457B9D] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
+          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-[15px] text-[#190019] outline-none focus:border-[#854F6C] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
         >
           {!selectedCourseId && <option value="">Select a course first</option>}
           {selectedCourseId && loadingModules && (
@@ -163,7 +163,7 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
 
         <label
           htmlFor="question"
-          className="mt-4 block text-sm font-medium text-[#2B2D42]"
+          className="mt-4 block text-sm font-medium text-[#190019]"
         >
           Your question
         </label>
@@ -174,18 +174,18 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
           value={question}
           onChange={(event) => setQuestion(event.target.value)}
           placeholder="Type your question here..."
-          className="mt-2 w-full resize-none rounded-lg border border-[#C8D6DF] bg-[#FBFCFD] p-4 text-[16px] text-[#2B2D42] outline-none placeholder:text-[#8AA0AE] focus:border-[#457B9D]"
+          className="mt-2 w-full resize-none rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-4 text-[16px] text-[#190019] outline-none placeholder:text-[#854F6C] focus:border-[#854F6C]"
         />
 
         <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <span className="text-sm text-[#647D8D]">
+          <span className="text-sm text-[#854F6C]">
             A TA reviews the answer before it is published.
           </span>
 
           <button
             type="submit"
             disabled={submitting || !question.trim() || !selectedModuleId}
-            className="rounded-md bg-[#1D3557] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#28476F] disabled:opacity-60"
+            className="rounded-md bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-white hover:bg-[#522B5B] disabled:opacity-60"
           >
             {submitting ? 'Submitting...' : 'Submit question'}
           </button>
@@ -199,14 +199,14 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
       )}
 
       {sent && (
-        <div className="mt-4 rounded-lg border border-[#B8D5E4] bg-[#EAF4F8] p-4 text-sm text-[#1D3557]">
+        <div className="mt-4 rounded-lg border border-[#B8D5E4] bg-[#EAF4F8] p-4 text-sm text-[#2B124C]">
           Your question was submitted to the TA review queue.{' '}
           {onPageChange && (
             <button
               onClick={() =>
                 onPageChange('student-history', { moduleId: selectedModuleId })
               }
-              className="font-medium text-[#457B9D] hover:underline"
+              className="font-medium text-[#854F6C] hover:underline"
             >
               View it in your history
             </button>
