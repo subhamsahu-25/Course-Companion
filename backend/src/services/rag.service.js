@@ -1,6 +1,11 @@
 // backend/src/services/rag.service.js — update submitQuestion, add getStats
 const ragRequest = async (endpoint, options = {}) => {
-   const RAG_SERVICE_URL = process.env.RAG_SERVICE_URL;
+   // A trailing slash in RAG_SERVICE_URL turns "/ingest" into "//ingest",
+   // which Express 5 answers with an HTML 404 — strip it once, here.
+   const RAG_SERVICE_URL = (process.env.RAG_SERVICE_URL || "").replace(
+      /\/+$/,
+      ""
+   );
 
    let response;
    try {
