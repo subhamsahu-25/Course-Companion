@@ -14,10 +14,43 @@ export default function AdminCourses({ onPageChange }) {
   const [showNewCourse, setShowNewCourse] = useState(false);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  // The course object just returned by createCourse, shown once so the
-  // admin can grab its join code before it scrolls off into the grid
-  // below with everything else.
-  const [justCreated, setJustCreated] = useState(null);
+  // Which course's code was just copied (icon-only button, no text) —
+  // shows a brief "Copied" hint next to it.
+  const [copiedId, setCopiedId] = useState(null);
+
+  function CopyIcon({ className }) {
+    return (
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 256 256"
+        fill="currentColor"
+        className={className}
+        aria-hidden
+      >
+        <path d="M216,32H88a8,8,0,0,0-8,8V80H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H168a8,8,0,0,0,8-8V176h40a8,8,0,0,0,8-8V40A8,8,0,0,0,216,32ZM160,208H48V96H160Zm48-48H176V88a8,8,0,0,0-8-8H96V48H208Z" />
+      </svg>
+    );
+  }
+
+  async function handleCopyCode(course, event) {
+    event.stopPropagation();
+    const code = course.joinCode || '';
+    try {
+      await navigator.clipboard.writeText(code);
+    } catch {
+      // Clipboard API needs a secure context — fallback for anything else.
+      const ta = document.createElement('textarea');
+      ta.value = code;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+    }
+    setCopiedId(course._id);
+    setTimeout(() => {
+      setCopiedId((id) => (id === course._id ? null : id));
+    }, 1500);
+  }
   useEffect(() => {
     loadCourses();
   }, []);
@@ -52,8 +85,7 @@ export default function AdminCourses({ onPageChange }) {
     if (newCourseTitle.trim().length < 3) return;
     setSubmitting(true);
     try {
-      const res = await createCourse(newCourseTitle);
-      setJustCreated(res.data);
+      await createCourse(newCourseTitle);
       setNewCourseTitle('');
       setShowNewCourse(false);
       await loadCourses();
@@ -80,9 +112,6 @@ export default function AdminCourses({ onPageChange }) {
     if (!confirmed) return;
     try {
       await deleteCourse(course._id);
-      if (justCreated?._id === course._id) {
-        setJustCreated(null);
-      }
       await loadCourses();
     } catch (err) {
       setError(err.message);
@@ -138,25 +167,6 @@ export default function AdminCourses({ onPageChange }) {
           </button>
         </form>
       )}
-      {justCreated && (
-        <div className="mt-6 flex flex-col items-start gap-2 rounded-xl border border-green-200 bg-green-50 p-5 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="text-sm font-medium text-green-800">
-              "{justCreated.title}" was created. Share this code with its
-              students and TAs so they can join:
-            </div>
-            <div className="mt-1 text-[26px] font-semibold tracking-[0.3em] text-green-900">
-              {justCreated.joinCode}
-            </div>
-          </div>
-          <button
-            onClick={() => setJustCreated(null)}
-            className="text-sm text-green-700 hover:underline hover:opacity-80"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {courses.length === 0 && (
           <p className="text-sm text-[#80aad3]">
@@ -192,6 +202,18 @@ export default function AdminCourses({ onPageChange }) {
               <span className="font-mono font-semibold tracking-[0.15em] text-[#c0e6fd]">
                 {course.joinCode}
               </span>
+              <button
+                type="button"
+                onClick={(e) => handleCopyCode(course, e)}
+                aria-label={`Copy join code ${course.joinCode}`}
+                title={copiedId === course._id ? 'Copied!' : 'Copy join code'}
+                className="flex items-center text-[#80aad3] transition-all duration-200 ease-out hover:text-[#c0e6fd] hover:opacity-80 active:scale-90"
+              >
+                <CopyIcon className="size-4" />
+              </button>
+              {copiedId === course._id && (
+                <span className="font-medium text-[#c0e6fd]">Copied!</span>
+              )}
             </div>
             <div className="mt-4 flex items-center justify-between">
               <span className="text-sm text-[#80aad3]">
