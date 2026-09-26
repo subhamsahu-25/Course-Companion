@@ -26,6 +26,13 @@ const app = express();
 // upload cap the backend enforces.
 app.use(express.json({ limit: "65mb" }));
 
+// Public liveness probe for uptime monitors (cron-job.org etc.) —
+// everything else on this service sits behind the service-key gate,
+// so monitors need one ungated URL that answers 200 when alive.
+app.get("/health", (req, res) => {
+    res.status(200).json({ status: "ok", service: "rag" });
+});
+
 // 0. Service-to-service auth.
 // This service exposes internal endpoints (approve/reject a TA review, read
 // any student's answers) that should only ever be called by the main
