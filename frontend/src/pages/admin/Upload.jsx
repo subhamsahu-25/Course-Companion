@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getCourses,
-  getModulesByCourse,
+  getMyModules,
   getDocumentsByModule,
   uploadDocumentWithProgress,
   deleteDocument,
@@ -43,15 +43,16 @@ export default function AdminUpload({ initialModuleId } = {}) {
   const loadModules = useCallback(
     async ({ ignore } = {}) => {
       try {
-        const coursesRes = await getCourses();
-        const modulesPerCourse = await Promise.all(
-          coursesRes.data.map((c) => getModulesByCourse(c._id)),
-        );
-        // Tag every module with its course — the module payload doesn't
-        // reliably carry it, and the course dropdown needs the mapping.
-        const flat = modulesPerCourse.flatMap((res, i) =>
-          res.data.map((m) => ({ ...m, courseId: coursesRes.data[i]._id })),
-        );
+        const [coursesRes, modulesRes] = await Promise.all([
+          getCourses(),
+          getMyModules(),
+        ]);
+        // Tag every module with its course — the course dropdown needs
+        // the mapping to reset the module when the course changes.
+        const flat = (modulesRes.data || []).map((m) => ({
+          ...m,
+          courseId: m.course?._id || m.course,
+        }));
         if (ignore?.()) return;
         setCourses(coursesRes.data);
         setModules(flat);

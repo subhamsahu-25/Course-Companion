@@ -4,7 +4,7 @@ import {
   approveAnswer,
   rejectAnswer,
   getCourses,
-  getModulesByCourse,
+  getMyModules,
 } from '../../api/client.js';
 export default function ReviewQueue({ onPageChange }) {
   const [items, setItems] = useState([]);
@@ -30,23 +30,20 @@ export default function ReviewQueue({ onPageChange }) {
     setLoading(true);
     setError(null);
     try {
-      const [queueRes, coursesRes] = await Promise.all([
+      const [queueRes, coursesRes, modulesRes] = await Promise.all([
         getReviewQueue(),
         getCourses(),
+        getMyModules(),
       ]);
       setItems(queueRes.data);
       setCourses(coursesRes.data);
-      const modulesPerCourse = await Promise.all(
-        coursesRes.data.map((course) => getModulesByCourse(course._id)),
-      );
-      const flat = modulesPerCourse.flatMap((res, i) =>
-        res.data.map((mod) => ({
+      setModules(
+        (modulesRes.data || []).map((mod) => ({
           ...mod,
-          courseId: coursesRes.data[i]._id,
-          courseTitle: coursesRes.data[i].title,
+          courseId: mod.course?._id || mod.course,
+          courseTitle: mod.course?.title || '',
         })),
       );
-      setModules(flat);
     } catch (err) {
       setError(err.message);
     } finally {

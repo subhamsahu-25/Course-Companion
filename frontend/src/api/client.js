@@ -256,6 +256,11 @@ export const joinCourse = (code) =>
 export const getModulesByCourse = (courseId) =>
   request(`/modules/course/${courseId}`);
 
+// Flat {_id, title, order, course: {_id, title}} list of every module in
+// the caller's accessible courses — one request replacing the old
+// getCourses + N×getModulesByCourse fan-out on list pages.
+export const getMyModules = () => request('/modules/mine');
+
 export const createModule = (title, courseId) =>
   request('/modules', {
     method: 'POST',

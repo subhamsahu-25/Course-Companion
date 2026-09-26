@@ -40,6 +40,34 @@ const createModule = asyncHandler(async (req, res) => {
       .json(new ApiResponse(201, module, "Module created successfully"));
 });
 
+// One flat list of every module in the caller's accessible courses —
+// replaces the getCourses + N×getModulesByCourse fan-out that list pages
+// used to need (counts, dropdowns, review filters all derive client-side
+// from this + getCourses in just 2 requests).
+const getMyModules = asyncHandler(async (req, res) => {
+   // Same visibility rule as getAllCourses: students see published member
+   // courses, TAs member courses, staff everything.
+   const courseFilter = {};
+   if (req.user?.role === "student") {
+      courseFilter.isPublished = true;
+      courseFilter.students = req.user._id;
+   } else if (req.user?.role === "ta") {
+      courseFilter.tas = req.user._id;
+   }
+   const courses = await Course.find(courseFilter).select("_id").lean();
+   const modules = await Module.find({
+      course: { $in: courses.map((c) => c._id) },
+   })
+      .select("title order course")
+      .populate("course", "title")
+      .sort({ order: 1 })
+      .lean();
+
+   return res
+      .status(200)
+      .json(new ApiResponse(200, modules, "Modules fetched successfully"));
+});
+
 const getModulesByCourse = asyncHandler(async (req, res) => {
    const { id: courseId } = req.params;
 
@@ -144,6 +172,7 @@ const deleteModule = asyncHandler(async (req, res) => {
 
 export {
    createModule,
+   getMyModules,
    getModulesByCourse,
    getModuleById,
    updateModule,

@@ -1,6 +1,6 @@
 // frontend/src/pages/student/Courses.jsx
 import { useState, useEffect } from 'react';
-import { getCourses, getModulesByCourse } from '../../api/client.js';
+import { getCourses, getMyModules } from '../../api/client.js';
 
 export default function StudentCourses({
   onPageChange,
@@ -16,16 +16,23 @@ export default function StudentCourses({
 
   async function loadCourses() {
     try {
-      const coursesRes = await getCourses();
+      const [coursesRes, modulesRes] = await Promise.all([
+        getCourses(),
+        getMyModules(),
+      ]);
 
-      const withModuleCounts = await Promise.all(
-        coursesRes.data.map(async (course) => {
-          const modulesRes = await getModulesByCourse(course._id);
-          return { ...course, moduleCount: modulesRes.data.length };
-        }),
+      const counts = {};
+      for (const mod of modulesRes.data || []) {
+        const cid = mod.course?._id || mod.course;
+        counts[cid] = (counts[cid] || 0) + 1;
+      }
+
+      setCourses(
+        coursesRes.data.map((course) => ({
+          ...course,
+          moduleCount: counts[course._id] || 0,
+        })),
       );
-
-      setCourses(withModuleCounts);
     } catch (err) {
       setError(err.message);
     } finally {

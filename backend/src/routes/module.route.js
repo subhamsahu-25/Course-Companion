@@ -4,6 +4,7 @@ const router = Router();
 
 import {
    createModule,
+   getMyModules,
    getModulesByCourse,
    getModuleById,
    updateModule,
@@ -19,6 +20,8 @@ import {
 } from "../validators/module.validator.js";
 import { courseIdParamValidator } from "../validators/course.validator.js";
 
+// "/mine" must sit before "/:moduleId" or Express reads "mine" as an id.
+router.route("/mine").get(authGuard, getMyModules);
 router.route("/course/:id").get(authGuard, courseIdParamValidator(), validate, getModulesByCourse);
 router.route("/:moduleId").get(authGuard, moduleIdParamValidator(), validate, getModuleById);
 

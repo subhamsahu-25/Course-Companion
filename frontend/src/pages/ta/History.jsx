@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import {
   getCourses,
-  getModulesByCourse,
+  getMyModules,
   getModuleHistory,
 } from '../../api/client.js';
 const HISTORY_STATUS_STYLES = {
@@ -37,19 +37,18 @@ export default function History({ onPageChange }) {
     setLoading(true);
     setError(null);
     try {
-      const coursesRes = await getCourses();
+      const [coursesRes, modulesRes] = await Promise.all([
+        getCourses(),
+        getMyModules(),
+      ]);
       setCourses(coursesRes.data);
-      const modulesPerCourse = await Promise.all(
-        coursesRes.data.map((course) => getModulesByCourse(course._id)),
-      );
-      const flat = modulesPerCourse.flatMap((res, i) =>
-        res.data.map((mod) => ({
+      setModules(
+        (modulesRes.data || []).map((mod) => ({
           ...mod,
-          courseId: coursesRes.data[i]._id,
-          courseTitle: coursesRes.data[i].title,
+          courseId: mod.course?._id || mod.course,
+          courseTitle: mod.course?.title || '',
         })),
       );
-      setModules(flat);
     } catch (err) {
       setError(err.message);
     } finally {

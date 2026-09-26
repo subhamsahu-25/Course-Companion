@@ -5,7 +5,6 @@ import {
   getModulesByCourse,
   createModule,
   deleteModule,
-  getDocumentsByModule,
   getDocumentFileUrl,
   removeCourseMember,
 } from '../../api/client.js';
@@ -24,15 +23,14 @@ export default function AdminModules({ courseId, onPageChange }) {
       const courseRes = await getCourseById(courseId);
       setCourse(courseRes.data);
       const modulesRes = await getModulesByCourse(courseId);
-      // Fetch each module's actual documents (not just a count) so the
-      // card can expand to show file names with clickable links.
-      const withDocs = await Promise.all(
-        modulesRes.data.map(async (mod) => {
-          const docsRes = await getDocumentsByModule(mod._id);
-          return { ...mod, documents: docsRes.data };
-        }),
+      // Documents already arrive populated on each module — the card
+      // expands to file names with clickable links, zero extra requests.
+      setModules(
+        (modulesRes.data || []).map((mod) => ({
+          ...mod,
+          documents: mod.documents || [],
+        })),
       );
-      setModules(withDocs);
     } catch (err) {
       setError(err.message);
     } finally {

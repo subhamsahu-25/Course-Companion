@@ -4,6 +4,7 @@ import {
   askQuestion,
   getCourses,
   getModulesByCourse,
+  getMyModules,
 } from '../../api/client.js';
 export default function StudentAsk({ initialModuleId, onPageChange }) {
   const [question, setQuestion] = useState('');
@@ -23,22 +24,25 @@ export default function StudentAsk({ initialModuleId, onPageChange }) {
   }, []);
   async function loadCourses() {
     try {
-      const res = await getCourses();
-      setCourses(res.data);
+      const [coursesRes, modulesRes] = await Promise.all([
+        getCourses(),
+        getMyModules(),
+      ]);
+      setCourses(coursesRes.data);
+      const flat = modulesRes.data || [];
       // If we arrived here already knowing which module to ask about
       // (e.g. clicked "Ask" from a specific module's page), figure out
       // which course it belongs to so both dropdowns come pre-filled
       // instead of making the student pick again.
       if (initialModuleId) {
-        for (const course of res.data) {
-          const modulesRes = await getModulesByCourse(course._id);
-          const match = modulesRes.data.find((m) => m._id === initialModuleId);
-          if (match) {
-            setSelectedCourseId(course._id);
-            setModulesForCourse(modulesRes.data);
-            setSelectedModuleId(initialModuleId);
-            break;
-          }
+        const match = flat.find((m) => m._id === initialModuleId);
+        if (match) {
+          const cid = match.course?._id || match.course;
+          setSelectedCourseId(cid);
+          setModulesForCourse(
+            flat.filter((m) => (m.course?._id || m.course) === cid),
+          );
+          setSelectedModuleId(initialModuleId);
         }
       }
     } catch (err) {

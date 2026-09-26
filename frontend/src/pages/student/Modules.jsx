@@ -3,7 +3,6 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   getCourseById,
   getModulesByCourse,
-  getDocumentsByModule,
   getDocumentFileUrl,
 } from '../../api/client.js';
 
@@ -23,16 +22,14 @@ export default function StudentModules({ courseId, onPageChange }) {
 
       const modulesRes = await getModulesByCourse(courseId);
 
-      // Fetch each module's actual documents (not just a count) so we can
-      // list real file names with open links, grouped module-wise.
-      const withDocs = await Promise.all(
-        modulesRes.data.map(async (mod) => {
-          const docsRes = await getDocumentsByModule(mod._id);
-          return { ...mod, documents: docsRes.data };
-        }),
+      // getModulesByCourse already populates each module's documents, so
+      // file names + open links render with zero extra requests.
+      setModules(
+        (modulesRes.data || []).map((mod) => ({
+          ...mod,
+          documents: mod.documents || [],
+        })),
       );
-
-      setModules(withDocs);
     } catch (err) {
       setError(err.message);
     } finally {
