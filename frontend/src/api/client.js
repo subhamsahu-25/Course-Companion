@@ -34,7 +34,19 @@ async function request(endpoint, options = {}, _retried = false) {
   }
 
   if (!res.ok) {
-    const err = new Error(data.message || 'Something went wrong');
+    // 422s carry per-field details (e.g. [{username: 'must be lowercase'}])
+    // — fold them into the message so forms show WHAT to fix, not just
+    // that validation failed.
+    const detail =
+      Array.isArray(data.errors) && data.errors.length > 0
+        ? ': ' +
+          data.errors
+            .flatMap((e) =>
+              typeof e === 'string' ? [e] : Object.values(e || {}),
+            )
+            .join('; ')
+        : '';
+    const err = new Error((data.message || 'Something went wrong') + detail);
     // Surfaced (not string-matched) so pages can branch on status —
     // e.g. Login shows "resend verification email" only on a 403.
     err.statusCode = res.status;
