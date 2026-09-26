@@ -8,6 +8,7 @@ import {
   deleteDocument,
   getDocumentFileUrl,
 } from '../../api/client.js';
+import { FileIcon } from '../../components/ui/primitives.jsx';
 
 // Rough indexing estimate so the instructor sees a remaining-time hint
 // while the RAG service chunks + embeds. Real time varies with RAG load,
@@ -414,9 +415,7 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
                     >
                       {doc.title}
                     </a>
-                    <div className="mt-1 text-xs text-[#80aad3] uppercase">
-                      {doc.type}
-                    </div>
+                    <FileIcon title={doc.type} className="mt-1 size-6" />
                   </div>
                   <button
                     onClick={() => handleDeleteDocument(doc)}

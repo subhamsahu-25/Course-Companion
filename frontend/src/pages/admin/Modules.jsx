@@ -9,6 +9,7 @@ import {
   getDocumentFileUrl,
   removeCourseMember,
 } from '../../api/client.js';
+import { FileIcon } from '../../components/ui/primitives.jsx';
 export default function AdminModules({ courseId, onPageChange }) {
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
@@ -244,9 +245,7 @@ export default function AdminModules({ courseId, onPageChange }) {
                       >
                         {doc.title}
                       </a>
-                      <span className="shrink-0 text-xs uppercase text-[#80aad3]">
-                        {doc.type}
-                      </span>
+                      <FileIcon title={doc.type} />
                       <button
                         onClick={(e) => handleDeleteDocument(doc, e)}
                         className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"

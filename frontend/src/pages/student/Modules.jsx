@@ -5,6 +5,7 @@ import {
   getModulesByCourse,
   getDocumentFileUrl,
 } from '../../api/client.js';
+import { FileIcon } from '../../components/ui/primitives.jsx';
 
 export default function StudentModules({ courseId, onPageChange }) {
   const [course, setCourse] = useState(null);
@@ -179,9 +180,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                       className="flex items-center justify-between gap-3 rounded-lg bg-[#1b3554] px-4 py-2.5 text-sm text-[#c0e6fd] shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
                     >
                       <span className="min-w-0 flex-1 break-all">{doc.title}</span>
-                      <span className="shrink-0 text-xs uppercase text-[#80aad3]">
-                        {doc.type}
-                      </span>
+                      <FileIcon title={doc.type} />
                     </a>
                   ))}
                 </div>
