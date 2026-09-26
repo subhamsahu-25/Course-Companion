@@ -1,13 +1,11 @@
 // frontend/src/pages/VerifyEmail.jsx
 import { useEffect, useState } from 'react';
 import { verifyEmailToken } from '../api/client.js';
-
 // Opened via the link in the verification email (?verifyToken=...).
 // Calls the API once on mount and shows the outcome.
 export default function VerifyEmail({ token, onBackToLogin }) {
   const [status, setStatus] = useState('verifying'); // verifying | ok | failed
   const [message, setMessage] = useState('');
-
   useEffect(() => {
     let cancelled = false;
     if (!token) {
@@ -29,12 +27,11 @@ export default function VerifyEmail({ token, onBackToLogin }) {
       cancelled = true;
     };
   }, [token]);
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FBE4D8] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-[#000f22] px-4">
       <div className="w-full max-w-142.5 text-center">
         {status === 'verifying' && (
-          <div className="rounded-xl border border-[#DFB6B2] bg-white p-8 text-[#854F6C]">
+          <div className="rounded-xl border border-[#3f6593] bg-[#1b3554] p-8 text-[#80aad3]">
             Verifying your email…
           </div>
         )}
@@ -48,7 +45,7 @@ export default function VerifyEmail({ token, onBackToLogin }) {
             </p>
             <button
               onClick={onBackToLogin}
-              className="mt-4 rounded-lg bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B]"
+              className="mt-4 rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
             >
               Go to sign in
             </button>
@@ -65,7 +62,7 @@ export default function VerifyEmail({ token, onBackToLogin }) {
             </p>
             <button
               onClick={onBackToLogin}
-              className="mt-4 rounded-lg bg-[#2B124C] px-5 py-2.5 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B]"
+              className="mt-4 rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
             >
               Back to sign in
             </button>

@@ -1,22 +1,18 @@
 // frontend/src/pages/ForgotPassword.jsx
 import { useState } from 'react';
 import { forgotPassword as forgotPasswordRequest } from '../api/client.js';
-
 export default function ForgotPassword({ onBackToLogin }) {
   const [email, setEmail] = useState('');
   const [error, setError] = useState(null);
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-
   async function handleSubmit(event) {
     event.preventDefault();
     setError(null);
-
     if (!email.trim()) {
       setError('Please enter your email.');
       return;
     }
-
     setSubmitting(true);
     try {
       await forgotPasswordRequest(email.trim());
@@ -27,39 +23,38 @@ export default function ForgotPassword({ onBackToLogin }) {
       setSubmitting(false);
     }
   }
-
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#FBE4D8] px-4 py-8 sm:px-6">
+    <div className="flex min-h-screen items-center justify-center bg-[#000f22] px-4 py-8 sm:px-6">
       <div className="w-full max-w-142.5">
         <div className="mb-8 text-center sm:mb-10 sm:text-left">
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#854F6C] sm:text-sm">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#80aad3] sm:text-sm">
             Academic Portal
           </div>
-          <h1 className="font-sans text-[38px] leading-[1.05] text-[#2B124C] sm:text-[48px]">
+          <h1 className="font-sans text-[38px] leading-[1.05] text-[#c0e6fd] sm:text-[48px]">
             Reset your
             <br />
             password
           </h1>
         </div>
-
         {sent ? (
           <div className="rounded-xl border border-green-200 bg-green-50 p-6 text-sm text-green-800">
             If an account exists for <strong>{email.trim()}</strong>, a reset
-            link is on its way. It expires in 20 minutes — check your inbox
-            (and spam).
+            link is on its way. It expires in 20 minutes — check your inbox (and
+            spam).
           </div>
         ) : (
           <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-xl border border-[#DFB6B2] bg-white p-6 shadow-sm sm:p-8"
+            className="space-y-4 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm sm:p-8"
           >
-            <p className="text-sm text-[#854F6C]">
-              Enter the email you signed up with and we'll send you a reset link.
+            <p className="text-sm text-[#80aad3]">
+              Enter the email you signed up with and we'll send you a reset
+              link.
             </p>
             <div>
               <label
                 htmlFor="forgot-email"
-                className="text-sm font-medium text-[#190019]"
+                className="text-sm font-medium text-[#c0e6fd]"
               >
                 Email
               </label>
@@ -68,33 +63,30 @@ export default function ForgotPassword({ onBackToLogin }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#DFB6B2] p-3 text-[15px] outline-none focus:border-[#854F6C]"
+                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
                 placeholder="you@example.com"
                 autoComplete="email"
               />
             </div>
-
             {error && (
               <div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
                 {error}
               </div>
             )}
-
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-lg bg-[#2B124C] px-4 py-3 text-sm font-medium text-[#FBE4D8] hover:bg-[#522B5B] disabled:opacity-60"
+              className="w-full rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-3 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
             >
               {submitting ? 'Sending...' : 'Send reset link'}
             </button>
           </form>
         )}
-
-        <p className="mt-4 text-center text-sm text-[#854F6C]">
+        <p className="mt-4 text-center text-sm text-[#80aad3]">
           <button
             type="button"
             onClick={onBackToLogin}
-            className="font-medium text-[#2B124C] hover:underline"
+            className="font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
           >
             Back to sign in
           </button>
@@ -103,3 +95,5 @@ export default function ForgotPassword({ onBackToLogin }) {
     </div>
   );
 }
+
+

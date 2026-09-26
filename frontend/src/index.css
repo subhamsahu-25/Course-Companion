@@ -1,20 +1,20 @@
-@import "tailwindcss";
-
+@import 'tailwindcss';
 @theme {
-  --color-ink: #190019;
-  --color-primary: #2b124c;
-  --color-secondary: #522b5b;
-  --color-muted: #854f6c;
-  --color-blush: #dfb6b2;
-  --color-cream: #fbe4d8;
-  --font-sans: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --color-ink: #000f22;
+  --color-primary: #1b3554;
+  --color-secondary: #3f6593;
+  --color-muted: #5b86b6;
+  --color-blush: #80aad3;
+  --color-cream: #c0e6fd;
+  --font-sans: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
 }
 
 body {
   margin: 0;
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
-  color: #190019;
-  background: #fbe4d8;
+  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  color: var(--color-cream);
+  background: var(--color-ink);
+  color-scheme: dark;
 }
 
 button,
@@ -26,4 +26,131 @@ select {
 
 * {
   box-sizing: border-box;
+}
+
+/* Nav */
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--color-primary);
+}
+
+.navbar-links {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: var(--color-blush);
+}
+
+.btn-outline {
+  background: var(--color-secondary);
+  color: var(--color-cream);
+  border: 1px solid var(--color-muted);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+/* Hero */
+.hero {
+  padding: 64px 32px 48px;
+  text-align: center;
+}
+
+.hero-eyebrow {
+  font-size: 13px;
+  letter-spacing: 0.5px;
+  color: var(--color-muted);
+  margin: 0 0 12px;
+}
+
+.hero-title {
+  font-size: 32px;
+  font-weight: 500;
+  color: var(--color-cream);
+  margin: 0 0 16px;
+  line-height: 1.3;
+}
+
+.hero-subtitle {
+  font-size: 15px;
+  color: var(--color-blush);
+  max-width: 420px;
+  margin: 0 auto 28px;
+  line-height: 1.7;
+}
+
+.btn-primary {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  border: none;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+/* Stat / metric cards */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  padding: 0 32px 48px;
+}
+
+.stat-card {
+  background: var(--color-primary);
+  border: 1px solid var(--color-secondary);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.stat-label {
+  font-size: 13px;
+  color: var(--color-muted);
+  margin: 0 0 6px;
+}
+
+.stat-value {
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--color-cream);
+  margin: 0;
+}
+
+/* Subject / list cards */
+.subject-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+}
+
+.subject-card {
+  background: var(--color-secondary);
+  border-radius: 10px;
+  padding: 16px 18px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.subject-name {
+  color: var(--color-cream);
+  font-size: 14px;
+}
+
+.subject-progress {
+  color: var(--color-blush);
+  font-size: 12px;
+}
+
+.section-title {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-cream);
+  margin: 0 0 16px;
 }

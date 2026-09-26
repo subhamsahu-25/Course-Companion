@@ -103,7 +103,18 @@ const getAllCourses = asyncHandler(async (req, res) => {
 const getCourseById = asyncHandler(async (req, res) => {
    const { id } = req.params;
 
-   const course = await Course.findById(id)
+   // Access is checked on the raw document FIRST — students/tas below get
+   // populated into full user objects for display, and membership must
+   // never be evaluated against populated docs.
+   const course = await Course.findById(id);
+
+   if (!course) {
+      throw new ApiError(404, "Course not found");
+   }
+
+   assertCourseAccess(course, req.user);
+
+   const full = await Course.findById(id)
       .populate("instructor", "username fullname")
       .populate("students", "username fullName rollNo")
       .populate("tas", "username fullName rollNo")
@@ -112,15 +123,9 @@ const getCourseById = asyncHandler(async (req, res) => {
          options: { sort: { order: 1 } },
       });
 
-   if (!course) {
-      throw new ApiError(404, "Course not found");
-   }
-
-   assertCourseAccess(course, req.user);
-
    return res
       .status(200)
-      .json(new ApiResponse(200, course, "Course fetched successfully"));
+      .json(new ApiResponse(200, full, "Course fetched successfully"));
 });
 
 const updateCourse = asyncHandler(async (req, res) => {

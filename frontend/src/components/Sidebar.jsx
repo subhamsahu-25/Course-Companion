@@ -14,7 +14,7 @@ export function MenuIcon({ open, onClick, className }) {
       onClick={onClick}
       aria-label={open ? 'Close sidebar' : 'Open sidebar'}
       className={cn(
-        'group flex size-9 cursor-pointer items-center justify-center rounded-md text-[#2B124C] hover:bg-[#F6E7DE]',
+        'group flex size-9 cursor-pointer items-center justify-center rounded-md text-[#c0e6fd] hover:bg-white/10 hover:opacity-85',
         className,
       )}
     >
@@ -53,23 +53,28 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
       {/* Desktop sidebar — deep plum, collapsible */}
       <aside
         className={cn(
-          'hidden min-h-screen shrink-0 border-r border-[#522B5B] bg-[#2B124C] px-5 py-7 transition-all duration-300 md:block',
+          'hidden min-h-screen shrink-0 border-r border-[#3f6593] bg-[#1b3554] px-5 py-7 transition-all duration-300 md:block',
           open ? 'w-62.5' : 'w-[76px] px-3',
         )}
       >
-        <div className={cn('mb-9 flex items-center', open ? 'justify-between px-2' : 'justify-center')}>
+        <div
+          className={cn(
+            'mb-9 flex items-center',
+            open ? 'justify-between px-2' : 'justify-center',
+          )}
+        >
           {open && (
             <div>
-              <div className="text-[21px] font-semibold text-[#FBE4D8]">
+              <div className="text-[21px] font-semibold text-[#c0e6fd]">
                 Course Companion
               </div>
-              <div className="mt-1 text-[15px] text-[#DFB6B2]">{roleName}</div>
+              <div className="mt-2 inline-block rounded-md border border-[#5b86b6]/60 px-2 py-0.5 text-[13px] font-bold text-[#c0e6fd]">{roleName}</div>
             </div>
           )}
           <MenuIcon
             open={open}
             onClick={() => setOpen((v) => !v)}
-            className="text-[#FBE4D8] hover:bg-white/10"
+            className="text-[#c0e6fd] hover:bg-[#1b3554]/10"
           />
         </div>
 
@@ -83,8 +88,8 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
                   'w-full rounded-md px-3 py-2.5 text-[15px] transition',
                   open ? 'text-left' : 'text-center',
                   currentPage === page
-                    ? 'bg-[#DFB6B2] font-medium text-[#190019]'
-                    : 'text-[#DFB6B2] hover:bg-white/10 hover:text-[#FBE4D8]',
+                    ? 'bg-[#c0e6fd] font-medium text-[#000f22]'
+                    : 'text-[#80aad3] hover:bg-white/10 hover:text-[#c0e6fd]',
                 )}
               >
                 {open ? text : text.charAt(0)}
@@ -105,7 +110,7 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
         {open ? (
           <button
             onClick={onLogout}
-            className="mt-10 w-full border-t border-[#522B5B] px-2 pt-5 text-left text-[15px] text-[#DFB6B2] hover:text-[#FBE4D8]"
+            className="mt-10 w-full rounded-md border-t border-[#3f6593] px-2 pt-5 text-left text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
           >
             Log out
           </button>
@@ -114,7 +119,7 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
             <TooltipTrigger asChild>
               <button
                 onClick={onLogout}
-                className="mt-10 w-full border-t border-[#522B5B] pt-5 text-center text-[15px] text-[#DFB6B2] hover:text-[#FBE4D8]"
+                className="mt-10 w-full rounded-md border-t border-[#3f6593] pt-5 text-center text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
               >
                 ↩
               </button>
@@ -131,9 +136,9 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
         type="button"
         onClick={() => setMobileOpen((v) => !v)}
         aria-label={mobileOpen ? 'Close menu' : 'Open menu'}
-        className="fixed left-4 top-4 z-40 flex size-10 items-center justify-center rounded-full border border-[#DFB6B2] bg-white shadow-sm md:hidden"
+        className="fixed left-4 top-4 z-40 flex size-10 items-center justify-center rounded-full border border-[#5b86b6]/60 bg-[#3f6593] shadow-sm transition-all duration-200 ease-out hover:opacity-90 md:hidden"
       >
-        <span className="relative grid size-4 items-center justify-center text-[#2B124C]">
+        <span className="relative grid size-4 items-center justify-center text-[#c0e6fd]">
           <span
             className={cn(
               'absolute h-0.5 w-full rounded-full bg-current transition-all duration-300',
@@ -162,12 +167,12 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
             className="absolute inset-0 bg-black/30"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute left-0 top-0 h-full w-64 bg-white px-5 py-7 shadow-xl">
+          <aside className="absolute left-0 top-0 h-full w-64 bg-[#1b3554] px-5 py-7 shadow-xl">
             <div className="mb-9 px-2">
-              <div className="text-[21px] font-semibold text-[#2B124C]">
+              <div className="text-[21px] font-semibold text-[#c0e6fd]">
                 Course Companion
               </div>
-              <div className="mt-1 text-[15px] text-[#854F6C]">{roleName}</div>
+              <div className="mt-2 inline-block rounded-md border border-[#5b86b6]/60 px-2 py-0.5 text-[13px] font-bold text-[#c0e6fd]">{roleName}</div>
             </div>
             <nav className="space-y-1">
               {links.map(([page, text]) => (
@@ -180,8 +185,8 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
                   className={cn(
                     'w-full rounded-md px-3 py-2.5 text-left text-[15px] transition',
                     currentPage === page
-                      ? 'bg-[#DFB6B2] font-medium text-[#2B124C]'
-                      : 'text-[#854F6C] hover:bg-[#F6E7DE]',
+                      ? 'bg-[#80aad3] font-medium text-[#c0e6fd]'
+                      : 'text-[#80aad3] hover:bg-white/10',
                   )}
                 >
                   {text}
@@ -190,7 +195,7 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
             </nav>
             <button
               onClick={onLogout}
-              className="mt-10 w-full border-t border-[#DFB6B2] px-2 pt-5 text-left text-[15px] text-[#854F6C] hover:text-[#2B124C]"
+              className="mt-10 w-full rounded-md border-t border-[#3f6593] px-2 pt-5 text-left text-[15px] text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
             >
               Log out
             </button>
@@ -200,3 +205,5 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
     </>
   );
 }
+
+

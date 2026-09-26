@@ -50,7 +50,12 @@ function ArrowSvg(props) {
   );
 }
 
-export function TooltipContent({ className, sideOffset = 0, children, ...props }) {
+export function TooltipContent({
+  className,
+  sideOffset = 0,
+  children,
+  ...props
+}) {
   return (
     <TooltipPrimitive.Portal>
       <TooltipPrimitive.Content
@@ -58,7 +63,7 @@ export function TooltipContent({ className, sideOffset = 0, children, ...props }
         sideOffset={sideOffset}
         side="right"
         className={cn(
-          'z-50 w-fit rounded-md border border-[#DFB6B2] bg-white px-3 py-1.5 text-xs text-[#2B124C] shadow-md',
+          'z-50 w-fit rounded-md border border-[#80aad3] bg-white px-3 py-1.5 text-xs text-[#1b3554] shadow-md',
           className,
         )}
         {...props}

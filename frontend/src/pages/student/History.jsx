@@ -6,30 +6,24 @@ import {
   getCourses,
   getModulesByCourse,
 } from '../../api/client.js';
-
 const STATUS_LABELS = {
   pending: 'Awaiting TA review',
   approved: 'TA-reviewed answer',
   rejected: 'TA response',
 };
-
 export default function StudentHistory({ onPageChange }) {
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
-
   const [modulesForCourse, setModulesForCourse] = useState([]);
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [loadingModules, setLoadingModules] = useState(false);
-
   const [allAnswers, setAllAnswers] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(true);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [error, setError] = useState(null);
-
   // requestId -> timeout id, so pending items keep polling for a status
   // update without the student having to hit Refresh.
   const pollRefs = useRef({});
-
   useEffect(() => {
     loadCourses();
     loadHistory();
@@ -38,7 +32,6 @@ export default function StudentHistory({ onPageChange }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
   useEffect(() => {
     allAnswers.forEach((item) => {
       if (item.status === 'pending' && !pollRefs.current[item.id]) {
@@ -47,7 +40,6 @@ export default function StudentHistory({ onPageChange }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAnswers]);
-
   async function loadCourses() {
     setLoadingCourses(true);
     try {
@@ -59,7 +51,6 @@ export default function StudentHistory({ onPageChange }) {
       setLoadingCourses(false);
     }
   }
-
   async function loadHistory() {
     setLoadingHistory(true);
     try {
@@ -71,16 +62,13 @@ export default function StudentHistory({ onPageChange }) {
       setLoadingHistory(false);
     }
   }
-
   // Modules only ever load for the currently selected course — the module
   // dropdown stays disabled and empty until a course is picked.
   async function handleCourseChange(courseId) {
     setSelectedCourseId(courseId);
     setSelectedModuleId('');
     setModulesForCourse([]);
-
     if (!courseId) return;
-
     setLoadingModules(true);
     try {
       const res = await getModulesByCourse(courseId);
@@ -91,18 +79,15 @@ export default function StudentHistory({ onPageChange }) {
       setLoadingModules(false);
     }
   }
-
   function pollForAnswer(requestId) {
     pollRefs.current[requestId] = setTimeout(async () => {
       try {
         const res = await getMyAnswer(requestId);
         const { status, answer } = res.data;
-
         if (status === 'pending') {
           pollForAnswer(requestId);
           return;
         }
-
         delete pollRefs.current[requestId];
         setAllAnswers((old) =>
           old.map((item) =>
@@ -114,46 +99,39 @@ export default function StudentHistory({ onPageChange }) {
       }
     }, 4000);
   }
-
   // Scoped to the exact module selected — nothing from other modules or
   // other courses leaks in.
   const visibleHistory = selectedModuleId
     ? allAnswers.filter((item) => item.moduleId === selectedModuleId)
     : [];
-
   const selectedCourse = courses.find((c) => c._id === selectedCourseId);
   const selectedModule = modulesForCourse.find(
     (m) => m._id === selectedModuleId,
   );
-
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#854F6C]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
           Your history
         </div>
-
-        <h1 className="mt-1 font-sans text-[34px] text-[#2B124C]">
+        <h1 className="mt-1 font-sans text-[34px] text-[#c0e6fd]">
           Question history
         </h1>
-
-        <p className="mt-2 text-[17px] text-[#854F6C]">
+        <p className="mt-2 text-[17px] text-[#80aad3]">
           Pick a course and module to see everything you've asked there, and its
           review status.
         </p>
       </div>
-
-      <div className="mt-8 rounded-xl border border-[#DFB6B2] bg-white p-5 shadow-sm">
-        <label htmlFor="course" className="text-sm font-medium text-[#190019]">
+      <div className="mt-8 rounded-xl border border-[#3f6593] bg-[#1b3554] p-5 shadow-sm">
+        <label htmlFor="course" className="text-sm font-medium text-[#c0e6fd]">
           Course
         </label>
-
         <select
           id="course"
           value={selectedCourseId}
           onChange={(e) => handleCourseChange(e.target.value)}
           disabled={loadingCourses}
-          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-[15px] text-[#190019] outline-none focus:border-[#854F6C] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
+          className="mt-2 w-full rounded-lg border border-[#3f6593] bg-[#000f22] p-3 text-[15px] text-[#c0e6fd] outline-none focus:border-[#5b86b6] disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-[#80aad3]/60"
         >
           <option value="">
             {loadingCourses ? 'Loading courses…' : 'Select a course…'}
@@ -164,20 +142,18 @@ export default function StudentHistory({ onPageChange }) {
             </option>
           ))}
         </select>
-
         <label
           htmlFor="module"
-          className="mt-4 block text-sm font-medium text-[#190019]"
+          className="mt-4 block text-sm font-medium text-[#c0e6fd]"
         >
           Module
         </label>
-
         <select
           id="module"
           value={selectedModuleId}
           onChange={(e) => setSelectedModuleId(e.target.value)}
           disabled={!selectedCourseId || loadingModules}
-          className="mt-2 w-full rounded-lg border border-[#DFB6B2] bg-[#FFF9F4] p-3 text-[15px] text-[#190019] outline-none focus:border-[#854F6C] disabled:cursor-not-allowed disabled:bg-[#F1F4F6] disabled:text-[#9AAAB5]"
+          className="mt-2 w-full rounded-lg border border-[#3f6593] bg-[#000f22] p-3 text-[15px] text-[#c0e6fd] outline-none focus:border-[#5b86b6] disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-[#80aad3]/60"
         >
           {!selectedCourseId && <option value="">Select a course first</option>}
           {selectedCourseId && loadingModules && (
@@ -195,64 +171,57 @@ export default function StudentHistory({ onPageChange }) {
           )}
         </select>
       </div>
-
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           {error}
         </div>
       )}
-
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#854F6C]">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#80aad3]">
             {selectedCourse && selectedModule
               ? `Questions — ${selectedCourse.title} / ${selectedModule.title}`
               : 'Your questions'}
           </h2>
-
           <button
             onClick={loadHistory}
             disabled={loadingHistory}
-            className="text-sm text-[#854F6C] hover:underline disabled:opacity-60"
+            className="text-sm text-[#80aad3] hover:underline hover:opacity-80 disabled:opacity-60"
           >
             {loadingHistory ? 'Refreshing…' : 'Refresh'}
           </button>
         </div>
-
         <div className="mt-4 space-y-4">
           {!selectedModuleId && (
-            <p className="text-sm text-[#854F6C]">
+            <p className="text-sm text-[#80aad3]">
               Select a course and module above to see your question history for
               it.
             </p>
           )}
-
           {selectedModuleId &&
             visibleHistory.length === 0 &&
             !loadingHistory && (
-              <p className="text-sm text-[#854F6C]">
+              <p className="text-sm text-[#80aad3]">
                 Nothing asked in this module yet.{' '}
                 <button
                   onClick={() =>
                     onPageChange('student-ask', { moduleId: selectedModuleId })
                   }
-                  className="font-medium text-[#854F6C] hover:underline"
+                  className="font-medium text-[#80aad3] hover:underline hover:opacity-80"
                 >
                   Ask one
                 </button>
               </p>
             )}
-
           {visibleHistory.map((item) => (
             <div
               key={item.id}
-              className="rounded-xl border border-[#C9D9E3] bg-[#E7F1F6] p-5"
+              className="rounded-xl border border-[#3f6593] bg-white/5 p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="text-[18px] font-semibold text-[#190019]">
+                <div className="text-[18px] font-semibold text-[#c0e6fd]">
                   {item.question}
                 </div>
-
                 <span
                   className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
                     item.status === 'approved'
@@ -265,13 +234,12 @@ export default function StudentHistory({ onPageChange }) {
                   {STATUS_LABELS[item.status] || item.status}
                 </span>
               </div>
-
               {item.status === 'pending' ? (
-                <p className="mt-3 text-[15px] leading-6 text-[#854F6C] italic">
+                <p className="mt-3 text-[15px] leading-6 text-[#80aad3] italic">
                   Still being reviewed by a TA.
                 </p>
               ) : (
-                <p className="mt-3 text-[15px] leading-6 text-[#354F61]">
+                <p className="mt-3 text-[15px] leading-6 text-[#80aad3]">
                   {item.answer}
                 </p>
               )}
@@ -282,3 +250,5 @@ export default function StudentHistory({ onPageChange }) {
     </div>
   );
 }
+
+

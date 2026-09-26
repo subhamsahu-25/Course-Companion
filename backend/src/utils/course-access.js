@@ -11,17 +11,26 @@ import { ApiError } from "./api-error.js";
 
 const STAFF_ROLES = new Set(["admin"]);
 
+// Member entries may be plain ObjectIds OR populated user documents
+// (getCourseById populates students/tas/instructor for display). A
+// populated doc's toString() is NOT its id, so unwrap _id first —
+// otherwise joined members fail their own membership check.
+function idString(id) {
+   if (!id) return "";
+   return (id._id ?? id).toString();
+}
+
 function hasCourseAccess(course, user) {
    if (!user) return false;
    if (STAFF_ROLES.has(user.role)) return true;
-   if (course.instructor?.toString() === user._id.toString()) return true;
+   if (idString(course.instructor) === user._id.toString()) return true;
 
    const userId = user._id.toString();
    if (user.role === "student") {
-      return course.students?.some((id) => id.toString() === userId) ?? false;
+      return course.students?.some((id) => idString(id) === userId) ?? false;
    }
    if (user.role === "ta") {
-      return course.tas?.some((id) => id.toString() === userId) ?? false;
+      return course.tas?.some((id) => idString(id) === userId) ?? false;
    }
    // Other instructors (not the owner) currently keep the platform-wide
    // visibility that existed before join codes — unchanged from prior

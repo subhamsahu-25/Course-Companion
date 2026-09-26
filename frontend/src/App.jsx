@@ -184,13 +184,15 @@ export default function App() {
         return <Account />;
 
       default:
-        return <div className="rounded-lg bg-white p-6">Page not found</div>;
+        return (
+          <div className="rounded-lg bg-[#1b3554] p-6">Page not found</div>
+        );
     }
   }
 
   if (authStatus === 'checking') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#FBE4D8] text-[#854F6C]">
+      <div className="flex min-h-screen items-center justify-center bg-[#000f22] text-[#80aad3]">
         Loading…
       </div>
     );
@@ -235,7 +237,7 @@ export default function App() {
             // first-time users to check their inbox instead of letting them
             // walk into a confusing 403.
             setAuthNotice(
-              'Account created! Check your email for the verification link, then sign in.'
+              'Account created! Check your email for the verification link, then sign in.',
             );
             setAuthView('login');
           }}
