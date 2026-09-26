@@ -54,6 +54,16 @@ const joinCourseByCode = asyncHandler(async (req, res) => {
       throw new ApiError(404, "No course found with that code.");
    }
 
+   // Joining a draft "succeeds" but the course never lists (students only
+   // see published courses) — refuse upfront with guidance instead of a
+   // phantom success.
+   if (!course.isPublished) {
+      throw new ApiError(
+         400,
+         "This course isn't published yet — ask your instructor to publish it, then join again."
+      );
+   }
+
    const userId = req.user._id;
 
    if (req.user.role === "student") {
