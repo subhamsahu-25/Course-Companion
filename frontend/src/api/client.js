@@ -28,6 +28,20 @@ const clearTokens = () => {
   refreshToken = null;
 };
 
+// A web page (Vercel index.html, Railway proxy error) instead of JSON
+// means the request never reached the API — surface that plainly.
+const throwIfHtml = (res, what) => {
+  const contentType =
+    typeof res.headers?.get === 'function'
+      ? res.headers.get('content-type') || ''
+      : '';
+  if (contentType.includes('text/html')) {
+    throw new Error(
+      `${what} got a web page instead of data (${res.status}). The backend at ${BASE_URL} may be down or misconfigured.`,
+    );
+  }
+};
+
 async function request(endpoint, options = {}, _retried = false) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
@@ -183,6 +197,8 @@ export const uploadAvatar = async (file, _retried = false) => {
     body: formData,
   });
 
+  throwIfHtml(res, 'Avatar upload');
+
   if (res.status === 401 && !_retried) {
     try {
       await refreshAccessToken();
@@ -296,6 +312,15 @@ export const uploadDocumentWithProgress = (
         };
       }
       xhr.onload = async () => {
+        const xhrType = xhr.getResponseHeader('content-type') || '';
+        if (xhrType.includes('text/html')) {
+          reject(
+            new Error(
+              `Document upload got a web page instead of data (${xhr.status}). The backend at ${BASE_URL} may be down or misconfigured.`,
+            ),
+          );
+          return;
+        }
         let data = {};
         try {
           data = JSON.parse(xhr.responseText);
@@ -350,6 +375,8 @@ export const uploadDocument = async (
     headers: docToken ? { Authorization: `Bearer ${docToken}` } : {},
     body: formData,
   });
+
+  throwIfHtml(res, 'Document upload');
 
   if (res.status === 401 && !_retried) {
     try {
