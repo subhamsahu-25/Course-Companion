@@ -257,8 +257,13 @@ export const getDocumentsByModule = (moduleId) =>
 export const deleteDocument = (documentId) =>
   request(`/documents/${documentId}`, { method: 'DELETE' });
 
-export const getDocumentFileUrl = (documentId) =>
-  `${BASE_URL}/documents/${documentId}/file`;
+// File links open in a new tab, where no Authorization header can be
+// attached (and cross-site cookies may be blocked) — so the access token
+// rides as ?token=, which authGuard accepts like the header.
+export const getDocumentFileUrl = (documentId) => {
+  const token = getAccessToken();
+  return `${BASE_URL}/documents/${documentId}/file${token ? `?token=${encodeURIComponent(token)}` : ''}`;
+};
 
 // File uploads need FormData, not JSON — kept separate since headers differ
 // (no Content-Type here; the browser sets the multipart boundary itself).

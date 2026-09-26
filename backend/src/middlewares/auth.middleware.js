@@ -7,9 +7,14 @@ import { User } from "../models/user.model.js";
 // Verifies the JWT sent by the client and attaches the authenticated
 // user document to req.user so downstream controllers/middleware can use it.
 const authGuard = asyncHandler(async (req, res, next) => {
+   // Token in URL query exists for one case only: direct file links
+   // (<a target=_blank>) can't carry an Authorization header, and
+   // cross-site cookies may be blocked — so the client appends
+   // ?token=<accessToken> there. Verified exactly like the rest.
    const token =
       req.cookies?.accessToken ||
-      req.header("Authorization")?.replace("Bearer ", "");
+      req.header("Authorization")?.replace("Bearer ", "") ||
+      req.query?.token;
 
    if (!token) {
       throw new ApiError(401, "Unauthorized request — no token provided");
