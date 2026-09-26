@@ -7,11 +7,33 @@
 
 const BASE_URL = import.meta.env.VITE_API_BASE_URL;
 
+// In-memory tokens as a second auth channel beside cookies. Cross-site
+// cookies (Vercel → Railway) are dropped by some browsers/policies even
+// with SameSite=None; Secure — the backend already accepts
+// `Authorization: Bearer`, and login/refresh responses carry both tokens
+// in the body, so we mirror them here and attach the header on every
+// call. Cookies keep working where allowed; the header covers the rest.
+let accessToken = null;
+let refreshToken = null;
+
+export const getAccessToken = () => accessToken;
+
+const storeTokens = (data) => {
+  if (data && data.accessToken) accessToken = data.accessToken;
+  if (data && data.refreshToken) refreshToken = data.refreshToken;
+};
+
+const clearTokens = () => {
+  accessToken = null;
+  refreshToken = null;
+};
+
 async function request(endpoint, options = {}, _retried = false) {
   const res = await fetch(`${BASE_URL}${endpoint}`, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
       ...options.headers,
     },
     credentials: 'include', // sends/receives the auth cookie set at login
@@ -19,13 +41,28 @@ async function request(endpoint, options = {}, _retried = false) {
 
   const data = await res.json().catch(() => ({}));
 
+  // Keep the header channel in sync whenever the backend hands us tokens.
+  // (ApiResponse wraps payloads as { data: {...} } — tokens live inside.)
+  const payload = data && data.data ? data.data : data;
+  if (payload && payload.accessToken) storeTokens(payload);
+  if (endpoint === '/auth/logout') clearTokens();
+
   // Silent token refresh: if the access cookie expired mid-session, try one
   // refresh + retry before surfacing a 401. Auth endpoints themselves are
   // excluded (a 401 from /auth/login is a real "wrong password", not an
   // expired session), and we retry at most once to avoid loops.
   if (res.status === 401 && !_retried && !endpoint.startsWith('/auth/')) {
     try {
-      await request('/auth/refresh-token', { method: 'POST' }, true);
+      // Cookies may be blocked cross-site — send the stored refresh token
+      // in the body too (the endpoint accepts cookies OR body).
+      await request(
+        '/auth/refresh-token',
+        {
+          method: 'POST',
+          body: refreshToken ? JSON.stringify({ refreshToken }) : undefined,
+        },
+        true,
+      );
       return request(endpoint, options, true);
     } catch {
       // Refresh failed too (refresh cookie gone/expired) — fall through
@@ -128,9 +165,11 @@ export const uploadAvatar = async (file, _retried = false) => {
   const formData = new FormData();
   formData.append('avatar', file);
 
+  const token = getAccessToken();
   const res = await fetch(`${BASE_URL}/auth/avatar`, {
     method: 'POST',
     credentials: 'include',
+    headers: token ? { Authorization: `Bearer ${token}` } : {},
     body: formData,
   });
 
@@ -228,6 +267,8 @@ export const uploadDocumentWithProgress = (
       const xhr = new XMLHttpRequest();
       xhr.open('POST', `${BASE_URL}/documents/module/${moduleId}`);
       xhr.withCredentials = true;
+      const token = getAccessToken();
+      if (token) xhr.setRequestHeader('Authorization', `Bearer ${token}`);
       if (xhr.upload && onProgress) {
         xhr.upload.onprogress = (e) => {
           if (e.lengthComputable) {
@@ -287,9 +328,11 @@ export const uploadDocument = async (
   formData.append('file', file);
   if (title) formData.append('title', title);
 
+  const docToken = getAccessToken();
   const res = await fetch(`${BASE_URL}/documents/module/${moduleId}`, {
     method: 'POST',
     credentials: 'include',
+    headers: docToken ? { Authorization: `Bearer ${docToken}` } : {},
     body: formData,
   });
 
