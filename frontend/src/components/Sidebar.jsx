@@ -6,42 +6,6 @@ function cn(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
-// Controlled hamburger -> X button (your Skiper99 middle icon, CSS only - no framer-motion needed)
-export function MenuIcon({ open, onClick, className }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={open ? 'Close sidebar' : 'Open sidebar'}
-      className={cn(
-        'group flex size-9 cursor-pointer items-center justify-center rounded-md text-[#c0e6fd] hover:bg-white/10 hover:opacity-85',
-        className,
-      )}
-    >
-      <span className="relative grid size-4 items-center justify-center text-current">
-        <span
-          className={cn(
-            'absolute h-0.5 w-full rounded-full bg-current transition-all duration-300',
-            open ? 'translate-y-0 rotate-45' : '-translate-y-[5px] rotate-0',
-          )}
-        />
-        <span
-          className={cn(
-            'absolute h-0.5 w-full rounded-full bg-current transition-all duration-200',
-            open ? 'opacity-0' : 'opacity-100',
-          )}
-        />
-        <span
-          className={cn(
-            'absolute h-0.5 w-full rounded-full bg-current transition-all duration-300',
-            open ? 'translate-y-0 -rotate-45' : 'translate-y-[5px] rotate-0',
-          )}
-        />
-      </span>
-    </button>
-  );
-}
-
 export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
   const [open, setOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -50,32 +14,55 @@ export default function Sidebar({ role, currentPage, onPageChange, onLogout }) {
 
   return (
     <>
-      {/* Desktop sidebar — deep plum, collapsible */}
+      {/* Desktop sidebar — deep blue, collapsible. The toggle lives on the
+          sidebar's outer edge (half-overlapping the border), never inside
+          the title row. */}
       <aside
         className={cn(
-          'hidden min-h-screen shrink-0 border-r border-[#3f6593] bg-[#1b3554] px-5 py-7 transition-all duration-300 md:block',
+          'relative hidden min-h-screen shrink-0 border-r border-[#3f6593] bg-[#1b3554] px-5 py-7 transition-all duration-300 md:block',
           open ? 'w-62.5' : 'w-[76px] px-3',
         )}
       >
-        <div
-          className={cn(
-            'mb-9 flex items-center',
-            open ? 'justify-between px-2' : 'justify-center',
-          )}
+        <button
+          type="button"
+          onClick={() => setOpen((v) => !v)}
+          aria-label={open ? 'Collapse sidebar' : 'Expand sidebar'}
+          className="absolute -right-4 top-9 z-10 flex size-8 items-center justify-center rounded-full border border-[#3f6593] bg-[#1b3554] text-[#c0e6fd] shadow-md transition-all duration-200 ease-out hover:bg-[#3f6593] hover:opacity-90 active:scale-95"
         >
-          {open && (
+          <span className="relative grid size-4 items-center justify-center text-current">
+            <span
+              className={cn(
+                'absolute h-0.5 w-full rounded-full bg-current transition-all duration-300',
+                open ? 'translate-y-0 rotate-45' : '-translate-y-[5px] rotate-0',
+              )}
+            />
+            <span
+              className={cn(
+                'absolute h-0.5 w-full rounded-full bg-current transition-all duration-200',
+                open ? 'opacity-0' : 'opacity-100',
+              )}
+            />
+            <span
+              className={cn(
+                'absolute h-0.5 w-full rounded-full bg-current transition-all duration-300',
+                open ? 'translate-y-0 -rotate-45' : 'translate-y-[5px] rotate-0',
+              )}
+            />
+          </span>
+        </button>
+        <div className={cn('mb-9 flex items-center', open ? 'px-2' : 'justify-center')}>
+          {open ? (
             <div>
               <div className="text-[21px] font-semibold text-[#c0e6fd]">
                 Course Companion
               </div>
               <div className="mt-2 inline-block rounded-md border border-[#5b86b6]/60 px-2 py-0.5 text-[13px] font-bold text-[#c0e6fd]">{roleName}</div>
             </div>
+          ) : (
+            <div className="flex size-10 items-center justify-center rounded-lg bg-[#3f6593] text-lg font-bold text-[#c0e6fd]">
+              C
+            </div>
           )}
-          <MenuIcon
-            open={open}
-            onClick={() => setOpen((v) => !v)}
-            className="text-[#c0e6fd] hover:bg-[#1b3554]/10"
-          />
         </div>
 
         <nav className="space-y-1">
