@@ -95,6 +95,9 @@ const uploadDocument = asyncHandler(async (req, res) => {
          if (result?.contentHash) {
             document.contentHash = result.contentHash;
          }
+         if (result?.overview) {
+            document.overview = result.overview;
+         }
          if (result?.skipped && result?.reason !== "unchanged — same content already indexed") {
             document.indexingError = result.reason || "Indexing was skipped";
          } else {

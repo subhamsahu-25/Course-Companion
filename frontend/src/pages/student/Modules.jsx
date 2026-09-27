@@ -14,6 +14,17 @@ export default function StudentModules({ courseId, onPageChange }) {
   const [error, setError] = useState(null);
 
   const [expandedModules, setExpandedModules] = useState(() => new Set());
+  // Per-PDF orientation blurbs, collapsed by default — one toggle per
+  // document, so a module with several PDFs stays scannable.
+  const [expandedBlurbs, setExpandedBlurbs] = useState(() => new Set());
+  function toggleBlurb(docId) {
+    setExpandedBlurbs((prev) => {
+      const next = new Set(prev);
+      if (next.has(docId)) next.delete(docId);
+      else next.add(docId);
+      return next;
+    });
+  }
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -172,16 +183,40 @@ export default function StudentModules({ courseId, onPageChange }) {
                   )}
 
                   {mod.documents.map((doc) => (
-                    <a
+                    <div
                       key={doc._id}
-                      href={getDocumentFileUrl(doc._id)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-between gap-3 rounded-lg bg-[#1b3554] px-4 py-2.5 text-sm text-[#c0e6fd] shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
+                      className="rounded-lg bg-[#1b3554] px-4 py-2.5 text-sm text-[#c0e6fd] shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
                     >
-                      <FileIcon title={doc.type} />
-                      <span className="min-w-0 flex-1 break-all">{doc.title}</span>
-                    </a>
+                      <div className="flex items-center justify-between gap-3">
+                        <FileIcon title={doc.type} />
+                        <a
+                          href={getDocumentFileUrl(doc._id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="min-w-0 flex-1 break-all hover:underline hover:opacity-80"
+                        >
+                          {doc.title}
+                        </a>
+                      </div>
+                      {doc.overview && (
+                        <div className="mt-1.5 pl-6">
+                          <button
+                            type="button"
+                            onClick={() => toggleBlurb(doc._id)}
+                            aria-expanded={expandedBlurbs.has(doc._id)}
+                            className="text-xs font-medium text-[#80aad3] hover:underline hover:opacity-80"
+                          >
+                            About this PDF{' '}
+                            {expandedBlurbs.has(doc._id) ? '▾' : '▸'}
+                          </button>
+                          {expandedBlurbs.has(doc._id) && (
+                            <p className="mt-1 text-[13px] leading-5 text-white">
+                              {doc.overview}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   ))}
                 </div>
               )}

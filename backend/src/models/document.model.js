@@ -49,6 +49,14 @@ const documentSchema = new Schema({
       type: String,
       default: null,
    },
+   // Short orientation blurb generated at ingest time ("what this document
+   // covers"), shown expandably on each PDF in the student portal only.
+   // Null for non-indexable types and for documents uploaded before this
+   // existed — those simply show no blurb until re-uploaded.
+   overview: {
+      type: String,
+      default: null,
+   },
    order: {
       type: Number,
       default: 0

@@ -4,7 +4,7 @@ import path from 'path';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { PDFParse } from "pdf-parse";
-import { GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
 import {
    getQdrantClient,
    getCollectionName,
@@ -31,6 +31,35 @@ function getEmbeddings() {
       // comment there for why text-embedding-004 was replaced.
       model: "gemini-embedding-001",
    });
+}
+
+// One short LLM call per upload — deliberately separate from chunking so
+// a failure here can never fail the ingest itself (callers treat null as
+// "no blurb"). Reads only the opening of the document: titles and
+// headings live up front, which is what an orientation blurb needs.
+async function generateOverview(pages) {
+   const head = pages
+      .map((p) => p.text)
+      .join("\n")
+      .slice(0, 5000);
+   if (head.trim().length < 200) return null;
+
+   const llm = new ChatGoogleGenerativeAI({
+      apiKey: GEMINI_API_KEY,
+      // Same answering model as server.js — faithfulness matters here too.
+      model: "gemini-3.6-flash",
+      temperature: 0,
+   });
+   const raw = await llm.invoke(
+      "Summarize what the document below covers in 3-4 plain sentences, " +
+      "so a student can decide whether to read it. Use the document's own " +
+      "terms for topics and names. No preamble, no bullet list, just the " +
+      "summary.\n\nDocument:\n" + head
+   );
+   const text = typeof raw?.content === "string"
+      ? raw.content
+      : String(raw?.content ?? "");
+   return text.trim().slice(0, 800) || null;
 }
 
 // Store handle for writes. Qdrant is addressed by collection name on every
@@ -221,15 +250,15 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
 
    const pages = await extractPages(buffer, filename);
    if (pages === null) {
-      return { skipped: true, reason: `No text-extraction support for this file type: ${filename}` };
+      return { skipped: true, reason: `No text-extraction support for this file type: ${filename}`, overview: null };
    }
    if (pages.length === 0) {
-      return { skipped: true, reason: `No readable text found in ${filename}` };
+      return { skipped: true, reason: `No readable text found in ${filename}`, overview: null };
    }
 
    const hash = contentHash(pages.map((p) => p.text).join("\n"));
    if ((await storedContentHash(documentId)) === hash) {
-      return { skipped: true, reason: "unchanged — same content already indexed", contentHash: hash };
+      return { skipped: true, reason: "unchanged — same content already indexed", contentHash: hash, overview: null };
    }
 
    // Clear out any chunks left over from a previous ingest of this same
@@ -244,7 +273,17 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
    const vectorStore = await getVectorStore();
    await vectorStore.addDocuments(chunks);
 
-   return { skipped: false, chunksIngested: chunks.length, contentHash: hash };
+   // Orientation blurb for the student portal — best-effort: an LLM outage
+   // must never fail the ingest, worst case this document just shows no
+   // blurb until re-uploaded.
+   let overview = null;
+   try {
+      overview = await generateOverview(pages);
+   } catch (err) {
+      console.error(`Overview generation failed for ${filename}:`, err.message);
+   }
+
+   return { skipped: false, chunksIngested: chunks.length, contentHash: hash, overview };
 }
 
 // Ingests a TA-approved answer back into the collection as a "golden"
