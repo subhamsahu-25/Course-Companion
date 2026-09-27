@@ -8,7 +8,11 @@ import ResetPassword from './pages/ResetPassword.jsx';
 import VerifyEmail from './pages/VerifyEmail.jsx';
 import Account from './pages/Account.jsx';
 import RoleLayout from './layouts/RoleLayout.jsx';
-import { getCurrentUser, logout as logoutRequest } from './api/client.js';
+import {
+  getCurrentUser,
+  refreshAccessToken,
+  logout as logoutRequest,
+} from './api/client.js';
 
 import StudentDashboard from './pages/student/Dashboard.jsx';
 import StudentCourses from './pages/student/Courses.jsx';
@@ -62,8 +66,15 @@ export default function App() {
       if (!cancelled) setAuthStatus('anonymous');
     }, 8000);
 
-    getCurrentUser()
-      .then((res) => {
+    // Session restore with one refresh fallback: the access cookie lives
+    // only 15m, so a reload after idle time 401s on current-user even with
+    // a valid 7-day refresh cookie present. Auth endpoints are excluded
+    // from the client's silent refresh, so this first paint is the one
+    // place that must attempt it explicitly — otherwise every reload past
+    // 15 minutes dumps the user at sign-in.
+    async function restoreSession() {
+      try {
+        const res = await getCurrentUser();
         if (cancelled) return;
         clearTimeout(timeout);
         if (res && res.data) {
@@ -73,12 +84,27 @@ export default function App() {
         } else {
           setAuthStatus('anonymous');
         }
-      })
-      .catch(() => {
-        if (cancelled) return;
-        clearTimeout(timeout);
-        setAuthStatus('anonymous');
-      });
+      } catch {
+        try {
+          await refreshAccessToken();
+          const res = await getCurrentUser();
+          if (cancelled) return;
+          clearTimeout(timeout);
+          if (res && res.data) {
+            setUser(res.data);
+            setCurrentPage(defaultPageForRole(res.data.role));
+            setAuthStatus('authenticated');
+          } else {
+            setAuthStatus('anonymous');
+          }
+        } catch {
+          if (cancelled) return;
+          clearTimeout(timeout);
+          setAuthStatus('anonymous');
+        }
+      }
+    }
+    restoreSession();
 
     return () => {
       cancelled = true;

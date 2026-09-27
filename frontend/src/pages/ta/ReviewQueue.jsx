@@ -37,8 +37,14 @@ export default function ReviewQueue({ onPageChange }) {
   const [actioning, setActioning] = useState({});
   const busyKindFor = (id) => actioning[id] ?? null;
   const isBusy = (id) => Boolean(actioning[id]);
-  async function loadAll() {
-    setLoading(true);
+  // Quiet mode (manual Refresh button) refetches without flashing the
+  // full-page "Loading..." state — the current list stays visible while
+  // fresh data comes in, so TAs never need a browser reload (which would
+  // also re-run session restore) just to see newly arrived questions.
+  const [refreshing, setRefreshing] = useState(false);
+  async function loadAll(quiet = false) {
+    if (quiet) setRefreshing(true);
+    else setLoading(true);
     setError(null);
     try {
       const [queueRes, coursesRes, modulesRes] = await Promise.all([
@@ -59,6 +65,7 @@ export default function ReviewQueue({ onPageChange }) {
       setError(err.message);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }
   useEffect(() => {
@@ -165,12 +172,21 @@ export default function ReviewQueue({ onPageChange }) {
             Check drafted answers before they are published.
           </p>
         </div>
-        <button
-          onClick={() => onPageChange('ta-history')}
-          className="shrink-0 rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
-        >
-          View history →
-        </button>
+        <div className="flex shrink-0 gap-2">
+          <button
+            onClick={() => loadAll(true)}
+            disabled={refreshing || loading}
+            className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+          >
+            {refreshing ? 'Refreshing…' : 'Refresh ⟳'}
+          </button>
+          <button
+            onClick={() => onPageChange('ta-history')}
+            className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
+          >
+            View history →
+          </button>
+        </div>
       </div>
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
