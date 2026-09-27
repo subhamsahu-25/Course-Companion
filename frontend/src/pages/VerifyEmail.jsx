@@ -1,6 +1,7 @@
 // frontend/src/pages/VerifyEmail.jsx
 import { useEffect, useState } from 'react';
 import { verifyEmailToken } from '../api/client.js';
+import { LoadingDots } from '../components/ui/primitives.jsx';
 // Opened via the link in the verification email (?verifyToken=...).
 // Calls the API once on mount and shows the outcome.
 export default function VerifyEmail({ token, onBackToLogin }) {
@@ -28,11 +29,11 @@ export default function VerifyEmail({ token, onBackToLogin }) {
     };
   }, [token]);
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#000f22] px-4">
+    <div className="flex min-h-screen items-center justify-center bg-bg px-4">
       <div className="w-full max-w-142.5 text-center">
         {status === 'verifying' && (
-          <div className="rounded-xl border border-[#3f6593] bg-[#1b3554] p-8 text-[#80aad3]">
-            Verifying your email…
+          <div className="flex items-center justify-center gap-2.5 rounded-xl border border-border bg-surface p-8 text-body">
+            <LoadingDots /> Verifying your email
           </div>
         )}
         {status === 'ok' && (
@@ -45,7 +46,7 @@ export default function VerifyEmail({ token, onBackToLogin }) {
             </p>
             <button
               onClick={onBackToLogin}
-              className="mt-4 rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
+              className="mt-4 rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover"
             >
               Go to sign in
             </button>
@@ -62,7 +63,7 @@ export default function VerifyEmail({ token, onBackToLogin }) {
             </p>
             <button
               onClick={onBackToLogin}
-              className="mt-4 rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
+              className="mt-4 rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover"
             >
               Back to sign in
             </button>

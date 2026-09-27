@@ -4,6 +4,7 @@ import {
   login as loginRequest,
   resendEmailVerification as resendRequest,
 } from '../api/client.js';
+import { LoadingDots } from '../components/ui/primitives.jsx';
 export default function Login({
   onLogin,
   onSwitchToSignup,
@@ -48,19 +49,19 @@ export default function Login({
     }
   }
   return (
-    <div className="flex min-h-screen bg-[#000f22]">
+    <div className="flex min-h-screen bg-bg">
       {/* Brand panel — desktop only */}
-      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-[#000f22] p-10 text-[#c0e6fd] lg:flex">
+      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-bg p-10 text-heading lg:flex">
         <div
-          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-[#3f6593] opacity-60 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent opacity-60 blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-[#5b86b6] opacity-40 blur-3xl"
+          className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-accent opacity-40 blur-3xl"
           aria-hidden
         />
         <div className="relative">
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#80aad3]">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-body">
             Academic Portal
           </div>
           <h1 className="font-sans text-[48px] font-bold leading-[1.05]">
@@ -68,26 +69,26 @@ export default function Login({
             <br />
             Companion
           </h1>
-          <p className="mt-4 max-w-100 text-[15px] leading-6 text-[#80aad3]">
+          <p className="mt-4 max-w-100 text-[15px] leading-6 text-body">
             A simple place to browse course material, ask questions, and review
             answers.
           </p>
         </div>
-        <ul className="relative space-y-3 text-sm text-[#80aad3]">
+        <ul className="relative space-y-3 text-sm text-body">
           <li className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#c0e6fd]">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-heading">
               1
             </span>
             Browse course material by module
           </li>
           <li className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#c0e6fd]">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-heading">
               2
             </span>
             Ask questions, get TA-reviewed answers
           </li>
           <li className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#c0e6fd]">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-heading">
               3
             </span>
             Track everything in History
@@ -97,27 +98,27 @@ export default function Login({
       <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6">
         <div className="w-full max-w-142.5">
           <div className="mb-8 text-center sm:mb-10 sm:text-left lg:hidden">
-            <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#80aad3] sm:text-sm">
+            <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-body sm:text-sm">
               Academic Portal
             </div>
-            <h1 className="font-sans text-[38px] leading-[1.05] text-[#c0e6fd] sm:text-[48px] md:text-[56px]">
+            <h1 className="font-sans text-[38px] leading-[1.05] text-heading sm:text-[48px] md:text-[56px]">
               Course Companion
               <br />
               Portal
             </h1>
-            <p className="mx-auto mt-4 max-w-125 text-[15px] leading-6 text-[#80aad3] sm:mx-0 sm:text-[17px]">
+            <p className="mx-auto mt-4 max-w-125 text-[15px] leading-6 text-body sm:mx-0 sm:text-[17px]">
               A simple place to browse course material, ask questions, and
               review answers.
             </p>
           </div>
           <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm sm:p-8"
+            className="space-y-4 rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
           >
             <div>
               <label
                 htmlFor="identifier"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Email or Username
               </label>
@@ -126,7 +127,7 @@ export default function Login({
                 type="text"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="you@example.com or username"
                 autoComplete="username"
               />
@@ -134,7 +135,7 @@ export default function Login({
             <div>
               <label
                 htmlFor="password"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Password
               </label>
@@ -143,7 +144,7 @@ export default function Login({
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="••••••••"
                 autoComplete="current-password"
               />
@@ -169,9 +170,13 @@ export default function Login({
                     disabled={resendState === 'sending'}
                     className="font-medium underline hover:no-underline disabled:opacity-60"
                   >
-                    {resendState === 'sending'
-                      ? 'Sending...'
-                      : 'Resend verification email'}
+                    {resendState === 'sending' ? (
+                      <span className="inline-flex items-center gap-2">
+                        <LoadingDots /> Sending
+                      </span>
+                    ) : (
+                      'Resend verification email'
+                    )}
                   </button>
                 )}
               </div>
@@ -179,25 +184,31 @@ export default function Login({
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-3 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+              className="w-full rounded-xl border border-border bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
             >
-              {submitting ? 'Signing in...' : 'Sign in'}
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingDots /> Signing in
+                </span>
+              ) : (
+                'Sign in'
+              )}
             </button>
             <div className="flex items-center justify-between text-sm">
               <button
                 type="button"
                 onClick={onSwitchToForgot}
-                className="font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
+                className="font-medium text-heading hover:underline hover:opacity-80"
               >
                 Forgot password?
               </button>
             </div>
-            <p className="text-center text-sm text-[#80aad3]">
+            <p className="text-center text-sm text-body">
               Don't have an account?{' '}
               <button
                 type="button"
                 onClick={onSwitchToSignup}
-                className="font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
+                className="font-medium text-heading hover:underline hover:opacity-80"
               >
                 Sign up
               </button>

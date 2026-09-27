@@ -404,15 +404,16 @@ export const uploadDocument = async (
 
 // ---- Q&A (RAG-backed question/review flow) ---------------------------------
 
-export const askQuestion = (question, moduleId) =>
+export const askQuestion = (question, moduleId, threadId) =>
   request('/qa/ask', {
     method: 'POST',
-    body: JSON.stringify({ question, moduleId }),
+    body: JSON.stringify({ question, moduleId, threadId }),
   });
 
 export const getMyAnswer = (requestId) => request(`/qa/my-answer/${requestId}`);
 
-export const getMyAnswers = () => request('/qa/my-answers');
+export const getMyAnswers = (includeThreads = false) =>
+  request(`/qa/my-answers${includeThreads ? '?includeThreads=1' : ''}`);
 
 export const getStats = () => request('/qa/stats');
 
@@ -432,3 +433,17 @@ export const rejectAnswer = (id, note) =>
     method: 'POST',
     body: JSON.stringify({ note }),
   });
+
+export const toggleImportant = (id) =>
+  request(`/qa/queue/${id}/important`, { method: 'POST' });
+
+export const getImportantQuestions = (courseId) =>
+  request(`/qa/important?courseId=${encodeURIComponent(courseId)}`);
+
+export const getRelatedQuestions = (moduleId, q) =>
+  request(
+    `/qa/related?moduleId=${encodeURIComponent(moduleId)}&q=${encodeURIComponent(q)}`,
+  );
+
+export const getCourseQaStats = (courseId) =>
+  request(`/qa/course-stats?courseId=${encodeURIComponent(courseId)}`);

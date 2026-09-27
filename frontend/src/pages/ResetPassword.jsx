@@ -1,6 +1,7 @@
 // frontend/src/pages/ResetPassword.jsx
 import { useState } from 'react';
 import { resetPassword as resetPasswordRequest } from '../api/client.js';
+import { LoadingDots } from '../components/ui/primitives.jsx';
 export default function ResetPassword({ token, onResetSuccess }) {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -29,7 +30,7 @@ export default function ResetPassword({ token, onResetSuccess }) {
   }
   if (!token) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#000f22] px-4">
+      <div className="flex min-h-screen items-center justify-center bg-bg px-4">
         <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-sm text-red-700">
           This reset link is invalid. Please request a new one from the sign-in
           page.
@@ -38,13 +39,13 @@ export default function ResetPassword({ token, onResetSuccess }) {
     );
   }
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#000f22] px-4 py-8 sm:px-6">
+    <div className="flex min-h-screen items-center justify-center bg-bg px-4 py-8 sm:px-6">
       <div className="w-full max-w-142.5">
         <div className="mb-8 text-center sm:mb-10 sm:text-left">
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#80aad3] sm:text-sm">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-body sm:text-sm">
             Academic Portal
           </div>
-          <h1 className="font-sans text-[38px] leading-[1.05] text-[#c0e6fd] sm:text-[48px]">
+          <h1 className="font-sans text-[38px] leading-[1.05] text-heading sm:text-[48px]">
             Choose a new
             <br />
             password
@@ -52,12 +53,12 @@ export default function ResetPassword({ token, onResetSuccess }) {
         </div>
         <form
           onSubmit={handleSubmit}
-          className="space-y-4 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm sm:p-8"
+          className="space-y-4 rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
         >
           <div>
             <label
               htmlFor="new-password"
-              className="text-sm font-medium text-[#c0e6fd]"
+              className="text-sm font-medium text-heading"
             >
               New password
             </label>
@@ -66,7 +67,7 @@ export default function ResetPassword({ token, onResetSuccess }) {
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+              className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
               placeholder="6–20 characters"
               autoComplete="new-password"
             />
@@ -74,7 +75,7 @@ export default function ResetPassword({ token, onResetSuccess }) {
           <div>
             <label
               htmlFor="confirm-new-password"
-              className="text-sm font-medium text-[#c0e6fd]"
+              className="text-sm font-medium text-heading"
             >
               Confirm new password
             </label>
@@ -83,7 +84,7 @@ export default function ResetPassword({ token, onResetSuccess }) {
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+              className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
               placeholder="Repeat it"
               autoComplete="new-password"
             />
@@ -96,9 +97,15 @@ export default function ResetPassword({ token, onResetSuccess }) {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-3 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+            className="w-full rounded-xl border border-border bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
           >
-            {submitting ? 'Saving...' : 'Set new password'}
+            {submitting ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingDots /> Saving
+              </span>
+            ) : (
+              'Set new password'
+            )}
           </button>
         </form>
       </div>

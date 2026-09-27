@@ -5,6 +5,7 @@ import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
 import { QdrantVectorStore } from "@langchain/qdrant";
 import { PDFParse } from "pdf-parse";
 import { ChatGoogleGenerativeAI, GoogleGenerativeAIEmbeddings } from "@langchain/google-genai";
+import { HumanMessage } from "@langchain/core/messages";
 import {
    getQdrantClient,
    getCollectionName,
@@ -33,6 +34,88 @@ function getEmbeddings() {
    });
 }
 
+// Chat model shared by overview + figure captions. Env-overridable like
+// server.js (GEMINI_MODEL) so quota-constrained testing can drop to
+// flash-lite without code changes.
+function getChatModel() {
+   return new ChatGoogleGenerativeAI({
+      apiKey: GEMINI_API_KEY,
+      model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
+      temperature: 0,
+   });
+}
+
+// Figures, charts, and equations are invisible to text extraction —
+// without this step every diagram in a PDF is silently lost to the
+// pipeline. Embedded images are captioned through the vision-capable
+// chat model (formulas transcribed as text) and ingested as ordinary
+// chunks tagged { figure: true, page }, so they're retrievable and
+// citable like everything else. Bounded (MAX_FIGURES, MIN_DIM) so one
+// image-heavy PDF can't blow up ingest cost; every figure is best-effort
+// and the whole step never fails the ingest.
+const MAX_FIGURES = 8;
+const MIN_FIGURE_DIM = 200;
+
+async function captionAndChunkFigures(buffer, baseMetadata, vectorStore) {
+   let parser;
+   try {
+      parser = new PDFParse({ data: buffer });
+      const result = await parser.getImage().catch(() => null);
+      const pages = result?.pages || [];
+      const figures = [];
+      for (let i = 0; i < pages.length && figures.length < MAX_FIGURES; i++) {
+         const pageNum = pages[i]?.num ?? i + 1;
+         for (const img of pages[i]?.images || []) {
+            if (figures.length >= MAX_FIGURES) break;
+            if ((img.width || 0) < MIN_FIGURE_DIM && (img.height || 0) < MIN_FIGURE_DIM) continue;
+            if (!img.dataUrl) continue;
+            figures.push({ page: pageNum, dataUrl: img.dataUrl });
+         }
+      }
+      if (figures.length === 0) return 0;
+
+      const llm = getChatModel();
+
+      let ingested = 0;
+      for (const figure of figures) {
+         try {
+            const raw = await llm.invoke([
+               new HumanMessage({
+                  content: [
+                     {
+                        type: "text",
+                        text: "Describe this figure, chart, or equation in plain sentences a student can learn from. " +
+                           "Transcribe any formulas, labels, numbers, and axis titles exactly as shown. " +
+                           "If it carries no learnable information, reply with exactly: NO_CONTENT.",
+                     },
+                     { type: "image_url", image_url: { url: figure.dataUrl } },
+                  ],
+               }),
+            ]);
+            const text = typeof raw?.content === "string" ? raw.content : String(raw?.content ?? "");
+            if (!text.trim() || text.trim() === "NO_CONTENT.") continue;
+            const caption = text.trim().replace(/^NO_CONTENT\.?$/i, "").trim();
+            if (!caption) continue;
+
+            const chunks = await chunkPages(
+               [{ page: figure.page, text: `Figure on page ${figure.page}: ${caption}` }],
+               { ...baseMetadata, figure: true }
+            );
+            await vectorStore.addDocuments(chunks);
+            ingested += chunks.length;
+         } catch (err) {
+            console.error(`Figure caption failed (page ${figure.page}):`, err.message);
+         }
+      }
+      return ingested;
+   } catch (err) {
+      console.error("Figure extraction failed:", err.message);
+      return 0;
+   } finally {
+      if (parser) await parser.destroy().catch(() => {});
+   }
+}
+
 // One short LLM call per upload — deliberately separate from chunking so
 // a failure here can never fail the ingest itself (callers treat null as
 // "no blurb"). Reads only the opening of the document: titles and
@@ -44,12 +127,7 @@ async function generateOverview(pages) {
       .slice(0, 5000);
    if (head.trim().length < 200) return null;
 
-   const llm = new ChatGoogleGenerativeAI({
-      apiKey: GEMINI_API_KEY,
-      // Same answering model as server.js — faithfulness matters here too.
-      model: "gemini-3.6-flash",
-      temperature: 0,
-   });
+   const llm = getChatModel();
    const raw = await llm.invoke(
       "Summarize what the document below covers in 3-4 plain sentences, " +
       "so a student can decide whether to read it. Use the document's own " +
@@ -273,6 +351,9 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
    const vectorStore = await getVectorStore();
    await vectorStore.addDocuments(chunks);
 
+   // Figures/diagrams the text extractor can't see (best-effort, bounded).
+   const figureChunks = await captionAndChunkFigures(buffer, metadata, vectorStore);
+
    // Orientation blurb for the student portal — best-effort: an LLM outage
    // must never fail the ingest, worst case this document just shows no
    // blurb until re-uploaded.
@@ -283,7 +364,7 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
       console.error(`Overview generation failed for ${filename}:`, err.message);
    }
 
-   return { skipped: false, chunksIngested: chunks.length, contentHash: hash, overview };
+   return { skipped: false, chunksIngested: chunks.length + figureChunks, contentHash: hash, overview };
 }
 
 // Ingests a TA-approved answer back into the collection as a "golden"
@@ -389,16 +470,18 @@ export async function ingestDocuments() {
          }
 
          await removeDocumentChunks(documentId);
-         const chunks = await chunkPages(pages, {
+         const seedMetadata = {
             source: file,
             documentId,
             seeded: true,
             contentHash: hash,
-         });
+         };
+         const chunks = await chunkPages(pages, seedMetadata);
          await vectorStore.addDocuments(chunks);
-         console.log(` Ingested ${file}: ${chunks.length} chunks.`);
-         chunksIngested += chunks.length;
+         const figureChunks = await captionAndChunkFigures(dataBuffer, seedMetadata, vectorStore);
+         chunksIngested += chunks.length + figureChunks;
          filesProcessed += 1;
+         console.log(` Ingested ${file}: ${chunks.length} chunks + ${figureChunks} figure captions.`);
       } catch (err) {
          console.error(` Failed to parse ${file}:`, err.message);
       }

@@ -63,7 +63,7 @@ export function TooltipContent({
         sideOffset={sideOffset}
         side="right"
         className={cn(
-          'z-50 w-fit rounded-md border border-[#80aad3] bg-white px-3 py-1.5 text-xs text-[#1b3554] shadow-md',
+          'z-50 w-fit rounded-md border border-border bg-white px-3 py-1.5 text-xs text-surface shadow-md',
           className,
         )}
         {...props}

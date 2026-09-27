@@ -61,29 +61,52 @@ const purgeVectors = ({ moduleIds, courseId } = {}) =>
 const removeIngestedDocument = (documentId) =>
    ragRequest(`/ingest/${documentId}`, { method: "DELETE" });
 
-const submitQuestion = (studentId, question, moduleId, courseId) =>
+const submitQuestion = (studentId, question, moduleId, courseId, threadId) =>
    ragRequest("/submit-question", {
       method: "POST",
-      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId, course_id: courseId }),
+      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId, course_id: courseId, thread_id: threadId }),
    });
 
 const getReviewQueue = () => ragRequest("/review-queue");
 
-const approveAnswer = (id, editedAnswer, rating) =>
+const approveAnswer = (id, editedAnswer, rating, reviewedBy) =>
    ragRequest(`/review-queue/${id}/approve`, {
       method: "POST",
-      body: JSON.stringify({ editedAnswer, rating }),
+      body: JSON.stringify({ editedAnswer, rating, reviewedBy }),
    });
 
-const rejectAnswer = (id, note) =>
+const rejectAnswer = (id, note, reviewedBy) =>
    ragRequest(`/review-queue/${id}/reject`, {
       method: "POST",
-      body: JSON.stringify({ note }),
+      body: JSON.stringify({ note, reviewedBy }),
    });
+
+// Toggles the calling TA's important mark on a question (checkbox).
+const toggleImportant = (id, taId) =>
+   ragRequest(`/review-queue/${id}/important`, {
+      method: "POST",
+      body: JSON.stringify({ taId }),
+   });
+
+// Questions in a course with enough TA important marks to highlight.
+const getImportantQuestions = (courseId) =>
+   ragRequest(`/review-queue/important?courseId=${encodeURIComponent(courseId)}`);
+
+// Per-course activity: asked counts per student, resolved counts per TA.
+const getCourseQaStats = (courseId) =>
+   ragRequest(`/review-queue/course-stats?courseId=${encodeURIComponent(courseId)}`);
+
+// Live related verified answers for the ask form (powers #8 + feeds the
+// auto-serve corpus check on the client before submit).
+const getRelatedQuestions = (moduleId, courseId, q) =>
+   ragRequest(
+      `/related-questions?moduleId=${encodeURIComponent(moduleId)}&courseId=${encodeURIComponent(courseId)}&q=${encodeURIComponent(q)}`
+   );
 
 const getMyAnswer = (id) => ragRequest(`/my-answer/${id}`);
 
-const getMyAnswers = (studentId) => ragRequest(`/my-answers/${studentId}`);
+const getMyAnswers = (studentId, includeThreads = false) =>
+   ragRequest(`/my-answers/${studentId}${includeThreads ? "?includeThreads=1" : ""}`);
 
 const getStats = (studentId) => ragRequest(`/stats/${studentId}`);
 
@@ -116,6 +139,10 @@ export {
    getReviewQueue,
    approveAnswer,
    rejectAnswer,
+   toggleImportant,
+   getImportantQuestions,
+   getCourseQaStats,
+   getRelatedQuestions,
    getMyAnswer,
    getMyAnswers,
    getStats,

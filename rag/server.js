@@ -94,10 +94,38 @@ const reviewQueueItemSchema = new mongoose.Schema(
         // left it unattended — deliberately NOT defaulted to 0, so
         // "unrated" stays distinguishable from "rated poorly".
         rating: { type: Number, default: null, min: 1, max: 5 },
+        // Retrieval confidence: cosine score of the best material chunk
+        // behind this draft (0–1, null when nothing was retrieved). Lets
+        // the TA queue triage shakiest-first instead of oldest-first.
+        confidence: { type: Number, default: null },
         // True when the TA edited the draft before approving — lets the
         // feedback loop (and future analytics) tell "approved as-is" apart
         // from "approved with corrections".
         wasEdited: { type: Boolean, default: false },
+        // Follow-up thread: the root question's item id. Follow-ups share
+        // their thread's resolved history as extra context, so students
+        // don't restate everything per question.
+        threadId: { type: String, default: null, index: true },
+        // TA userIds that marked this question important. A checkbox per
+        // card, togglable — when marks from distinct TAs reach
+        // IMPORTANT_THRESHOLD, the question surfaces on the instructor
+        // portal ("important questions" below the TA roster).
+        importantBy: { type: [String], default: [] },
+        // Normalized question text (lowercased, punctuation/whitespace
+        // collapsed) for exact repeat detection — the first leg of
+        // instant answers. Stored at creation so repeats match with an
+        // indexed query instead of embedding every submission.
+        normalizedQuestion: { type: String, default: null, index: true },
+        // True when this item never saw the TA queue: the question matched
+        // a verified answer closely enough to serve instantly. servedFrom
+        // points at the approved item it was answered from.
+        autoServed: { type: Boolean, default: false },
+        servedFrom: { type: String, default: null },
+        // Who resolved the review (approve or reject) and when — powers
+        // the instructor's per-TA "questions reviewed" counts. Null for
+        // items resolved before this existed.
+        reviewedBy: { type: String, default: null },
+        reviewedAt: { type: Date, default: null },
         // Traceable citations: the actual documents placed in the LLM's
         // context for this question (source file, page, line range), NOT
         // the model's self-reported SOURCES line. Powers the "which PDF,
@@ -138,15 +166,14 @@ const embeddings = new GoogleGenerativeAIEmbeddings({
     model: "gemini-embedding-001",
 });
 
+// Chat model is env-overridable (GEMINI_MODEL): gemini-3.6-flash is the
+// quality pick, but its free tier is only ~20 req/day — set
+// GEMINI_MODEL=gemini-3.1-flash-lite locally to test without burning
+// quota. The stay-close-to-source prompt carries over either way.
+const CHAT_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 const llm = new ChatGoogleGenerativeAI({
    apiKey: GEMINI_API_KEY,
-   // Upgraded from gemini-3.1-flash-lite (cost-optimized workhorse) for
-   // draft quality: 3.6 Flash follows the stay-close-to-source prompt far
-   // more faithfully and keeps concrete details instead of compressing
-   // them into generic statements. Verified to exist (DeepMind model card,
-   // July 2026). Temperature stays 0 — determinism matters more than
-   // creativity for grounded answers.
-   model: "gemini-3.6-flash",
+   model: CHAT_MODEL,
    temperature: 0,
 });
 
@@ -164,16 +191,6 @@ const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
 });
 
 const retriever = vectorStore.asRetriever(8);
-
-// Builds a retriever scoped to a course and/or module (see scopeFilter in
-// ingest-logic.js). Falls back to the unfiltered retriever only when the
-// question carries no scope at all — e.g. legacy queue items saved before
-// courseId existed. Note the `metadata.` prefix — Qdrant filter syntax
-// requires it.
-const getRetriever = (scope = {}) => {
-    const filter = scopeFilter(scope);
-    return filter ? vectorStore.asRetriever({ k: 8, filter }) : retriever;
-};
 
 // Golden-first retrieval: TA-verified answers for this scope are fetched
 // separately (they carry metadata.golden=true) and placed ahead of raw
@@ -210,6 +227,30 @@ Question: {question}
 Answer:
 `);
 
+// Relaxed twin of the prompt above, used ONLY for direct follow-up
+// answers (never TA-reviewed). A follow-up may legitimately wander off
+// the material — e.g. "define this term from your answer" where the PDF
+// uses but never defines it. Forcing "I don't know." there would be
+// pedantic, so general knowledge is allowed with one hard rule: anything
+// beyond the context must be labeled as such, so students never mistake
+// it for course material.
+const directPromptTemplate = PromptTemplate.fromTemplate(`
+You are a helpful teaching assistant continuing a conversation with a student. Use the context below first.
+
+Rules:
+- Stay as close to the source wording as possible for anything the context covers: reuse its exact terms, names, dates, and numbers.
+- If the question goes beyond the context (e.g. defining a term the material uses but never defines), answer from general knowledge — but begin the answer with exactly: (Beyond course material)
+- Do NOT explain your reasoning, do NOT mention chunk numbers or which chunks you used, do NOT add any notes about your process.
+- Write the answer as plain, direct prose a student would read.
+- After the answer, on a new line, list only the chunk numbers you drew from, in this exact format: SOURCES: 1, 3. If you used no chunks, write exactly: SOURCES: none
+
+Context: {context}
+
+Question: {question}
+
+Answer:
+`);
+
 const formatDocs = (docs) => docs.map((doc, i) => `Chunk ${i + 1}: ${doc.pageContent}`).join("\n\n");
 
 // Splits the LLM's raw completion into the clean prose answer and a
@@ -232,7 +273,11 @@ function splitAnswerAndSources(raw) {
 // Runs retrieval + generation for a single queue item and saves the result.
 // Pulled out of the route handler so /submit-question can fire this off
 // without the student's request waiting on it.
-async function generateDraftAnswer(item) {
+// When `direct` is true the relaxed follow-up prompt applies (general
+// knowledge allowed, labeled) instead of the strict grounded one. Only
+// the direct-answer path passes true — everything TA-reviewed stays on
+// the strict prompt.
+async function generateDraftAnswer(item, { direct = false } = {}) {
     try {
         const scope = { courseId: item.courseId, moduleId: item.moduleId };
 
@@ -246,7 +291,23 @@ async function generateDraftAnswer(item) {
         } catch (goldenError) {
             console.error(`Golden retrieval failed for ${item._id}, continuing without it:`, goldenError.message);
         }
-        const docs = await getRetriever(scope).invoke(item.question);
+        // Scored (not plain) retrieval: the top cosine score becomes the
+        // draft's confidence. Unscoped questions keep the old unfiltered
+        // retriever path and record no confidence.
+        const materialFilter = scopeFilter(scope);
+        let docs;
+        if (materialFilter) {
+            const scored = await vectorStore.similaritySearchWithScore(
+                item.question,
+                8,
+                materialFilter
+            );
+            docs = scored.map(([doc]) => doc);
+            item.confidence = scored.length > 0 ? +scored[0][1].toFixed(3) : null;
+        } else {
+            docs = await retriever.invoke(item.question);
+            item.confidence = null;
+        }
 
         // Citations come from these retrieved documents — never from the
         // LLM's self-reported SOURCES line, which can hallucinate chunk
@@ -264,13 +325,39 @@ async function generateDraftAnswer(item) {
             ...docs.map((doc) => toCitation(doc, false)),
         ].slice(0, 8);
 
+        // Thread history: resolved Q&A from the same follow-up thread,
+        // so "what about France then?" inherits everything established
+        // above without restating. Pending items excluded (nothing to
+        // learn from an unreviewed draft), capped at 5 to bound context.
+        let threadContext = "";
+        if (item.threadId) {
+            try {
+                const prior = await ReviewQueueItem.find({
+                    threadId: item.threadId,
+                    _id: { $ne: item._id },
+                    status: { $ne: 'pending' },
+                    finalAnswer: { $ne: null },
+                })
+                    .sort({ createdAt: 1 })
+                    .limit(5)
+                    .lean();
+                if (prior.length > 0) {
+                    threadContext = "Earlier in this thread:\n" + prior
+                        .map((p) => `Q: ${p.question}\nA: ${p.finalAnswer}`)
+                        .join("\n\n");
+                }
+            } catch (threadError) {
+                console.error(`Thread context failed for ${item._id}, continuing without it:`, threadError.message);
+            }
+        }
+
         const golden = goldenDocs
             .map((doc, i) => `Verified answer ${i + 1} (TA-approved): ${doc.pageContent}`)
             .join("\n\n");
-        const context = [golden, formatDocs(docs)].filter(Boolean).join("\n\n");
+        const context = [threadContext, golden, formatDocs(docs)].filter(Boolean).join("\n\n");
 
         const ragChain = RunnableSequence.from([
-            promptTemplate,
+            direct ? directPromptTemplate : promptTemplate,
             llm,
             new StringOutputParser()
         ]);
@@ -281,6 +368,7 @@ async function generateDraftAnswer(item) {
         item.draftAnswer = draftAnswer;
         item.sources = sources;
         await item.save();
+        return { draftAnswer, sources };
     } catch (error) {
         console.error(`Error generating draft answer for ${item._id}:`, error);
         // Leave draftAnswer empty rather than crashing — the item just
@@ -351,23 +439,150 @@ app.delete('/ingest/:documentId', async (req, res) => {
 // and fills in draftAnswer once it's done. The student was always waiting
 // on nothing they could see (drafts never reach them unapproved), so there
 // was no reason to block the response on the LLM call.
+// Looks for a verified answer to serve instantly (no TA review). Two
+// legs, cheapest first: (1) exact normalized-text match against approved
+// items in the same scope — can't false-positive; (2) golden-chunk cosine
+// similarity at AUTO_SERVE_SIMILARITY — near-certain paraphrases only.
+// Both legs require a servable rating (unrated or ≥3). Returns the source
+// item or null.
+async function findInstantAnswer(question, scope) {
+    const norm = normalizeQuestion(question);
+    if (norm) {
+        const exact = await ReviewQueueItem.findOne({
+            courseId: scope.courseId ?? null,
+            moduleId: scope.moduleId ?? null,
+            normalizedQuestion: norm,
+            status: 'approved',
+        })
+            .sort({ createdAt: -1 })
+            .lean();
+        if (exact && SERVABLE_RATINGS(exact.rating)) return exact;
+    }
+
+    // Scored top-1 over golden chunks only — similaritySearch (unscored)
+    // can't gatekeep, and an unreviewed wrong answer must never auto-serve.
+    try {
+        const scored = await vectorStore.similaritySearchWithScore(
+            question,
+            1,
+            {
+                must: [
+                    { key: "metadata.golden", match: { value: true } },
+                    ...(scopeFilter(scope)?.must ?? []),
+                ],
+            }
+        );
+        if (scored.length > 0 && scored[0][1] >= AUTO_SERVE_SIMILARITY) {
+            const documentId = String(scored[0][0].metadata?.documentId ?? '');
+            if (documentId.startsWith('golden:')) {
+                const source = await ReviewQueueItem.findOne({
+                    _id: documentId.replace(/^golden:/, ''),
+                    status: 'approved',
+                }).lean();
+                if (source && SERVABLE_RATINGS(source.rating)) return source;
+            }
+        }
+    } catch (err) {
+        console.error("Instant-answer lookup failed, falling back to queue:", err.message);
+    }
+    return null;
+}
+
 app.post('/submit-question', async (req, res) => {
     try {
-        const { student_id, question, module_id, course_id } = req.body;
+        const { student_id, question, module_id, course_id, thread_id } = req.body;
 
         if (!question) return res.status(400).json({ error: "Question is required." });
 
+        const scope = { courseId: course_id ?? null, moduleId: module_id ?? null };
+
+        // Instant-answer fast path — best-effort wrapper: ANY failure here
+        // must fall through to the normal queue, never fail the submission.
+        let source = null;
+        try {
+            source = await findInstantAnswer(question, scope);
+        } catch (err) {
+            console.error("Instant-answer fast path failed, queueing normally:", err.message);
+        }
+
+        if (source) {
+            // A per-student approved record (so their history/stats read
+            // naturally), answered from the verified source. Never touches
+            // the TA queue and never re-ingests as golden (that would
+            // clone golden-of-golden forever).
+            const item = await ReviewQueueItem.create({
+                studentId: student_id ?? null,
+                moduleId: scope.moduleId,
+                courseId: scope.courseId,
+                question,
+                normalizedQuestion: normalizeQuestion(question) || null,
+                draftAnswer: source.finalAnswer || "",
+                finalAnswer: source.finalAnswer,
+                citations: source.citations || [],
+                rating: source.rating ?? null,
+                status: 'approved',
+                autoServed: true,
+                servedFrom: source._id.toString(),
+            });
+            return res.json({
+                status: "success",
+                message: "Answered instantly from a verified answer.",
+                request_id: item._id.toString(),
+                autoServed: true,
+            });
+        }
+
+        // Follow-ups skip the TA queue entirely: the answer generates
+        // synchronously (awaited — the student waits seconds, not hours)
+        // and serves approved straight away. Unreviewed answers never
+        // teach the pipeline, so no golden ingest happens for these.
+        // Generation failure falls back to the normal queue below.
+        if (thread_id) {
+            const item = await ReviewQueueItem.create({
+                studentId: student_id ?? null,
+                moduleId: scope.moduleId,
+                courseId: scope.courseId,
+                question,
+                normalizedQuestion: normalizeQuestion(question) || null,
+                threadId: thread_id,
+            });
+            const generated = await generateDraftAnswer(item, { direct: true });
+            if (generated) {
+                item.status = 'approved';
+                item.finalAnswer = generated.draftAnswer;
+                await item.save();
+                return res.json({
+                    status: "success",
+                    message: "Answered.",
+                    request_id: item._id.toString(),
+                    threadAnswered: true,
+                    answer: item.finalAnswer,
+                });
+            }
+            // Generation failed — item stays pending below for TA review.
+            res.json({
+                status: "success",
+                message: "Question received. Your answer is being reviewed by a TA.",
+                request_id: item._id.toString(),
+                threadAnswered: false,
+            });
+            return;
+        }
+
         const item = await ReviewQueueItem.create({
             studentId: student_id ?? null,
-            moduleId: module_id ?? null,
-            courseId: course_id ?? null,
+            moduleId: scope.moduleId,
+            courseId: scope.courseId,
             question,
+            normalizedQuestion: normalizeQuestion(question) || null,
+            threadId: thread_id ?? null,
         });
 
         res.json({
             status: "success",
             message: "Question received. Your answer is being reviewed by a TA.",
-            request_id: item._id.toString()
+            request_id: item._id.toString(),
+            autoServed: false,
         });
 
         // Fire-and-forget: not awaited, runs after the response is sent.
@@ -463,6 +678,30 @@ function normalizeRating(value) {
 // self-perpetuate.
 const GOLDEN_MIN_RATING = 3;
 
+// Distinct-TA important marks needed before a question is highlighted to
+// the instructor. Low on purpose: most courses have a handful of TAs, so
+// 2 means "more than one TA independently flagged this".
+const IMPORTANT_THRESHOLD = 2;
+
+// Minimum golden-chunk cosine similarity for an instant answer. Deliberately
+// high: a false positive serves a wrong answer with no human ever looking,
+// so paraphrase matches must be near-certain. Exact normalized matches
+// bypass this entirely (they can't false-positive).
+const AUTO_SERVE_SIMILARITY = 0.85;
+
+// Ratings that may teach or auto-serve. Mirrors the golden policy: 1–2
+// star approvals are quarantined from both.
+const SERVABLE_RATINGS = (rating) => rating === null || rating === undefined || rating >= 3;
+
+// Normalizes a question for exact repeat detection.
+function normalizeQuestion(text) {
+    return String(text ?? "")
+        .toLowerCase()
+        .replace(/[^\p{L}\p{N}\s]/gu, "")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
 // 7. TA-facing: approve a draft, optionally editing it and/or rating it
 // before it goes out. Approving feeds the final answer back into the
 // vector store as a golden chunk (see ingestGoldenAnswer) — the feedback
@@ -483,6 +722,8 @@ app.post('/review-queue/:id/approve', async (req, res) => {
     item.finalAnswer = editedAnswer || item.draftAnswer;
     item.wasEdited = editedAnswer !== undefined && editedAnswer !== null && String(editedAnswer).trim() !== "";
     item.rating = rating;
+    item.reviewedBy = req.body?.reviewedBy ?? null;
+    item.reviewedAt = new Date();
     await item.save();
 
     // Feedback loop — best-effort by design: a down vector DB must never
@@ -505,7 +746,7 @@ app.post('/review-queue/:id/approve', async (req, res) => {
         }
     }
 
-    res.json({ status: 'approved', id: item._id.toString(), rating, goldenIngested });
+    res.json({ status: 'approved', id: item._id.toString(), rating, goldenIngested, studentId: item.studentId, question: item.question });
 });
 
 // 8. TA-facing: reject a draft (e.g. hallucinated or off-topic).
@@ -515,8 +756,189 @@ app.post('/review-queue/:id/reject', async (req, res) => {
 
     item.status = 'rejected';
     item.finalAnswer = req.body?.note || "A TA reviewed this question and could not provide an answer from the course materials.";
+    item.reviewedBy = req.body?.reviewedBy ?? null;
+    item.reviewedAt = new Date();
     await item.save();
     res.json({ status: 'rejected', id: item._id.toString() });
+});
+
+// Toggles one TA's important mark on a question (checkbox semantics).
+// Returns the new state plus whether the threshold is now met.
+app.post('/review-queue/:id/important', async (req, res) => {
+    const { taId } = req.body ?? {};
+    if (!taId) return res.status(400).json({ error: "taId is required." });
+
+    const item = await ReviewQueueItem.findById(req.params.id);
+    if (!item) return res.status(404).json({ error: "Not found" });
+
+    const marks = new Set(item.importantBy || []);
+    const important = !marks.has(taId);
+    if (important) marks.add(taId);
+    else marks.delete(taId);
+    item.importantBy = [...marks];
+    await item.save();
+
+    const importantCount = item.importantBy.length;
+    res.json({
+        important,
+        importantCount,
+        highlighted: importantCount >= IMPORTANT_THRESHOLD,
+        threshold: IMPORTANT_THRESHOLD,
+    });
+});
+
+// Live "related answers" for the ask form: top golden matches in scope
+// with their verified answers attached, so students often find their
+// answer without submitting. Approved + servable-rated only — drafts and
+// quarantined (1–2★) answers never surface here.
+app.get('/related-questions', async (req, res) => {
+    try {
+        const { q, courseId, moduleId, limit } = req.query;
+        if (!q || q.trim().length < 3) return res.json([]);
+
+        const k = Math.min(Math.max(parseInt(limit, 10) || 5, 1), 10);
+        const must = [{ key: "metadata.golden", match: { value: true } }];
+        if (courseId) must.push({ key: "metadata.courseId", match: { value: courseId } });
+        if (moduleId) must.push({ key: "metadata.moduleId", match: { value: moduleId } });
+
+        const scored = await vectorStore.similaritySearchWithScore(q, k * 2, { must });
+
+        // Several chunks can belong to one answer — keep each answer once,
+        // at its best score.
+        const bestByReview = new Map();
+        for (const [doc, score] of scored) {
+            const documentId = String(doc.metadata?.documentId ?? '');
+            if (!documentId.startsWith('golden:')) continue;
+            const reviewId = documentId.slice('golden:'.length);
+            if (!bestByReview.has(reviewId) || bestByReview.get(reviewId) > score) {
+                bestByReview.set(reviewId, score);
+            }
+            if (bestByReview.size >= k) break;
+        }
+        if (bestByReview.size === 0) return res.json([]);
+
+        const items = await ReviewQueueItem.find({
+            _id: { $in: [...bestByReview.keys()] },
+            status: 'approved',
+        }).lean();
+
+        res.json(
+            items
+                .filter((item) => SERVABLE_RATINGS(item.rating))
+                .map((item) => ({
+                    id: item._id.toString(),
+                    question: item.question,
+                    answer: String(item.finalAnswer || '').slice(0, 220),
+                    rating: item.rating ?? null,
+                    score: bestByReview.get(item._id.toString()),
+                }))
+                .sort((a, b) => b.score - a.score)
+        );
+    } catch (error) {
+        console.error("Error fetching related questions:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// Questions highlighted to the instructor: non-rejected items in a course
+// with at least IMPORTANT_THRESHOLD distinct-TA marks, hottest first.
+// "Just the questions" — the instructor portal renders question text +
+// mark counts, nothing else from these rows is needed... except moduleId
+// so it can label which module each came from.
+app.get('/review-queue/important', async (req, res) => {
+    const { courseId } = req.query;
+    if (!courseId) return res.status(400).json({ error: "courseId query param is required." });
+
+    const items = await ReviewQueueItem.find({
+        courseId,
+        status: { $ne: 'rejected' },
+    }).lean();
+
+    res.json(
+        items
+            .map((item) => ({
+                id: item._id.toString(),
+                moduleId: item.moduleId,
+                question: item.question,
+                status: item.status,
+                importantCount: (item.importantBy || []).length,
+                createdAt: item.createdAt,
+            }))
+            .filter((item) => item.importantCount >= IMPORTANT_THRESHOLD)
+            .sort((a, b) => b.importantCount - a.importantCount)
+    );
+});
+
+// Per-course activity counts: questions asked per student, reviews
+// resolved per TA (approvals + rejections where the resolver is known).
+app.get('/review-queue/course-stats', async (req, res) => {
+    const { courseId } = req.query;
+    if (!courseId) return res.status(400).json({ error: "courseId query param is required." });
+
+    const items = await ReviewQueueItem.find({ courseId }).lean();
+
+    const asked = {};
+    const reviewed = {};
+    // Quality rollups for the instructor's answer-quality view.
+    let ratingSum = 0;
+    let ratedCount = 0;
+    let editedCount = 0;
+    let approvedCount = 0;
+    let rejectedCount = 0;
+    let pendingCount = 0;
+    let resolutionMsSum = 0;
+    let resolutionCount = 0;
+    for (const item of items) {
+        if (item.studentId) asked[item.studentId] = (asked[item.studentId] || 0) + 1;
+        if (item.status === 'pending') {
+            pendingCount += 1;
+            continue;
+        }
+        if (item.reviewedBy) reviewed[item.reviewedBy] = (reviewed[item.reviewedBy] || 0) + 1;
+        if (item.status === 'approved') {
+            approvedCount += 1;
+            if (item.wasEdited) editedCount += 1;
+            if (item.rating !== null && item.rating !== undefined) {
+                ratingSum += item.rating;
+                ratedCount += 1;
+            }
+        } else if (item.status === 'rejected') {
+            rejectedCount += 1;
+        }
+        if (item.reviewedAt && item.createdAt) {
+            resolutionMsSum += new Date(item.reviewedAt) - new Date(item.createdAt);
+            resolutionCount += 1;
+        }
+    }
+
+    // Content gaps: per-module abstention counts. Every "I don't know."
+    // is a student asking about something the material doesn't cover —
+    // aggregated, that's the instructor's curriculum radar.
+    const gaps = {};
+    for (const item of items) {
+        if (!item.moduleId) continue;
+        const entry = gaps[item.moduleId] || (gaps[item.moduleId] = { asked: 0, unanswered: 0 });
+        entry.asked += 1;
+        if ((item.draftAnswer || '').trim() === "I don't know.") entry.unanswered += 1;
+    }
+
+    res.json({
+        asked: Object.entries(asked).map(([studentId, count]) => ({ studentId, count })),
+        reviewed: Object.entries(reviewed).map(([taId, count]) => ({ taId, count })),
+        gaps: Object.entries(gaps)
+            .map(([moduleId, counts]) => ({ moduleId, ...counts }))
+            .filter((g) => g.unanswered > 0)
+            .sort((a, b) => b.unanswered - a.unanswered),
+        quality: {
+            avgRating: ratedCount > 0 ? +(ratingSum / ratedCount).toFixed(1) : null,
+            ratedCount,
+            editedCount,
+            approvedCount,
+            rejectedCount,
+            pendingCount,
+            avgResolutionHours: resolutionCount > 0 ? +((resolutionMsSum / resolutionCount) / 3600000).toFixed(1) : null,
+        },
+    });
 });
 
 // 9. Student-facing: check on / retrieve a submitted question.
@@ -534,8 +956,15 @@ app.get('/my-answer/:id', async (req, res) => {
 
 // 10. Student-facing: list everything a given student has ever asked.
 // Was previously called by the backend but never implemented here.
+// Thread (chatbot) items are excluded by default — the History page shows
+// only fresh questions + TA-reviewed answers, while threads live in the
+// chatbot. Pass ?includeThreads=1 for the full set (thread view, stats).
 app.get('/my-answers/:studentId', async (req, res) => {
-    const items = await ReviewQueueItem.find({ studentId: req.params.studentId })
+    const filter = { studentId: req.params.studentId };
+    if (req.query.includeThreads !== '1') {
+        filter.threadId = null;
+    }
+    const items = await ReviewQueueItem.find(filter)
         .sort({ createdAt: -1 })
         .lean();
 
@@ -550,6 +979,7 @@ app.get('/my-answers/:studentId', async (req, res) => {
             rating: item.rating ?? null,
             wasEdited: item.wasEdited ?? false,
             citations: item.citations ?? [],
+            threadId: item.threadId ?? null,
             createdAt: item.createdAt,
         }))
     );

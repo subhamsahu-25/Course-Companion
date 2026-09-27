@@ -7,6 +7,8 @@ import {
   getModulesByCourse,
 } from '../../api/client.js';
 import { RATING_LABELS, formatRating } from '../../utils/rating.js';
+import { LoadingDots } from '../../components/ui/primitives.jsx';
+import { Select } from '../../components/ui/select.jsx';
 const STATUS_LABELS = {
   pending: 'Awaiting TA review',
   approved: 'TA-reviewed answer',
@@ -22,7 +24,14 @@ function citationPage(citation) {
     ? `Page ${citation.page}`
     : null;
 }
-export default function StudentHistory({ onPageChange }) {
+export default function StudentHistory({
+  onPageChange,
+  initialCourseId,
+  initialModuleId,
+}) {
+  // One-shot context (Back-to-history, "view in history"): pre-selects
+  // the course/module the student came from instead of starting blank.
+  const appliedContext = useRef(false);
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [modulesForCourse, setModulesForCourse] = useState([]);
@@ -51,6 +60,21 @@ export default function StudentHistory({ onPageChange }) {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allAnswers]);
+  useEffect(() => {
+    if (
+      appliedContext.current ||
+      loadingCourses ||
+      courses.length === 0 ||
+      !initialCourseId ||
+      !courses.some((c) => c._id === initialCourseId)
+    ) {
+      return;
+    }
+    appliedContext.current = true;
+    handleCourseChange(initialCourseId).then(() => {
+      if (initialModuleId) setSelectedModuleId(initialModuleId);
+    });
+  });
   async function loadCourses() {
     setLoadingCourses(true);
     try {
@@ -124,65 +148,56 @@ export default function StudentHistory({ onPageChange }) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-          Your history
-        </div>
-        <h1 className="mt-1 font-sans text-[34px] text-[#c0e6fd]">
+        <h1 className="mt-1 font-sans text-[34px] text-heading">
           Question history
         </h1>
-        <p className="mt-2 text-[17px] text-[#80aad3]">
+        <p className="mt-2 text-[17px] text-body">
           Pick a course and module to see everything you've asked there, and its
           review status.
         </p>
       </div>
-      <div className="mt-8 rounded-xl border border-[#3f6593] bg-[#1b3554] p-5 shadow-sm">
-        <label htmlFor="course" className="text-sm font-medium text-[#c0e6fd]">
+      <div className="mt-8 rounded-xl border border-border bg-surface p-5 shadow-sm">
+        <label htmlFor="course" className="text-sm font-medium text-heading">
           Course
         </label>
-        <select
-          id="course"
-          value={selectedCourseId}
-          onChange={(e) => handleCourseChange(e.target.value)}
-          disabled={loadingCourses}
-          className="mt-2 w-full rounded-lg border border-[#3f6593] bg-[#000f22] p-3 text-[15px] text-[#c0e6fd] outline-none focus:border-[#5b86b6] disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-[#80aad3]/60"
-        >
-          <option value="">
-            {loadingCourses ? 'Loading courses…' : 'Select a course…'}
-          </option>
-          {courses.map((course) => (
-            <option key={course._id} value={course._id}>
-              {course.title}
-            </option>
-          ))}
-        </select>
+        <div className="mt-2">
+          <Select
+            value={selectedCourseId}
+            onChange={(id) => handleCourseChange(id)}
+            disabled={loadingCourses}
+            ariaLabel="Course"
+            placeholder={loadingCourses ? 'Loading courses…' : 'Select a course…'}
+            options={courses.map((course) => ({
+              id: course._id,
+              label: course.title,
+            }))}
+          />
+        </div>
         <label
           htmlFor="module"
-          className="mt-4 block text-sm font-medium text-[#c0e6fd]"
+          className="mt-4 block text-sm font-medium text-heading"
         >
           Module
         </label>
-        <select
-          id="module"
-          value={selectedModuleId}
-          onChange={(e) => setSelectedModuleId(e.target.value)}
-          disabled={!selectedCourseId || loadingModules}
-          className="mt-2 w-full rounded-lg border border-[#3f6593] bg-[#000f22] p-3 text-[15px] text-[#c0e6fd] outline-none focus:border-[#5b86b6] disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-[#80aad3]/60"
-        >
-          {!selectedCourseId && <option value="">Select a course first</option>}
-          {selectedCourseId && loadingModules && (
-            <option value="">Loading modules…</option>
-          )}
-          {selectedCourseId && !loadingModules && (
-            <>
-              <option value="">Select a module…</option>
-              {modulesForCourse.map((mod) => (
-                <option key={mod._id} value={mod._id}>
-                  {mod.title}
-                </option>
-              ))}
-            </>
-          )}
-        </select>
+        <div className="mt-2">
+          <Select
+            value={selectedModuleId}
+            onChange={(id) => setSelectedModuleId(id)}
+            disabled={!selectedCourseId || loadingModules}
+            ariaLabel="Module"
+            placeholder={
+              !selectedCourseId
+                ? 'Select a course first'
+                : loadingModules
+                  ? 'Loading modules…'
+                  : 'Select a module…'
+            }
+            options={modulesForCourse.map((mod) => ({
+              id: mod._id,
+              label: mod.title,
+            }))}
+          />
+        </div>
       </div>
       {error && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -191,7 +206,7 @@ export default function StudentHistory({ onPageChange }) {
       )}
       <div className="mt-10">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-[#80aad3]">
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-body">
             {selectedCourse && selectedModule
               ? `Questions — ${selectedCourse.title} / ${selectedModule.title}`
               : 'Your questions'}
@@ -199,14 +214,20 @@ export default function StudentHistory({ onPageChange }) {
           <button
             onClick={loadHistory}
             disabled={loadingHistory}
-            className="text-sm text-[#80aad3] hover:underline hover:opacity-80 disabled:opacity-60"
+            className="text-sm text-body hover:underline hover:opacity-80 disabled:opacity-60"
           >
-            {loadingHistory ? 'Refreshing…' : 'Refresh'}
+            {loadingHistory ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingDots /> Refreshing
+              </span>
+            ) : (
+              'Refresh'
+            )}
           </button>
         </div>
         <div className="mt-4 space-y-4">
           {!selectedModuleId && (
-            <p className="text-sm text-[#80aad3]">
+            <p className="text-sm text-body">
               Select a course and module above to see your question history for
               it.
             </p>
@@ -214,13 +235,13 @@ export default function StudentHistory({ onPageChange }) {
           {selectedModuleId &&
             visibleHistory.length === 0 &&
             !loadingHistory && (
-              <p className="text-sm text-[#80aad3]">
+              <p className="text-sm text-body">
                 Nothing asked in this module yet.{' '}
                 <button
                   onClick={() =>
                     onPageChange('student-ask', { moduleId: selectedModuleId })
                   }
-                  className="font-medium text-[#80aad3] hover:underline hover:opacity-80"
+                  className="font-medium text-body hover:underline hover:opacity-80"
                 >
                   Ask one
                 </button>
@@ -229,10 +250,10 @@ export default function StudentHistory({ onPageChange }) {
           {visibleHistory.map((item) => (
             <div
               key={item.id}
-              className="rounded-xl border border-[#3f6593] bg-white/5 p-5"
+              className="rounded-xl border border-border bg-white/5 p-5"
             >
               <div className="flex items-start justify-between gap-3">
-                <div className="text-[18px] font-semibold text-[#c0e6fd]">
+                <div className="text-[18px] font-semibold text-heading">
                   {item.question}
                 </div>
                 <span
@@ -248,37 +269,59 @@ export default function StudentHistory({ onPageChange }) {
                 </span>
               </div>
               {item.status === 'pending' ? (
-                <p className="mt-3 text-[15px] leading-6 text-[#80aad3] italic">
+                <p className="mt-3 text-[15px] leading-6 text-body italic">
                   Still being reviewed by a TA.
                 </p>
               ) : (
                 <>
-                  <p className="mt-3 text-[15px] leading-6 text-[#80aad3]">
+                  <p className="mt-3 text-[15px] leading-6 text-body">
                     {item.answer}
                   </p>
-                  {(item.citations?.length ?? 0) > 0 && (
-                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
-                      <span
-                        title={
-                          item.citations[0].golden
-                            ? 'Verified by a TA'
-                            : item.citations[0].source
-                        }
-                        className="max-w-56 truncate rounded-full border border-[#3f6593] bg-[#1b3554] px-2.5 py-0.5 text-xs font-medium text-[#c0e6fd]"
-                      >
-                        {item.citations[0].source}
-                      </span>
-                      {citationPage(item.citations[0]) && (
-                        <span className="rounded-full border border-[#3f6593]/60 bg-white/5 px-2.5 py-0.5 text-xs text-[#80aad3]">
-                          {citationPage(item.citations[0])}
+                  <div className="mt-3 flex justify-center">
+                    <button
+                      onClick={() =>
+                        onPageChange('student-ask', {
+                          courseId: item.courseId,
+                          moduleId: item.moduleId,
+                          threadId: item.threadId || item.id,
+                          threadQuestion: item.question,
+                          threadAnswer: item.answer,
+                        })
+                      }
+                      className="rounded-xl border border-border bg-accent px-5 py-2 text-sm font-medium text-accent-ink transition-all duration-200 ease-out hover:bg-accent-hover active:scale-[0.98]"
+                    >
+                      Follow up →
+                    </button>
+                  </div>
+                  {(() => {
+                    // Golden (TA-written) citations carry no file or page —
+                    // rendering them produces exactly the stray
+                    // "TA-verified answer" pill, so only real document
+                    // citations get tags.
+                    const citation = (item.citations || []).find(
+                      (c) => !c.golden,
+                    );
+                    if (!citation) return null;
+                    return (
+                      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                        <span
+                          title={citation.source}
+                          className="max-w-56 truncate rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs font-medium text-heading"
+                        >
+                          {citation.source}
                         </span>
-                      )}
-                    </div>
-                  )}
+                        {citationPage(citation) && (
+                          <span className="rounded-full border border-border/60 bg-white/5 px-2.5 py-0.5 text-xs text-body">
+                            {citationPage(citation)}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })()}
                   {formatRating(item.rating) && (
                     <p
                       title={RATING_LABELS[item.rating]}
-                      className="mt-2 text-xs font-medium text-amber-400/90"
+                      className="mt-2 text-xs font-medium text-star/90"
                     >
                       TA rating: {formatRating(item.rating)}
                     </p>

@@ -5,6 +5,7 @@
 // care which role is using it.
 import { useState } from 'react';
 import { joinCourse } from '../api/client.js';
+import { LoadingDots } from '../components/ui/primitives.jsx';
 export default function JoinCourse({ onPageChange, redirectTo }) {
   const [code, setCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -34,21 +35,18 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-          Enrollment
-        </div>
-        <h1 className="mt-1 font-sans text-[34px] text-[#c0e6fd]">
+        <h1 className="mt-1 font-sans text-[34px] text-heading">
           Join a course
         </h1>
-        <p className="mt-2 text-[17px] text-[#80aad3]">
+        <p className="mt-2 text-[17px] text-body">
           Enter the 5-digit code your instructor shared with you.
         </p>
       </div>
       <form
         onSubmit={handleSubmit}
-        className="mt-8 max-w-sm rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm"
+        className="mt-8 max-w-sm rounded-xl border border-border bg-surface p-6 shadow-sm"
       >
-        <label htmlFor="code" className="text-sm font-medium text-[#c0e6fd]">
+        <label htmlFor="code" className="text-sm font-medium text-heading">
           Course code
         </label>
         <input
@@ -58,7 +56,7 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
           value={code}
           onChange={handleCodeChange}
           placeholder="12345"
-          className="mt-2 w-full rounded-lg border border-[#3f6593] bg-[#000f22] p-3 text-center text-[22px] tracking-[0.3em] text-[#c0e6fd] outline-none placeholder:tracking-normal placeholder:text-[#80aad3] focus:border-[#5b86b6]"
+          className="mt-2 w-full rounded-lg border border-border bg-bg p-3 text-center text-[22px] tracking-[0.3em] text-heading outline-none placeholder:tracking-normal placeholder:text-body focus:border-accent"
         />
         {error && (
           <div className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
@@ -68,9 +66,15 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
         <button
           type="submit"
           disabled={submitting || code.length !== 5}
-          className="mt-4 w-full rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+          className="mt-4 w-full rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
         >
-          {submitting ? 'Joining…' : 'Join course'}
+          {submitting ? (
+            <span className="inline-flex items-center gap-2">
+              <LoadingDots /> Joining
+            </span>
+          ) : (
+            'Join course'
+          )}
         </button>
       </form>
       {joinedCourse && (

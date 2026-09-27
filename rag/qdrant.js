@@ -38,10 +38,11 @@ export async function ensureQdrantCollection(client, collectionName) {
       });
       console.log(`✅ Created Qdrant collection "${collectionName}" (dim=${EMBEDDING_DIM})`);
    }
-   // Only string-valued fields get keyword indexes — the boolean flags
-   // (metadata.golden / metadata.seeded) stay unindexed on purpose: keyword
-   // indexes are for strings, and `match` filters on bools work fine
-   // without one at this collection size.
+   // String-valued scope/id fields get keyword indexes. The boolean
+   // flags (metadata.golden / metadata.seeded) get `bool` indexes — this
+   // Qdrant version rejects bool `match` filters without one (400 "Index
+   // required"), which silently broke golden retrieval, related
+   // questions, and instant answers until this exists.
    for (const field of [
       "metadata.documentId",
       "metadata.moduleId",
@@ -51,6 +52,16 @@ export async function ensureQdrantCollection(client, collectionName) {
          await client.createPayloadIndex(collectionName, {
             field_name: field,
             field_schema: "keyword",
+         });
+      } catch {
+         // Index already exists — nothing to do.
+      }
+   }
+   for (const field of ["metadata.golden", "metadata.seeded"]) {
+      try {
+         await client.createPayloadIndex(collectionName, {
+            field_name: field,
+            field_schema: "bool",
          });
       } catch {
          // Index already exists — nothing to do.

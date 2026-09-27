@@ -113,8 +113,32 @@ const forgotPasswordMailgenContent = (username, passwordResetUrl) => {
    };
 };
 
+const answerApprovedMailgenContent = (username, question) => {
+   return {
+      name: username,
+      intro: "Your question has been reviewed by a TA and the answer is ready.",
+      table: {
+         data: [
+            {
+               Question: question.length > 140 ? question.slice(0, 140) + "…" : question,
+            }
+         ]
+      },
+      action: {
+         instructions: "Open your history to read the full answer",
+         button: {
+            color: "#22BC66",
+            text: "View Answer",
+            link: process.env.CORS_ORIGIN?.split(",")[0] || "http://localhost:5173"
+         },
+      },
+      outro: "Keep the questions coming — that's what we're here for."
+   };
+};
+
 export {
    emailVerificationMailgenContent,
    forgotPasswordMailgenContent,
+   answerApprovedMailgenContent,
    sendEmail
 };

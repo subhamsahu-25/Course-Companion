@@ -4,11 +4,16 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { Module } from "../models/module.model.js";
 import { Course } from "../models/course.model.js";
+import { User } from "../models/user.model.js";
+import { answerApprovedMailgenContent, sendEmail } from "../utils/mail.js";
 import * as ragService from "../services/rag.service.js";
 import { assertCourseAccess } from "../utils/course-access.js";
 
 const askQuestion = asyncHandler(async (req, res) => {
-   const { question, moduleId } = req.body;
+   // threadId joins the question to a follow-up thread (History →
+   // "Follow up"); absent means a fresh thread. Never trusted beyond
+   // scoping — the module's course check below still gates everything.
+   const { question, moduleId, threadId } = req.body;
    if (!question) throw new ApiError(400, "Question is required");
    if (!moduleId) throw new ApiError(400, "A module is required");
 
@@ -25,12 +30,30 @@ const askQuestion = asyncHandler(async (req, res) => {
    // It scopes the question's retrieval to this course's material, so one
    // course's documents can never answer another course's questions.
    const courseId = module.course._id.toString();
-   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId, courseId);
-   return res.status(200).json(new ApiResponse(200, result, "Question submitted for review"));
+   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId, courseId, threadId);
+   // Instant answers and direct follow-up answers skip review entirely —
+   // say so plainly instead of pointing the student at a queue their
+   // question never entered.
+   const message = result?.autoServed
+      ? "Answered instantly from a verified answer"
+      : result?.threadAnswered
+         ? "Answered"
+         : "Question submitted for review";
+   return res.status(200).json(new ApiResponse(200, result, message));
 });
 
 const getReviewQueue = asyncHandler(async (req, res) => {
    const queue = await ragService.getReviewQueue();
+
+   // Triage order: shakiest drafts first (lowest retrieval confidence,
+   // unknown-confidence last), then oldest first. A TA opening the queue
+   // meets the drafts most likely to be wrong before the routine ones.
+   queue.sort((a, b) => {
+      const ca = a.confidence ?? Number.POSITIVE_INFINITY;
+      const cb = b.confidence ?? Number.POSITIVE_INFINITY;
+      if (ca !== cb) return ca - cb;
+      return new Date(a.createdAt) - new Date(b.createdAt);
+   });
 
    // Admins oversee every course, same as elsewhere in the app — no
    // filtering needed for them.
@@ -65,17 +88,112 @@ const approveQuestion = asyncHandler(async (req, res) => {
    const { id } = req.params;
    // rating is the TA's 1–5 star score, or null/undefined when left
    // unattended. Range-checked in the rag service (400 on invalid) — passed
-   // straight through here.
+   // straight through here. reviewedBy records WHO resolved it (server-side
+   // identity, never trusted from the client) for the instructor's
+   // per-TA reviewed counts.
    const { editedAnswer, rating } = req.body;
-   const result = await ragService.approveAnswer(id, editedAnswer, rating);
+   const result = await ragService.approveAnswer(id, editedAnswer, rating, req.user._id.toString());
+
+   // "Your answer is ready" email — fire-and-forget on purpose: sendEmail
+   // already swallows its own failures, and a notification must never slow
+   // down (or fail) the approval itself. Auto-served answers skip this —
+   // the student got them instantly, no waiting involved.
+   if (result?.studentId) {
+      User.findById(result.studentId)
+         .select("email fullName username")
+         .lean()
+         .then((student) => {
+            if (!student?.email) return;
+            return sendEmail({
+               email: student.email,
+               subject: "Your answer is ready — Course Companion",
+               mailgenContent: answerApprovedMailgenContent(
+                  student.fullName || student.username || "there",
+                  result?.question || "your question"
+               ),
+            });
+         })
+         .catch((err) => console.error(`Approval email failed for ${id}:`, err.message));
+   }
+
    return res.status(200).json(new ApiResponse(200, result, "Answer approved"));
 });
 
 const rejectQuestion = asyncHandler(async (req, res) => {
    const { id } = req.params;
    const { note } = req.body;
-   const result = await ragService.rejectAnswer(id, note);
+   const result = await ragService.rejectAnswer(id, note, req.user._id.toString());
    return res.status(200).json(new ApiResponse(200, result, "Answer rejected"));
+});
+
+// Toggles the calling TA's important mark on a question. Any TA (or admin)
+// may mark; unmarking is the same call again (checkbox semantics).
+const toggleImportant = asyncHandler(async (req, res) => {
+   const { id } = req.params;
+   const result = await ragService.toggleImportant(id, req.user._id.toString());
+   return res.status(200).json(new ApiResponse(200, result, "Important mark toggled"));
+});
+
+// Questions in a course with enough TA important marks to highlight —
+// shown on the instructor portal below the TA roster, questions only.
+const getImportantQuestions = asyncHandler(async (req, res) => {
+   const { courseId } = req.query;
+   if (!courseId) throw new ApiError(400, "courseId query param is required");
+
+   const course = await Course.findById(courseId);
+   if (!course) throw new ApiError(404, "Course not found");
+   assertCourseAccess(course, req.user);
+
+   const result = await ragService.getImportantQuestions(courseId);
+   return res.status(200).json(new ApiResponse(200, result, "Important questions fetched"));
+});
+
+// Per-course activity for the instructor portal: how many questions each
+// student asked, how many reviews each TA resolved. Rag returns bare ids +
+// counts; user names/roll numbers are joined here where the User model lives.
+const getCourseQaStats = asyncHandler(async (req, res) => {
+   const { courseId } = req.query;
+   if (!courseId) throw new ApiError(400, "courseId query param is required");
+
+   const course = await Course.findById(courseId);
+   if (!course) throw new ApiError(404, "Course not found");
+   assertCourseAccess(course, req.user);
+
+   const { asked, reviewed } = await ragService.getCourseQaStats(courseId);
+   const ids = [
+      ...new Set([...asked.map((a) => a.studentId), ...reviewed.map((r) => r.taId)]),
+   ];
+   const users = await User.find({ _id: { $in: ids } })
+      .select("fullName username rollNo")
+      .lean();
+   const byId = new Map(users.map((u) => [u._id.toString(), u]));
+
+   return res.status(200).json(
+      new ApiResponse(
+         200,
+         {
+            asked: asked.map((a) => ({ ...a, user: byId.get(a.studentId) || null })),
+            reviewed: reviewed.map((r) => ({ ...r, user: byId.get(r.taId) || null })),
+         },
+         "Course Q&A stats fetched"
+      )
+   );
+});
+
+// Live related answers for the ask form: verified answers in the same
+// module matching what the student is typing. Scoped through the
+// module's own course — same membership check as asking.
+const getRelatedQuestions = asyncHandler(async (req, res) => {
+   const { moduleId, q } = req.query;
+   if (!moduleId) throw new ApiError(400, "moduleId query param is required");
+   if (!q || q.trim().length < 3) return res.status(200).json(new ApiResponse(200, [], "Related questions fetched"));
+
+   const module = await Module.findById(moduleId).populate("course");
+   if (!module) throw new ApiError(404, "Module not found");
+   assertCourseAccess(module.course, req.user);
+
+   const result = await ragService.getRelatedQuestions(moduleId, module.course._id.toString(), q.trim());
+   return res.status(200).json(new ApiResponse(200, result, "Related questions fetched"));
 });
 
 const getMyAnswer = asyncHandler(async (req, res) => {
@@ -85,7 +203,10 @@ const getMyAnswer = asyncHandler(async (req, res) => {
 });
 
 const getMyAnswers = asyncHandler(async (req, res) => {
-   const result = await ragService.getMyAnswers(req.user._id.toString());
+   // Thread (chatbot) items stay out of History — the chatbot is their
+   // home. Callers that need the full set (thread view, stats) opt in.
+   const includeThreads = req.query.includeThreads === "1";
+   const result = await ragService.getMyAnswers(req.user._id.toString(), includeThreads);
    return res.status(200).json(new ApiResponse(200, result, "Answers fetched"));
 });
 
@@ -95,7 +216,7 @@ const getStats = asyncHandler(async (req, res) => {
    // made the dashboard show all-time numbers even for courses the
    // student isn't in (or isn't in anymore) — so instead, pull the raw
    // list and scope it down to their current enrollments here.
-   const items = await ragService.getMyAnswers(req.user._id.toString());
+   const items = await ragService.getMyAnswers(req.user._id.toString(), true);
 
    const moduleIds = [...new Set(items.map((item) => item.moduleId).filter(Boolean))];
    const modules = await Module.find({ _id: { $in: moduleIds } }).lean();
@@ -138,9 +259,13 @@ const getModuleHistory = asyncHandler(async (req, res) => {
 
 export {
    askQuestion,
+   getRelatedQuestions,
    getReviewQueue,
    approveQuestion,
    rejectQuestion,
+   toggleImportant,
+   getImportantQuestions,
+   getCourseQaStats,
    getMyAnswer,
    getMyAnswers,
    getStats,

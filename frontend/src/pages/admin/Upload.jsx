@@ -8,7 +8,8 @@ import {
   deleteDocument,
   getDocumentFileUrl,
 } from '../../api/client.js';
-import { FileIcon } from '../../components/ui/primitives.jsx';
+import { FileIcon, LoadingDots, LoadingState } from '../../components/ui/primitives.jsx';
+import { Select } from '../../components/ui/select.jsx';
 
 // Rough indexing estimate so the instructor sees a remaining-time hint
 // while the RAG service chunks + embeds. Real time varies with RAG load,
@@ -226,83 +227,75 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
           onClick={() =>
             onPageChange('admin-modules', { courseId: selectedCourse })
           }
-          className="mb-4 rounded-md border border-[#3f6593] px-3 py-1.5 text-sm text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
+          className="mb-4 rounded-md border border-border px-3 py-1.5 text-sm text-body transition-all duration-200 ease-out hover:bg-white/10 hover:text-heading hover:opacity-80 active:scale-[0.99]"
         >
           ← Back to modules
         </button>
       )}
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-          Administration
-        </div>
-        <h1 className="mt-1 font-sans text-[36px] text-[#c0e6fd]">
+        <h1 className="mt-1 font-sans text-[36px] text-heading">
           Upload material
         </h1>
-        <p className="mt-2 text-[17px] text-[#80aad3]">
+        <p className="mt-2 text-[17px] text-body">
           Add course documents to a module.
         </p>
       </div>
-      <div className="mt-8 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm">
+      <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
         <label
           htmlFor="course"
-          className="block text-sm font-medium text-[#c0e6fd]"
+          className="block text-sm font-medium text-heading"
         >
           Course
         </label>
         {courses.length === 0 ? (
-          <p className="mt-2 text-sm text-[#80aad3]">
+          <p className="mt-2 text-sm text-body">
             No courses exist yet — create one on the Courses page first.
           </p>
         ) : (
-          <select
-            id="course"
-            value={selectedCourse}
-            onChange={(event) => handleCourseChange(event.target.value)}
-            className="mt-2 w-full rounded-md border border-[#3f6593] bg-[#000f22] p-3 text-sm text-[#c0e6fd] outline-none focus:border-[#5b86b6]"
-          >
-            {courses.map((course) => (
-              <option key={course._id} value={course._id}>
-                {course.title}
-              </option>
-            ))}
-          </select>
+          <div className="mt-2">
+            <Select
+              value={selectedCourse}
+              onChange={(id) => handleCourseChange(id)}
+              ariaLabel="Course"
+              options={courses.map((course) => ({
+                id: course._id,
+                label: course.title,
+              }))}
+            />
+          </div>
         )}
         <label
           htmlFor="module"
-          className="mt-5 block text-sm font-medium text-[#c0e6fd]"
+          className="mt-5 block text-sm font-medium text-heading"
         >
           Module
         </label>
         {modules.filter((m) => m.courseId === selectedCourse).length === 0 ? (
-          <p className="mt-2 text-sm text-[#80aad3]">
+          <p className="mt-2 text-sm text-body">
             No modules in this course yet — create one on the Courses page
             first.
           </p>
         ) : (
-          <select
-            id="module"
-            value={selectedModule}
-            onChange={(event) => setSelectedModule(event.target.value)}
-            className="mt-2 w-full rounded-md border border-[#3f6593] bg-[#000f22] p-3 text-sm text-[#c0e6fd] outline-none focus:border-[#5b86b6]"
-          >
-            {modules
-              .filter((m) => m.courseId === selectedCourse)
-              .map((mod) => (
-                <option key={mod._id} value={mod._id}>
-                  {mod.title}
-                </option>
-              ))}
-          </select>
+          <div className="mt-2">
+            <Select
+              value={selectedModule}
+              onChange={(id) => setSelectedModule(id)}
+              ariaLabel="Module"
+              options={modules
+                .filter((m) => m.courseId === selectedCourse)
+                .map((mod) => ({ id: mod._id, label: mod.title }))}
+            />
+          </div>
         )}
         <label
           htmlFor="files"
-          className="mt-6 block cursor-pointer rounded-xl border-2 border-dashed border-[#5b86b6] bg-white/5 p-10 text-center transition-all duration-200 ease-out hover:border-[#5b86b6] hover:bg-white/5"
+          className="mt-6 block cursor-pointer rounded-xl border-2 border-dashed border-border bg-white/5 p-10 text-center transition-all duration-200 ease-out hover:border-accent-hover hover:bg-white/5"
         >
-          <div className="text-3xl text-[#80aad3]">↑</div>
-          <div className="mt-2 text-[17px] font-medium text-[#c0e6fd]">
+          <div className="text-3xl text-body">↑</div>
+          <div className="mt-2 text-[17px] font-medium text-heading">
             Choose files to upload
           </div>
-          <div className="mt-1 text-sm text-[#80aad3]">
+          <div className="mt-1 text-sm text-body">
             PDF or TXT, maximum 20MB each
           </div>
           <input
@@ -321,26 +314,26 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
         )}
         {files.length > 0 && (
           <div className="mt-5">
-            <div className="mb-2 text-sm font-medium text-[#c0e6fd]">
+            <div className="mb-2 text-sm font-medium text-heading">
               Selected files
             </div>
             <div className="space-y-2">
               {files.map((file, index) => (
                 <div
                   key={`${file.name}-${index}`}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-[#3f6593] bg-white/5 p-3"
+                  className="flex items-center justify-between gap-4 rounded-lg border border-border bg-white/5 p-3"
                 >
                   <div className="min-w-0">
-                    <div className="break-all text-sm text-[#c0e6fd]">
+                    <div className="break-all text-sm text-heading">
                       {file.name}
                     </div>
-                    <div className="mt-1 text-xs text-[#80aad3]">
+                    <div className="mt-1 text-xs text-body">
                       {(file.size / 1024 / 1024).toFixed(1)} MB
                     </div>
                   </div>
                   <button
                     onClick={() => removeFile(index)}
-                    className="shrink-0 text-sm text-[#80aad3] hover:text-[#c0e6fd] hover:opacity-80"
+                    className="shrink-0 text-sm text-body hover:text-heading hover:opacity-80"
                   >
                     Remove
                   </button>
@@ -352,28 +345,35 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
         <button
           onClick={handleUpload}
           disabled={!files.length || uploading || !selectedModule}
-          className="mt-6 rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          className="mt-6 rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
         >
-          {uploading ? 'Uploading...' : 'Add to module'}
+          {uploading ? (
+            <span className="inline-flex items-center gap-2">
+              <LoadingDots /> Uploading
+            </span>
+          ) : (
+            'Add to module'
+          )}
         </button>
         {progress && (
-          <div className="mt-4 rounded-xl border border-[#3f6593] bg-white/5 p-4">
+          <div className="mt-4 rounded-xl border border-border bg-white/5 p-4">
             <div className="flex items-center justify-between gap-3 text-sm">
-              <div className="min-w-0 flex-1 truncate text-[#c0e6fd]">
+              <div className="min-w-0 flex-1 truncate text-heading">
                 {progress.fileCount > 1
                   ? `File ${progress.fileIndex} of ${progress.fileCount}: `
                   : ''}
                 {progress.fileName}
               </div>
-              <div className="shrink-0 text-[#80aad3]">{displayPercent}%</div>
+              <div className="shrink-0 text-body">{displayPercent}%</div>
             </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-[#000f22]">
+            <div className="mt-2 h-2 overflow-hidden rounded-full bg-bg">
               <div
-                className="h-full rounded-full bg-[#80aad3] transition-all duration-300"
+                className="h-full rounded-full bg-body transition-all duration-300"
                 style={{ width: `${displayPercent}%` }}
               />
             </div>
-            <div className="mt-2 text-xs text-[#80aad3]">
+            <div className="mt-2 flex items-center gap-2 text-xs text-body">
+              <LoadingDots />
               {progress.phase === 'uploading'
                 ? 'Uploading file…'
                 : `RAG is chunking this file for search… ~${remainingSecs}s left (${progress.elapsed}s elapsed)`}
@@ -381,21 +381,21 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
           </div>
         )}
         {uploaded && (
-          <div className="mt-4 rounded-lg border border-[#3f6593] bg-[#1b3554] p-3 text-sm text-[#c0e6fd]">
+          <div className="mt-4 rounded-lg border border-border bg-surface p-3 text-sm text-heading">
             Files added successfully.
           </div>
         )}
       </div>
       {selectedModule && (
-        <div className="mt-8 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm">
-          <div className="text-[16px] font-semibold text-[#c0e6fd]">
+        <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
+          <div className="text-[16px] font-semibold text-heading">
             Documents in this module
           </div>
           {loadingDocs && (
-            <p className="mt-3 text-sm text-[#80aad3]">Loading...</p>
+            <LoadingState message="Getting the documents ready" compact />
           )}
           {!loadingDocs && documents.length === 0 && (
-            <p className="mt-3 text-sm text-[#80aad3]">
+            <p className="mt-3 text-sm text-body">
               No documents uploaded to this module yet.
             </p>
           )}
@@ -404,7 +404,7 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
               {documents.map((doc) => (
                 <div
                   key={doc._id}
-                  className="flex items-center justify-between gap-4 rounded-lg border border-[#3f6593] bg-white/5 p-3"
+                  className="flex items-center justify-between gap-4 rounded-lg border border-border bg-white/5 p-3"
                 >
                   <div className="flex min-w-0 items-center gap-2">
                     <FileIcon title={doc.type} />
@@ -412,7 +412,7 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
                       href={getDocumentFileUrl(doc._id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="min-w-0 flex-1 break-all text-sm font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
+                      className="min-w-0 flex-1 break-all text-sm font-medium text-heading hover:underline hover:opacity-80"
                     >
                       {doc.title}
                     </a>

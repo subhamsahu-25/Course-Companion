@@ -10,6 +10,7 @@ import {
   getCurrentUser,
   uploadAvatar as uploadAvatarRequest,
 } from '../api/client.js';
+import { LoadingDots, LoadingState } from '../components/ui/primitives.jsx';
 export default function Account() {
   // ---- profile state ----
   const [profile, setProfile] = useState(null);
@@ -126,22 +127,19 @@ export default function Account() {
     .toUpperCase();
   return (
     <div className="mx-auto w-full max-w-125">
-      <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-        Settings
-      </div>
-      <h1 className="mt-1 font-sans text-[36px] text-[#c0e6fd]">Account</h1>
-      <p className="mt-2 text-[17px] text-[#80aad3]">
+      <h1 className="mt-1 font-sans text-[36px] text-heading">Account</h1>
+      <p className="mt-2 text-[17px] text-body">
         Your profile and sign-in settings.
       </p>
       {/* ---- Profile card ---- */}
-      <div className="mt-6 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6">
-        <h2 className="text-lg font-semibold text-[#c0e6fd]">Profile</h2>
+      <div className="mt-6 rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-semibold text-heading">Profile</h2>
         {profileLoading ? (
-          <p className="mt-3 text-sm text-[#80aad3]">Loading profile…</p>
+          <LoadingState message="Getting your profile ready" compact />
         ) : (
           <>
             <div className="mt-4 flex items-center gap-4">
-              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#80aad3] text-xl font-semibold text-[#c0e6fd]">
+              <div className="flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-full bg-body text-xl font-semibold text-heading">
                 {avatarUrl ? (
                   <img
                     src={avatarUrl}
@@ -164,9 +162,15 @@ export default function Account() {
                   type="button"
                   onClick={() => fileRef.current?.click()}
                   disabled={avatarUploading}
-                  className="rounded-lg border border-[#3f6593] bg-[#3f6593] px-4 py-2 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+                  className="rounded-lg border border-border bg-accent px-4 py-2 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
                 >
-                  {avatarUploading ? 'Uploading…' : 'Change photo'}
+                  {avatarUploading ? (
+                    <span className="inline-flex items-center gap-2">
+                      <LoadingDots /> Uploading
+                    </span>
+                  ) : (
+                    'Change photo'
+                  )}
                 </button>
               </div>
             </div>
@@ -177,29 +181,29 @@ export default function Account() {
             )}
             <dl className="mt-4 space-y-2 text-[15px]">
               <div className="flex gap-2">
-                <dt className="w-24 shrink-0 text-[#80aad3]">Full name</dt>
-                <dd className="font-medium text-[#c0e6fd]">
+                <dt className="w-24 shrink-0 text-body">Full name</dt>
+                <dd className="font-medium text-heading">
                   {profile?.fullName || '—'}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-24 shrink-0 text-[#80aad3]">Username</dt>
-                <dd className="text-[#c0e6fd]">{profile?.username || '—'}</dd>
+                <dt className="w-24 shrink-0 text-body">Username</dt>
+                <dd className="text-heading">{profile?.username || '—'}</dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-24 shrink-0 text-[#80aad3]">Email</dt>
-                <dd className="min-w-0 flex-1 break-all text-[#c0e6fd]">
+                <dt className="w-24 shrink-0 text-body">Email</dt>
+                <dd className="min-w-0 flex-1 break-all text-heading">
                   {profile?.email || '—'}
                 </dd>
               </div>
               <div className="flex gap-2">
-                <dt className="w-24 shrink-0 text-[#80aad3]">Role</dt>
-                <dd className="text-[#c0e6fd]">{profile?.role || '—'}</dd>
+                <dt className="w-24 shrink-0 text-body">Role</dt>
+                <dd className="text-heading">{profile?.role || '—'}</dd>
               </div>
               {showRollNo && (
                 <div className="flex gap-2">
-                  <dt className="w-24 shrink-0 text-[#80aad3]">Roll no.</dt>
-                  <dd className="text-[#c0e6fd]">{profile?.rollNo || '—'}</dd>
+                  <dt className="w-24 shrink-0 text-body">Roll no.</dt>
+                  <dd className="text-heading">{profile?.rollNo || '—'}</dd>
                 </div>
               )}
             </dl>
@@ -213,15 +217,15 @@ export default function Account() {
       </div>
       <form
         onSubmit={handleSubmit}
-        className="mt-6 space-y-4 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6"
+        className="mt-6 space-y-4 rounded-xl border border-border bg-surface p-6"
       >
-        <h2 className="text-lg font-semibold text-[#c0e6fd]">
+        <h2 className="text-lg font-semibold text-heading">
           Change password
         </h2>
         <div>
           <label
             htmlFor="current-password"
-            className="text-sm font-medium text-[#c0e6fd]"
+            className="text-sm font-medium text-heading"
           >
             Current password
           </label>
@@ -230,14 +234,14 @@ export default function Account() {
             type="password"
             value={oldPassword}
             onChange={(e) => setOldPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+            className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
             autoComplete="current-password"
           />
         </div>
         <div>
           <label
             htmlFor="account-new-password"
-            className="text-sm font-medium text-[#c0e6fd]"
+            className="text-sm font-medium text-heading"
           >
             New password
           </label>
@@ -246,7 +250,7 @@ export default function Account() {
             type="password"
             value={newPassword}
             onChange={(e) => setNewPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+            className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
             placeholder="6–20 characters"
             autoComplete="new-password"
           />
@@ -254,7 +258,7 @@ export default function Account() {
         <div>
           <label
             htmlFor="account-confirm-password"
-            className="text-sm font-medium text-[#c0e6fd]"
+            className="text-sm font-medium text-heading"
           >
             Confirm new password
           </label>
@@ -263,7 +267,7 @@ export default function Account() {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+            className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
             autoComplete="new-password"
           />
         </div>
@@ -280,16 +284,22 @@ export default function Account() {
         <button
           type="submit"
           disabled={submitting}
-          className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+          className="rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
         >
-          {submitting ? 'Saving...' : 'Change password'}
+          {submitting ? (
+            <span className="inline-flex items-center gap-2">
+              <LoadingDots /> Saving
+            </span>
+          ) : (
+            'Change password'
+          )}
         </button>
       </form>
-      <div className="mt-8 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6">
-        <h2 className="text-lg font-semibold text-[#c0e6fd]">
+      <div className="mt-8 rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-semibold text-heading">
           Forgot your current password?
         </h2>
-        <p className="mt-1 break-words text-sm text-[#80aad3]">
+        <p className="mt-1 break-words text-sm text-body">
           We&apos;ll send a reset link to{' '}
           <strong>{accountEmail || 'your account email'}</strong>. It expires in
           20 minutes.
@@ -308,9 +318,15 @@ export default function Account() {
             type="button"
             onClick={handleForgotPassword}
             disabled={resetState === 'sending' || !accountEmail}
-            className="mt-4 rounded-lg border border-[#3f6593] bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+            className="mt-4 rounded-lg border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
           >
-            {resetState === 'sending' ? 'Sending...' : 'Email me a reset link'}
+            {resetState === 'sending' ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingDots /> Sending
+              </span>
+            ) : (
+              'Email me a reset link'
+            )}
           </button>
         )}
       </div>

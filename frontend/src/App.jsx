@@ -28,6 +28,7 @@ import AdminModules from './pages/admin/Modules.jsx';
 import AdminUpload from './pages/admin/Upload.jsx';
 
 import JoinCourse from './pages/JoinCourse.jsx';
+import { LoadingState } from './components/ui/primitives.jsx';
 
 function defaultPageForRole(role) {
   if (role === 'ta') return 'ta-review';
@@ -57,6 +58,14 @@ export default function App() {
   // clicked on the Courses page, so Modules knows what to load.
   const [selectedCourseId, setSelectedCourseId] = useState('');
   const [selectedModuleId, setSelectedModuleId] = useState('');
+  // Follow-up thread context: set when jumping History → Ask via "Follow
+  // up", so the new question joins the same thread instead of starting
+  // over. { threadId, question, answer, courseId, moduleId } | null.
+  const [followUp, setFollowUp] = useState(null);
+  // History context: course/module to pre-select when landing on History
+  // with context (Back-to-history, "view in history"). Set ONLY on such
+  // jumps — direct sidebar visits pass nothing and start blank.
+  const [historyContext, setHistoryContext] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,6 +165,27 @@ export default function App() {
   function changePage(page, params = {}) {
     if (params.courseId !== undefined) setSelectedCourseId(params.courseId);
     if (params.moduleId !== undefined) setSelectedModuleId(params.moduleId);
+    // Entering Ask with a thread continues it; entering any other way
+    // (or Ask without one) clears stale thread context.
+    if (page === 'student-ask' && params.threadId) {
+      setFollowUp({
+        threadId: params.threadId,
+        question: params.threadQuestion || '',
+        answer: params.threadAnswer || '',
+        courseId: params.courseId || '',
+        moduleId: params.moduleId || '',
+      });
+    } else {
+      setFollowUp(null);
+    }
+    if (page === 'student-history' && (params.courseId || params.moduleId)) {
+      setHistoryContext({
+        courseId: params.courseId || '',
+        moduleId: params.moduleId || '',
+      });
+    } else if (page === 'student-history') {
+      setHistoryContext(null);
+    }
     setCurrentPage(page);
   }
 
@@ -176,10 +206,22 @@ export default function App() {
         );
 
       case 'student-ask':
-        return <StudentAsk initialModuleId={selectedModuleId} />;
+        return (
+        <StudentAsk
+          initialModuleId={selectedModuleId}
+          initialThread={followUp}
+          onPageChange={changePage}
+        />
+      );
 
       case 'student-history':
-        return <StudentHistory onPageChange={changePage} />;
+        return (
+        <StudentHistory
+          onPageChange={changePage}
+          initialCourseId={historyContext?.courseId}
+          initialModuleId={historyContext?.moduleId}
+        />
+      );
 
       case 'student-join':
         return (
@@ -216,15 +258,15 @@ export default function App() {
 
       default:
         return (
-          <div className="rounded-lg bg-[#1b3554] p-6">Page not found</div>
+          <div className="rounded-lg bg-surface p-6">Page not found</div>
         );
     }
   }
 
   if (authStatus === 'checking') {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#000f22] text-[#80aad3]">
-        Loading…
+      <div className="flex min-h-screen items-center justify-center bg-bg">
+        <LoadingState message="Getting things ready" />
       </div>
     );
   }
@@ -294,14 +336,15 @@ export default function App() {
     );
   }
 
-  return (
-    <RoleLayout
-      role={user.role}
-      currentPage={currentPage}
-      onPageChange={changePage}
-      onLogout={handleLogout}
-    >
-      {getPage()}
-    </RoleLayout>
-  );
+      return (
+        <RoleLayout
+          role={user.role}
+          user={user}
+          currentPage={currentPage}
+          onPageChange={changePage}
+          onLogout={handleLogout}
+        >
+          {getPage()}
+        </RoleLayout>
+      );
 }

@@ -5,7 +5,7 @@ import {
   getModulesByCourse,
   getDocumentFileUrl,
 } from '../../api/client.js';
-import { FileIcon } from '../../components/ui/primitives.jsx';
+import { FileIcon, LoadingState } from '../../components/ui/primitives.jsx';
 
 export default function StudentModules({ courseId, onPageChange }) {
   const [course, setCourse] = useState(null);
@@ -67,12 +67,12 @@ export default function StudentModules({ courseId, onPageChange }) {
 
   if (!courseId) {
     return (
-      <div className="rounded-lg bg-[#1b3554] p-6">
-        <p className="text-sm text-[#80aad3]">
+      <div className="rounded-lg bg-surface p-6">
+        <p className="text-sm text-body">
           No course selected —{' '}
           <button
             onClick={() => onPageChange('student-courses')}
-            className="text-[#80aad3] underline"
+            className="text-body underline"
           >
             go back to Courses
           </button>
@@ -83,26 +83,26 @@ export default function StudentModules({ courseId, onPageChange }) {
   }
 
   if (loading) {
-    return <p className="text-sm text-[#80aad3]">Loading modules...</p>;
+    return <LoadingState message="Getting the modules ready for you" />;
   }
 
   return (
     <div>
       <button
         onClick={() => onPageChange('student-courses')}
-        className="rounded-md border border-[#3f6593] px-3 py-1.5 text-sm text-[#80aad3] transition-all duration-200 ease-out hover:bg-white/10 hover:text-[#c0e6fd] hover:opacity-80 active:scale-[0.99]"
+        className="rounded-md border border-border px-3 py-1.5 text-sm text-body transition-all duration-200 ease-out hover:bg-white/10 hover:text-heading hover:opacity-80 active:scale-[0.99]"
       >
         ← Back to courses
       </button>
 
       <div className="mt-4">
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
+        <div className="text-sm font-medium uppercase tracking-[0.12em] text-body">
           {course?.title}
         </div>
 
-        <h1 className="mt-1 font-sans text-[36px] text-[#c0e6fd]">Modules</h1>
+        <h1 className="mt-1 font-sans text-[36px] text-heading">Modules</h1>
 
-        <p className="mt-2 text-[17px] text-[#80aad3]">
+        <p className="mt-2 text-[17px] text-body">
           Browse uploaded course material by module.
         </p>
       </div>
@@ -115,7 +115,7 @@ export default function StudentModules({ courseId, onPageChange }) {
 
       <div className="mt-8 space-y-4">
         {modules.length === 0 && !error && (
-          <p className="text-sm text-[#80aad3]">
+          <p className="text-sm text-body">
             No modules in this course yet.
           </p>
         )}
@@ -126,37 +126,37 @@ export default function StudentModules({ courseId, onPageChange }) {
           return (
             <div
               key={mod._id}
-              className="rounded-xl border border-[#3f6593] bg-white/5 p-5"
+              className="rounded-xl border border-border bg-white/5 p-5"
             >
               <div
                 onClick={() => toggleExpanded(mod._id)}
                 className="flex cursor-pointer flex-col gap-4 sm:flex-row sm:items-center"
               >
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#3f6593] text-xl text-[#c0e6fd] shadow-sm">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-xl text-accent-ink shadow-sm">
                   📄
                 </div>
 
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
                     <span
-                      className={`inline-block text-xs text-[#5b86b6] transition-transform ${
+                      className={`inline-block text-xs text-body transition-transform ${
                         isExpanded ? 'rotate-90' : ''
                       }`}
                     >
                       ▶
                     </span>
-                    <span className="text-[19px] font-semibold text-[#c0e6fd]">
+                    <span className="text-[19px] font-semibold text-heading">
                       {mod.title}
                     </span>
                   </div>
 
                   {mod.description && (
-                    <div className="mt-1 text-[15px] text-[#80aad3]">
+                    <div className="mt-1 text-[15px] text-body">
                       {mod.description}
                     </div>
                   )}
 
-                  <div className="mt-1 text-xs text-[#5b86b6]">
+                  <div className="mt-1 text-xs text-body">
                     {mod.documents.length} document
                     {mod.documents.length !== 1 ? 's' : ''} — click to{' '}
                     {isExpanded ? 'hide' : 'view'}
@@ -168,16 +168,16 @@ export default function StudentModules({ courseId, onPageChange }) {
                     e.stopPropagation();
                     onPageChange('student-ask', { moduleId: mod._id });
                   }}
-                  className="shrink-0 rounded-md border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
+                  className="shrink-0 rounded-md border border-border bg-accent px-5 py-2 text-sm font-medium text-accent-ink hover:bg-accent-hover"
                 >
                   Ask
                 </button>
               </div>
 
               {isExpanded && (
-                <div className="mt-4 space-y-2 border-t border-[#3f6593] pt-4">
+                <div className="mt-4 space-y-2 border-t border-border pt-4">
                   {mod.documents.length === 0 && (
-                    <p className="text-sm text-[#5b86b6]">
+                    <p className="text-sm text-body">
                       No documents uploaded to this module yet.
                     </p>
                   )}
@@ -185,7 +185,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                   {mod.documents.map((doc) => (
                     <div
                       key={doc._id}
-                      className="rounded-lg bg-[#1b3554] px-4 py-2.5 text-sm text-[#c0e6fd] shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
+                      className="rounded-lg bg-surface px-4 py-2.5 text-sm text-heading shadow-sm transition-all duration-200 ease-out hover:bg-white/10"
                     >
                       <div className="flex items-center justify-between gap-3">
                         <FileIcon title={doc.type} />
@@ -204,7 +204,7 @@ export default function StudentModules({ courseId, onPageChange }) {
                             type="button"
                             onClick={() => toggleBlurb(doc._id)}
                             aria-expanded={expandedBlurbs.has(doc._id)}
-                            className="text-xs font-medium text-[#80aad3] hover:underline hover:opacity-80"
+                            className="text-xs font-medium text-body hover:underline hover:opacity-80"
                           >
                             About this PDF{' '}
                             {expandedBlurbs.has(doc._id) ? '▾' : '▸'}

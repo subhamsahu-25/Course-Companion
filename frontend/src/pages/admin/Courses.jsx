@@ -1,5 +1,6 @@
 // frontend/src/pages/admin/Courses.jsx
 import { useState, useEffect } from 'react';
+import { LoadingState } from '../../components/ui/primitives.jsx';
 import {
   getCourses,
   createCourse,
@@ -118,23 +119,20 @@ export default function AdminCourses({ onPageChange }) {
     }
   }
   if (loading) {
-    return <p className="text-sm text-[#80aad3]">Loading courses...</p>;
+    return <LoadingState message="Getting the courses ready for you" />;
   }
   return (
     <div>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-            Administration
-          </div>
-          <h1 className="mt-1 font-sans text-[36px] text-[#c0e6fd]">Courses</h1>
-          <p className="mt-2 text-[17px] text-[#80aad3]">
+          <h1 className="mt-1 font-sans text-[36px] text-heading">Courses</h1>
+          <p className="mt-2 text-[17px] text-body">
             Manage the courses students and TAs can join.
           </p>
         </div>
         <button
           onClick={() => setShowNewCourse((s) => !s)}
-          className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-5 py-2.5 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6]"
+          className="rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover"
         >
           + New course
         </button>
@@ -147,7 +145,7 @@ export default function AdminCourses({ onPageChange }) {
       {showNewCourse && (
         <form
           onSubmit={handleCreateCourse}
-          className="mt-6 flex flex-col gap-3 rounded-xl border border-[#3f6593] bg-[#1b3554] p-4 sm:flex-row"
+          className="mt-6 flex flex-col gap-3 rounded-xl border border-border bg-surface p-4 sm:flex-row"
         >
           <input
             type="text"
@@ -156,12 +154,12 @@ export default function AdminCourses({ onPageChange }) {
             placeholder="Course title, min 3 characters (e.g. Electrical Engineering 101)"
             minLength={3}
             maxLength={100}
-            className="flex-1 rounded-md border border-[#3f6593] p-2.5 text-sm outline-none focus:border-[#5b86b6]"
+            className="flex-1 rounded-md border border-border p-2.5 text-sm outline-none focus:border-accent"
           />
           <button
             type="submit"
             disabled={submitting || newCourseTitle.trim().length < 3}
-            className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm text-[#c0e6fd] disabled:opacity-60"
+            className="rounded-xl border border-border bg-accent px-4 py-2 text-sm text-accent-ink disabled:opacity-60"
           >
             Create
           </button>
@@ -169,7 +167,7 @@ export default function AdminCourses({ onPageChange }) {
       )}
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {courses.length === 0 && (
-          <p className="text-sm text-[#80aad3]">
+          <p className="text-sm text-body">
             No courses yet — create one above to get started.
           </p>
         )}
@@ -179,10 +177,10 @@ export default function AdminCourses({ onPageChange }) {
             onClick={() =>
               onPageChange('admin-modules', { courseId: course._id })
             }
-            className="cursor-pointer rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] p-6 text-left shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-[#5b86b6] hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-border bg-accent p-6 text-left shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-hover hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-[19px] font-semibold text-[#c0e6fd]">
+              <div className="text-[19px] font-semibold text-heading">
                 {course.title}
               </div>
               <button
@@ -193,13 +191,13 @@ export default function AdminCourses({ onPageChange }) {
               </button>
             </div>
             {course.description && (
-              <p className="mt-2 text-sm text-[#80aad3]">
+              <p className="mt-2 text-sm text-body">
                 {course.description}
               </p>
             )}
-            <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1 text-xs text-[#80aad3]">
+            <div className="mt-3 inline-flex items-center gap-2 rounded-md bg-white/10 px-2.5 py-1 text-xs text-body">
               Join code
-              <span className="font-mono font-semibold tracking-[0.15em] text-[#c0e6fd]">
+              <span className="font-mono font-semibold tracking-[0.15em] text-heading">
                 {course.joinCode}
               </span>
               <button
@@ -207,16 +205,16 @@ export default function AdminCourses({ onPageChange }) {
                 onClick={(e) => handleCopyCode(course, e)}
                 aria-label={`Copy join code ${course.joinCode}`}
                 title={copiedId === course._id ? 'Copied!' : 'Copy join code'}
-                className="flex items-center text-[#80aad3] transition-all duration-200 ease-out hover:text-[#c0e6fd] hover:opacity-80 active:scale-90"
+                className="flex items-center text-body transition-all duration-200 ease-out hover:text-heading hover:opacity-80 active:scale-90"
               >
                 <CopyIcon className="size-4" />
               </button>
               {copiedId === course._id && (
-                <span className="font-medium text-[#c0e6fd]">Copied!</span>
+                <span className="font-medium text-heading">Copied!</span>
               )}
             </div>
             <div className="mt-4 flex items-center justify-between">
-              <span className="text-sm text-[#80aad3]">
+              <span className="text-sm text-body">
                 {course.moduleCount} module
                 {course.moduleCount !== 1 ? 's' : ''} →
               </span>

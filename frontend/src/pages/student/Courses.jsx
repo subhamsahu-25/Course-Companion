@@ -1,6 +1,7 @@
 // frontend/src/pages/student/Courses.jsx
 import { useState, useEffect } from 'react';
 import { getCourses, getMyModules } from '../../api/client.js';
+import { LoadingState } from '../../components/ui/primitives.jsx';
 
 export default function StudentCourses({
   onPageChange,
@@ -41,19 +42,16 @@ export default function StudentCourses({
   }
 
   if (loading) {
-    return <p className="text-sm text-[#80aad3]">Loading courses...</p>;
+    return <LoadingState message="Getting the courses ready for you" />;
   }
 
   return (
     <div>
       <div>
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-          Course material
-        </div>
 
-        <h1 className="mt-1 font-sans text-[36px] text-[#c0e6fd]">Courses</h1>
+        <h1 className="mt-1 font-sans text-[36px] text-heading">Courses</h1>
 
-        <p className="mt-2 text-[17px] text-[#80aad3]">
+        <p className="mt-2 text-[17px] text-body">
           Browse a course to see its modules.
         </p>
       </div>
@@ -66,36 +64,36 @@ export default function StudentCourses({
 
       <div className="mt-8 space-y-4">
         {courses.length === 0 && !error && (
-          <p className="text-sm text-[#80aad3]">No courses available yet.</p>
+          <p className="text-sm text-body">No courses available yet.</p>
         )}
 
         {courses.map((course) => (
           <button
             key={course._id}
             onClick={() => onPageChange(modulesPage, { courseId: course._id })}
-            className="flex w-full flex-col gap-4 rounded-xl border border-[#3f6593] bg-white/5 p-5 text-left transition-all duration-200 ease-out hover:border-[#5b86b6] sm:flex-row sm:items-center"
+            className="flex w-full flex-col gap-4 rounded-xl border border-border bg-white/5 p-5 text-left transition-all duration-200 ease-out hover:border-accent-hover sm:flex-row sm:items-center"
           >
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-[#3f6593] text-xl text-[#c0e6fd] shadow-sm">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-accent text-xl text-accent-ink shadow-sm">
               📚
             </div>
 
             <div className="flex-1">
-              <div className="text-[19px] font-semibold text-[#c0e6fd]">
+              <div className="text-[19px] font-semibold text-heading">
                 {course.title}
               </div>
 
               {course.description && (
-                <div className="mt-1 text-[15px] text-[#80aad3]">
+                <div className="mt-1 text-[15px] text-body">
                   {course.description}
                 </div>
               )}
 
-              <div className="mt-1 text-xs text-[#5b86b6]">
+              <div className="mt-1 text-xs text-body">
                 {course.moduleCount} module{course.moduleCount !== 1 ? 's' : ''}
               </div>
             </div>
 
-            <div className="shrink-0 text-lg text-[#80aad3]">→</div>
+            <div className="shrink-0 text-lg text-body">→</div>
           </button>
         ))}
       </div>

@@ -1,6 +1,8 @@
 // frontend/src/pages/Signup.jsx
 import { useState } from 'react';
 import { register as registerRequest } from '../api/client.js';
+import { LoadingDots } from '../components/ui/primitives.jsx';
+import { Select } from '../components/ui/select.jsx';
 export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -12,10 +14,10 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
   const [error, setError] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const needsRollNo = role === 'student' || role === 'ta';
-  function handleRoleChange(event) {
-    setRole(event.target.value);
+  function handleRoleChange(roleId) {
+    setRole(roleId);
     // Don't keep a stale roll number when switching to instructor.
-    if (event.target.value === 'instructor') setRollNo('');
+    if (roleId === 'instructor') setRollNo('');
   }
   async function handleSubmit(event) {
     event.preventDefault();
@@ -55,19 +57,19 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
     }
   }
   return (
-    <div className="flex min-h-screen bg-[#000f22]">
+    <div className="flex min-h-screen bg-bg">
       {/* Brand panel — desktop only */}
-      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-[#000f22] p-10 text-[#c0e6fd] lg:flex">
+      <div className="relative hidden w-[42%] flex-col justify-between overflow-hidden bg-bg p-10 text-heading lg:flex">
         <div
-          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-[#3f6593] opacity-60 blur-3xl"
+          className="pointer-events-none absolute -right-24 -top-24 size-96 rounded-full bg-accent opacity-60 blur-3xl"
           aria-hidden
         />
         <div
-          className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-[#5b86b6] opacity-40 blur-3xl"
+          className="pointer-events-none absolute -bottom-32 -left-24 size-96 rounded-full bg-accent opacity-40 blur-3xl"
           aria-hidden
         />
         <div className="relative">
-          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#80aad3]">
+          <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-body">
             Academic Portal
           </div>
           <h1 className="font-sans text-[48px] font-bold leading-[1.05]">
@@ -75,25 +77,25 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <br />
             account
           </h1>
-          <p className="mt-4 max-w-100 text-[15px] leading-6 text-[#80aad3]">
+          <p className="mt-4 max-w-100 text-[15px] leading-6 text-body">
             Join to browse course material, ask questions, and review answers.
           </p>
         </div>
-        <ul className="relative space-y-3 text-sm text-[#80aad3]">
+        <ul className="relative space-y-3 text-sm text-body">
           <li className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#c0e6fd]">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-heading">
               1
             </span>
             Pick your role — student, TA, or instructor
           </li>
           <li className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#c0e6fd]">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-heading">
               2
             </span>
             Join courses with a 5-digit code
           </li>
           <li className="flex items-center gap-3">
-            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-[#c0e6fd]">
+            <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 font-semibold text-heading">
               3
             </span>
             Verify your email and start learning
@@ -103,26 +105,26 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
       <div className="flex flex-1 items-center justify-center px-4 py-8 sm:px-6">
         <div className="w-full max-w-142.5">
           <div className="mb-8 text-center sm:mb-10 sm:text-left lg:hidden">
-            <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-[#80aad3] sm:text-sm">
+            <div className="mb-3 text-xs font-medium uppercase tracking-[0.15em] text-body sm:text-sm">
               Academic Portal
             </div>
-            <h1 className="font-sans text-[38px] leading-[1.05] text-[#c0e6fd] sm:text-[48px] md:text-[56px]">
+            <h1 className="font-sans text-[38px] leading-[1.05] text-heading sm:text-[48px] md:text-[56px]">
               Create your
               <br />
               account
             </h1>
-            <p className="mx-auto mt-4 max-w-125 text-[15px] leading-6 text-[#80aad3] sm:mx-0 sm:text-[17px]">
+            <p className="mx-auto mt-4 max-w-125 text-[15px] leading-6 text-body sm:mx-0 sm:text-[17px]">
               Join to browse course material, ask questions, and review answers.
             </p>
           </div>
           <form
             onSubmit={handleSubmit}
-            className="space-y-4 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm sm:p-8"
+            className="space-y-4 rounded-xl border border-border bg-surface p-6 shadow-sm sm:p-8"
           >
             <div>
               <label
                 htmlFor="fullName"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Full name
               </label>
@@ -131,7 +133,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 type="text"
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="e.g. Aarav Sharma"
                 autoComplete="name"
                 maxLength={60}
@@ -140,7 +142,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <div>
               <label
                 htmlFor="email"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Email
               </label>
@@ -149,7 +151,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="you@example.com"
                 autoComplete="email"
               />
@@ -157,7 +159,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <div>
               <label
                 htmlFor="username"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Username
               </label>
@@ -166,7 +168,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 type="text"
                 value={username}
                 onChange={(e) => setUsername(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="username"
                 autoComplete="username"
               />
@@ -174,26 +176,28 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <div>
               <label
                 htmlFor="role"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 I am a
               </label>
-              <select
-                id="role"
-                value={role}
-                onChange={handleRoleChange}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] bg-[#000f22] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
-              >
-                <option value="student">Student</option>
-                <option value="instructor">Instructor</option>
-                <option value="ta">Teaching Assistant</option>
-              </select>
+              <div className="mt-1">
+                <Select
+                  value={role}
+                  onChange={handleRoleChange}
+                  ariaLabel="Role"
+                  options={[
+                    { id: 'student', label: 'Student' },
+                    { id: 'instructor', label: 'Instructor' },
+                    { id: 'ta', label: 'Teaching Assistant' },
+                  ]}
+                />
+              </div>
             </div>
             {needsRollNo && (
               <div>
                 <label
                   htmlFor="rollNo"
-                  className="text-sm font-medium text-[#c0e6fd]"
+                  className="text-sm font-medium text-heading"
                 >
                   Roll Number
                 </label>
@@ -202,7 +206,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                   type="text"
                   value={rollNo}
                   onChange={(e) => setRollNo(e.target.value)}
-                  className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                  className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                   placeholder="e.g. 2024CS001"
                   autoComplete="off"
                 />
@@ -211,7 +215,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <div>
               <label
                 htmlFor="password"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Password
               </label>
@@ -220,7 +224,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="••••••••"
                 autoComplete="new-password"
               />
@@ -228,7 +232,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <div>
               <label
                 htmlFor="confirmPassword"
-                className="text-sm font-medium text-[#c0e6fd]"
+                className="text-sm font-medium text-heading"
               >
                 Confirm Password
               </label>
@@ -237,7 +241,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-[#3f6593] p-3 text-[15px] outline-none focus:border-[#5b86b6]"
+                className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
                 placeholder="••••••••"
                 autoComplete="new-password"
               />
@@ -250,16 +254,22 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-3 text-sm font-medium text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
+              className="w-full rounded-xl border border-border bg-accent px-4 py-3 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
             >
-              {submitting ? 'Creating account...' : 'Sign up'}
+              {submitting ? (
+                <span className="inline-flex items-center gap-2">
+                  <LoadingDots /> Creating account
+                </span>
+              ) : (
+                'Sign up'
+              )}
             </button>
-            <p className="text-center text-sm text-[#80aad3]">
+            <p className="text-center text-sm text-body">
               Already have an account?{' '}
               <button
                 type="button"
                 onClick={onSwitchToLogin}
-                className="font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
+                className="font-medium text-heading hover:underline hover:opacity-80"
               >
                 Sign in
               </button>

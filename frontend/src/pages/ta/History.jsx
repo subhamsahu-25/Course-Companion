@@ -3,8 +3,12 @@ import {
   getCourses,
   getMyModules,
   getModuleHistory,
+  getCurrentUser,
+  toggleImportant,
 } from '../../api/client.js';
 import { RATING_LABELS, formatRating } from '../../utils/rating.js';
+import { ImportantButton, LoadingState } from '../../components/ui/primitives.jsx';
+import { Select } from '../../components/ui/select.jsx';
 const HISTORY_STATUS_STYLES = {
   pending: 'bg-amber-100 text-amber-700',
   approved: 'bg-green-100 text-green-700',
@@ -31,6 +35,40 @@ export default function History({ onPageChange }) {
   const [historyItems, setHistoryItems] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [historyError, setHistoryError] = useState(null);
+  // "My reviews" narrows the shared module log to items this TA resolved
+  // (approved or rejected) — off by default, the full log stays primary.
+  const [showMineOnly, setShowMineOnly] = useState(false);
+  // Own id for the important toggles (history items are resolved, but
+  // marking stays open — that's the point of marking from here).
+  const [myId, setMyId] = useState(null);
+  useEffect(() => {
+    getCurrentUser()
+      .then((res) => setMyId(res.data?._id ?? null))
+      .catch(() => setMyId(null));
+  }, []);
+  async function toggleMark(id) {
+    setHistoryError(null);
+    try {
+      const res = await toggleImportant(id);
+      if (!myId) {
+        const fresh = await getModuleHistory(historyModuleId);
+        setHistoryItems(fresh.data);
+        return;
+      }
+      const { important } = res.data;
+      setHistoryItems((old) =>
+        old.map((item) => {
+          if (item._id !== id) return item;
+          const marks = new Set(item.importantBy || []);
+          if (important) marks.add(myId);
+          else marks.delete(myId);
+          return { ...item, importantBy: [...marks] };
+        }),
+      );
+    } catch (err) {
+      setHistoryError(err.message);
+    }
+  }
   useEffect(() => {
     loadCoursesAndModules();
   }, []);
@@ -77,7 +115,7 @@ export default function History({ onPageChange }) {
     }
   }
   if (loading) {
-    return <p className="text-sm text-[#80aad3]">Loading history...</p>;
+    return <LoadingState message="Getting the history ready for you" />;
   }
   const modulesForHistoryCourse = modules.filter(
     (m) => m.courseId === historyCourseId,
@@ -86,16 +124,13 @@ export default function History({ onPageChange }) {
     <div>
       <button
         onClick={() => onPageChange('ta-review')}
-        className="text-sm text-[#80aad3] hover:text-[#c0e6fd] hover:opacity-80"
+        className="text-sm text-body hover:text-heading hover:opacity-80"
       >
         ← Back to review queue
       </button>
       <div className="mt-4">
-        <div className="text-sm font-medium uppercase tracking-[0.12em] text-[#80aad3]">
-          Teaching Assistant
-        </div>
-        <h1 className="mt-1 font-sans text-[36px] text-[#c0e6fd]">History</h1>
-        <p className="mt-2 text-[17px] text-[#80aad3]">
+        <h1 className="mt-1 font-sans text-[36px] text-heading">History</h1>
+        <p className="mt-2 text-[17px] text-body">
           Pick a course, then a module, to see everything ever asked in it.
         </p>
       </div>
@@ -105,36 +140,33 @@ export default function History({ onPageChange }) {
         </div>
       )}
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-        <select
-          value={historyCourseId}
-          onChange={(e) => handleHistoryCourseChange(e.target.value)}
-          className="w-full rounded-md border border-[#5b86b6]/60 bg-[#3f6593] p-2.5 text-sm text-[#c0e6fd] outline-none focus:border-[#5b86b6] sm:w-64"
-        >
-          <option value="">Select a course…</option>
-          {courses.map((course) => (
-            <option key={course._id} value={course._id}>
-              {course.title}
-            </option>
-          ))}
-        </select>
-        <select
-          value={historyModuleId}
-          onChange={(e) => handleHistoryModuleChange(e.target.value)}
-          disabled={!historyCourseId}
-          className="w-full rounded-md border border-[#5b86b6]/60 bg-[#3f6593] p-2.5 text-sm text-[#c0e6fd] outline-none focus:border-[#5b86b6] disabled:cursor-not-allowed disabled:bg-white/5 disabled:text-[#80aad3]/60 sm:w-64"
-        >
-          {!historyCourseId && <option value="">Select a course first</option>}
-          {historyCourseId && (
-            <>
-              <option value="">Select a module…</option>
-              {modulesForHistoryCourse.map((mod) => (
-                <option key={mod._id} value={mod._id}>
-                  {mod.title}
-                </option>
-              ))}
-            </>
-          )}
-        </select>
+        <div className="w-full sm:w-64">
+          <Select
+            value={historyCourseId}
+            onChange={(id) => handleHistoryCourseChange(id)}
+            ariaLabel="Course"
+            placeholder="Select a course…"
+            options={courses.map((course) => ({
+              id: course._id,
+              label: course.title,
+            }))}
+          />
+        </div>
+        <div className="w-full sm:w-64">
+          <Select
+            value={historyModuleId}
+            onChange={(id) => handleHistoryModuleChange(id)}
+            disabled={!historyCourseId}
+            ariaLabel="Module"
+            placeholder={
+              !historyCourseId ? 'Select a course first' : 'Select a module…'
+            }
+            options={modulesForHistoryCourse.map((mod) => ({
+              id: mod._id,
+              label: mod.title,
+            }))}
+          />
+        </div>
       </div>
       {historyError && (
         <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-700">
@@ -142,32 +174,69 @@ export default function History({ onPageChange }) {
         </div>
       )}
       {loadingHistory && (
-        <p className="mt-4 text-sm text-[#80aad3]">Loading history...</p>
+            <LoadingState message="Pulling the history together" compact />
       )}
       {!loadingHistory &&
         historyModuleId &&
         historyItems.length === 0 &&
         !historyError && (
-          <p className="mt-4 text-sm text-[#80aad3]">
+          <p className="mt-4 text-sm text-body">
             Nothing has been asked in this module yet.
           </p>
         )}
       {!historyModuleId && (
-        <p className="mt-4 text-sm text-[#80aad3]">
+        <p className="mt-4 text-sm text-body">
           Select a course and module above to see its history.
         </p>
       )}
+      {historyModuleId && historyItems.length > 0 && (
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button
+            type="button"
+            onClick={() => setShowMineOnly(false)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-all duration-200 ease-out ${
+              !showMineOnly
+                ? 'border-accent bg-accent text-accent-ink'
+                : 'border-border bg-surface text-body hover:text-heading'
+            }`}
+          >
+            All ({historyItems.length})
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowMineOnly(true)}
+            className={`rounded-full border px-4 py-1.5 text-xs font-medium transition-all duration-200 ease-out ${
+              showMineOnly
+                ? 'border-accent bg-accent text-accent-ink'
+                : 'border-border bg-surface text-body hover:text-heading'
+            }`}
+          >
+            My reviews (
+            {historyItems.filter((item) => item.reviewedBy === myId).length})
+          </button>
+        </div>
+      )}
       <div className="mt-4 space-y-3">
-        {historyItems.map((item) => (
+        {historyItems
+          .filter((item) => !showMineOnly || item.reviewedBy === myId)
+          .map((item) => (
           <div
             key={item._id}
-            className="rounded-xl border border-[#3f6593] bg-[#1b3554] p-5"
+            className="rounded-xl border border-border bg-surface p-5"
           >
             <div className="flex items-start justify-between gap-3">
-              <div className="text-[16px] font-semibold text-[#c0e6fd]">
+              <div className="text-[16px] font-semibold text-heading">
                 {item.question}
               </div>
               <div className="flex shrink-0 items-center gap-2">
+                {item.wasEdited && item.status === 'approved' && (
+                  <span
+                    title="The draft was edited before approval"
+                    className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-heading"
+                  >
+                    Improved by TA
+                  </span>
+                )}
                 {formatRating(item.rating) && (
                   <span
                     title={RATING_LABELS[item.rating]}
@@ -186,14 +255,21 @@ export default function History({ onPageChange }) {
                 </span>
               </div>
             </div>
-            <p className="mt-2 text-xs text-[#80aad3]">
+            <p className="mt-2 text-xs text-body">
               {new Date(item.createdAt).toLocaleString()}
             </p>
-            <p className="mt-3 text-[15px] leading-6 text-[#80aad3]">
+            <p className="mt-3 text-[15px] leading-6 text-body">
               {item.status === 'pending'
                 ? item.draftAnswer || 'Still being reviewed.'
                 : item.finalAnswer}
             </p>
+            <div className="mt-3">
+              <ImportantButton
+                marked={(item.importantBy || []).includes(myId)}
+                count={item.importantBy?.length ?? 0}
+                onToggle={() => toggleMark(item._id)}
+              />
+            </div>
           </div>
         ))}
       </div>
