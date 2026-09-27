@@ -228,7 +228,7 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
   }
   function handleDeleteDocument(doc) {
     setConfirm({
-      title: `Delete "${doc.title}"?`,
+      title: `Delete ${doc.title} ?`,
       message: 'This cannot be reverted back.',
       run: async () => {
         const previous = documents;

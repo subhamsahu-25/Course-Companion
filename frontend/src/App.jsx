@@ -197,6 +197,13 @@ export default function App() {
     }
     if (page === 'student-ask') {
       setAskEntryModule(params.moduleId || null);
+      // Independent visits (sidebar, no module) must not inherit stale
+      // dropdowns either — otherwise the form looks pre-filled for a
+      // module the student never chose.
+      if (!params.moduleId) {
+        setSelectedCourseId('');
+        setSelectedModuleId('');
+      }
     }
     if (page === 'student-history' && (params.courseId || params.moduleId)) {
       setHistoryContext({

@@ -126,7 +126,7 @@ export default function AdminModules({ courseId, onPageChange }) {
   function handleDeleteModule(mod, event) {
     event.stopPropagation();
     setConfirm({
-      title: `Delete "${mod.title}"?`,
+      title: `Delete ${mod.title} ?`,
       message: 'This cannot be reverted back.',
       run: async () => {
         const previous = modules;
@@ -162,7 +162,7 @@ export default function AdminModules({ courseId, onPageChange }) {
   function handleDeleteDocument(doc, event) {
     event.stopPropagation();
     setConfirm({
-      title: `Delete "${doc.title}"?`,
+      title: `Delete ${doc.title} ?`,
       message: 'This cannot be reverted back.',
       run: async () => {
         const previous = modules;
@@ -600,7 +600,7 @@ function RosterSection({ title, members, onRemoveMember }) {
   );
   async function handleRemove(member) {
     setConfirmRemove({
-      title: `Remove "${member.fullName || member.username}"?`,
+      title: `Remove ${member.fullName || member.username} ?`,
       message: 'This cannot be reverted back.',
       run: () => onRemoveMember(member),
     });

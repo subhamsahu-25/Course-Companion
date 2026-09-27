@@ -122,7 +122,7 @@ export function ConfirmDialog({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
       <div className="relative w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-xl">
-        <h2 className="text-center font-sans text-lg font-semibold text-heading">
+        <h2 className="text-center font-sans text-lg font-semibold break-words text-heading">
           {title}
         </h2>
         {message && (

@@ -139,7 +139,7 @@ export default function AdminCourses({ onPageChange }) {
   function handleDelete(course, event) {
     event.stopPropagation();
     setConfirm({
-      title: `Delete "${course.title}"?`,
+      title: `Delete ${course.title} ?`,
       message: 'This cannot be reverted back.',
       // Optimistic: the card leaves instantly, the request runs behind.
       // Failure restores the exact previous list — no refetch needed.
