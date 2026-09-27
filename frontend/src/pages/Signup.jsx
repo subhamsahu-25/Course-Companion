@@ -134,7 +134,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
-                placeholder="e.g. Aarav Sharma"
+                placeholder="Full name"
                 autoComplete="name"
                 maxLength={60}
               />
@@ -152,7 +152,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
-                placeholder="you@example.com"
+                placeholder="Email address"
                 autoComplete="email"
               />
             </div>
@@ -207,7 +207,7 @@ export default function Signup({ onSignupSuccess, onSwitchToLogin }) {
                   value={rollNo}
                   onChange={(e) => setRollNo(e.target.value)}
                   className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
-                  placeholder="e.g. 2024CS001"
+                  placeholder="Roll number"
                   autoComplete="off"
                 />
               </div>

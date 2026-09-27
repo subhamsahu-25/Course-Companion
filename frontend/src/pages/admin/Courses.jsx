@@ -151,7 +151,7 @@ export default function AdminCourses({ onPageChange }) {
             type="text"
             value={newCourseTitle}
             onChange={(e) => setNewCourseTitle(e.target.value)}
-            placeholder="Course title, min 3 characters (e.g. Electrical Engineering 101)"
+              placeholder="Course title (min 3 characters)"
             minLength={3}
             maxLength={100}
             className="flex-1 rounded-md border border-border p-2.5 text-sm outline-none focus:border-accent"

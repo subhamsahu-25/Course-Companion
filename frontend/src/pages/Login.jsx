@@ -128,7 +128,7 @@ export default function Login({
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
-                placeholder="you@example.com or username"
+                placeholder="Email or username"
                 autoComplete="username"
               />
             </div>

@@ -65,7 +65,7 @@ export default function ForgotPassword({ onBackToLogin }) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border p-3 text-[15px] outline-none focus:border-accent"
-                placeholder="you@example.com"
+                placeholder="Email address"
                 autoComplete="email"
               />
             </div>

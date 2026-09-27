@@ -55,7 +55,7 @@ export default function JoinCourse({ onPageChange, redirectTo }) {
           inputMode="numeric"
           value={code}
           onChange={handleCodeChange}
-          placeholder="12345"
+          placeholder="5-digit code"
           className="mt-2 w-full rounded-lg border border-border bg-bg p-3 text-center text-[22px] tracking-[0.3em] text-heading outline-none placeholder:tracking-normal placeholder:text-body focus:border-accent"
         />
         {error && (

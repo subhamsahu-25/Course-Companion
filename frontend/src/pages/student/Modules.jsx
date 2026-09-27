@@ -138,13 +138,6 @@ export default function StudentModules({ courseId, onPageChange }) {
 
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span
-                      className={`inline-block text-xs text-body transition-transform ${
-                        isExpanded ? 'rotate-90' : ''
-                      }`}
-                    >
-                      ▶
-                    </span>
                     <span className="text-[19px] font-semibold text-heading">
                       {mod.title}
                     </span>

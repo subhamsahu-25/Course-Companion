@@ -171,7 +171,7 @@ export default function AdminModules({ courseId, onPageChange }) {
             type="text"
             value={newModuleTitle}
             onChange={(e) => setNewModuleTitle(e.target.value)}
-            placeholder="Module title (e.g. Signals & Systems)"
+              placeholder="Module title (required)"
             className="flex-1 rounded-md border border-border p-2.5 text-sm outline-none focus:border-accent"
           />
           <button
