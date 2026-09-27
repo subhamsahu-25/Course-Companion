@@ -20,7 +20,12 @@ const askQuestion = asyncHandler(async (req, res) => {
    // they were never given the join code for.
    assertCourseAccess(module.course, req.user);
 
-   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId);
+   // The course id is derived server-side from the module (already
+   // populated above for the access check) — never trusted from the client.
+   // It scopes the question's retrieval to this course's material, so one
+   // course's documents can never answer another course's questions.
+   const courseId = module.course._id.toString();
+   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId, courseId);
    return res.status(200).json(new ApiResponse(200, result, "Question submitted for review"));
 });
 
@@ -58,8 +63,11 @@ const getReviewQueue = asyncHandler(async (req, res) => {
 
 const approveQuestion = asyncHandler(async (req, res) => {
    const { id } = req.params;
-   const { editedAnswer } = req.body;
-   const result = await ragService.approveAnswer(id, editedAnswer);
+   // rating is the TA's 1–5 star score, or null/undefined when left
+   // unattended. Range-checked in the rag service (400 on invalid) — passed
+   // straight through here.
+   const { editedAnswer, rating } = req.body;
+   const result = await ragService.approveAnswer(id, editedAnswer, rating);
    return res.status(200).json(new ApiResponse(200, result, "Answer approved"));
 });
 

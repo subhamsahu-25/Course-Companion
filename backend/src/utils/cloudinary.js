@@ -46,6 +46,13 @@ const uploadDocumentToCloudinary = (buffer, originalname) => {
             folder: "course-companion/documents",
             public_id: publicId,
             resource_type: "auto",
+            // Explicitly public: if the cloud ever defaults uploads to
+            // authenticated/private, delivery of the stored URL 401s in
+            // students' browsers ("deny or ACL failure") even though the
+            // upload itself succeeded. Belt and suspenders with the
+            // account-level default.
+            type: "upload",
+            access_mode: "public",
          },
          (error, result) => {
             if (error) return reject(error);

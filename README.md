@@ -13,7 +13,7 @@ This is a three-service project:
 | Service    | Path        | Stack                                                | Responsibility |
 |------------|-------------|-------------------------------------------------------|----------------|
 | `backend`  | `/backend`  | Node.js, Express, MongoDB (Mongoose)                   | Auth, courses/modules/documents, quiz questions & answers, proxies Q&A to `rag` |
-| `rag`      | `/rag`      | Node.js, Express, LangChain, Ollama, ChromaDB, MongoDB | Ingests course PDFs into a vector store; runs the RAG pipeline; persists the TA review queue |
+| `rag`      | `/rag`      | Node.js, Express, LangChain, Gemini, Qdrant, MongoDB | Ingests course PDFs into a vector store; runs the RAG pipeline; persists the TA review queue |
 | `frontend` | `/frontend` | React 19, Vite, Tailwind                               | Admin/Instructor, TA, and Student UIs |
 
 The `frontend` only ever talks to `backend`. `backend` is the only service
@@ -104,9 +104,28 @@ npm run dev
 
 Vite's dev server prints the local URL (default `http://localhost:5173`).
 
+## Retrieval scoping & feedback loop
+
+- Every chunk carries `courseId`/`moduleId` tags and every question is
+  asked within a course scope, so retrieval never crosses course
+  boundaries. (Bulk-seeded PDFs from before this carry no scope tags and
+  only match unscoped queries — re-run `node ingest.js` to tag them.)
+- Ingestion is incremental: re-uploads of identical content short-circuit
+  on a content hash, and `node ingest.js` upserts per file instead of
+  wiping the collection.
+- Approving an answer feeds it back into the vector store as a
+  TA-verified ("golden") chunk that takes precedence in future drafts.
+  Golden ingestion happens for unrated approvals and ratings ≥ 3;
+  answers rated 1–2 are kept out so poor drafts can't self-perpetuate.
+- TAs can attach an optional 1–5 star rating on approve (1 very poor …
+  5 very good). Left unattended it stays null — "unrated" is distinct
+  from "rated poorly".
+- Answers carry traceable citations: every chunk is tagged with its
+  source file, page, and line range at ingest time, and generation
+  records the actually-retrieved documents on each question — so student
+  history shows a PDF-name tag plus a page/line tag per answer. (Cited
+  from retrieval, never from the model's self-reported SOURCES line.)
+
 ## Known limitations
 
-- `ingest.js` rebuilds a single global Chroma collection on every run —
-  there's no per-course or per-module separation of course material yet,
-  so all uploaded PDFs are treated as one shared knowledge base.
 - No automated tests yet.

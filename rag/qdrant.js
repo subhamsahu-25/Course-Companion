@@ -27,8 +27,9 @@ export function getQdrantClient() {
 }
 
 // Creates the collection on first run (ingest or server boot), no-op after.
-// Also adds keyword indexes so filtered deletes + module-scoped retrieval
-// don't degrade into full scans as the collection grows.
+// Also adds keyword indexes so filtered deletes + scoped retrieval don't
+// degrade into full scans as the collection grows. Every metadata field we
+// ever filter on (see scopeFilter in ingest-logic.js) needs an entry here.
 export async function ensureQdrantCollection(client, collectionName) {
    const { collections } = await client.getCollections();
    if (!collections.some((c) => c.name === collectionName)) {
@@ -37,7 +38,15 @@ export async function ensureQdrantCollection(client, collectionName) {
       });
       console.log(`✅ Created Qdrant collection "${collectionName}" (dim=${EMBEDDING_DIM})`);
    }
-   for (const field of ["metadata.documentId", "metadata.moduleId"]) {
+   // Only string-valued fields get keyword indexes — the boolean flags
+   // (metadata.golden / metadata.seeded) stay unindexed on purpose: keyword
+   // indexes are for strings, and `match` filters on bools work fine
+   // without one at this collection size.
+   for (const field of [
+      "metadata.documentId",
+      "metadata.moduleId",
+      "metadata.courseId",
+   ]) {
       try {
          await client.createPayloadIndex(collectionName, {
             field_name: field,

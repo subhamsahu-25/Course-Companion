@@ -1,5 +1,5 @@
 // frontend/src/pages/admin/Modules.jsx
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   getCourseById,
   getModulesByCourse,
@@ -241,11 +241,13 @@ export default function AdminModules({ courseId, onPageChange }) {
                         href={getDocumentFileUrl(doc._id)}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="min-w-0 flex-1 break-all hover:underline hover:opacity-80"
+                        className="flex min-w-0 flex-1 items-center gap-2 hover:underline hover:opacity-80"
                       >
-                        {doc.title}
+                        <FileIcon title={doc.type} />
+                        <span className="min-w-0 flex-1 break-all">
+                          {doc.title}
+                        </span>
                       </a>
-                      <FileIcon title={doc.type} />
                       <button
                         onClick={(e) => handleDeleteDocument(doc, e)}
                         className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"
@@ -283,6 +285,21 @@ export default function AdminModules({ courseId, onPageChange }) {
 // which is membership-based everywhere) and purges their Q&A history in
 // this course's modules.
 function RosterSection({ title, members, courseId, onChanged, setError }) {
+  const [expanded, setExpanded] = useState(false);
+  // Ascending roll-no. order (numeric-aware, so "2" < "10"); members
+  // without a roll no. sink to the bottom instead of floating randomly.
+  const sorted = useMemo(
+    () =>
+      [...members].sort((a, b) => {
+        if (!a.rollNo && !b.rollNo) return 0;
+        if (!a.rollNo) return 1;
+        if (!b.rollNo) return -1;
+        return String(a.rollNo).localeCompare(String(b.rollNo), undefined, {
+          numeric: true,
+        });
+      }),
+    [members],
+  );
   async function handleRemove(member) {
     const confirmed = window.confirm(
       `Remove "${member.fullName || member.username}" from this course? They will lose access immediately, and their Q&A history in this course will be deleted.`,
@@ -297,27 +314,42 @@ function RosterSection({ title, members, courseId, onChanged, setError }) {
   }
   return (
     <div className="mt-8 rounded-xl border border-[#3f6593] bg-[#1b3554] p-6 shadow-sm">
-      <div className="text-[16px] font-semibold text-[#c0e6fd]">
-        {title} ({members.length})
-      </div>
-      {members.length === 0 ? (
-        <p className="mt-3 text-sm text-[#80aad3]">
-          Nobody here yet — members appear once they join with the course code.
-        </p>
-      ) : (
-        <div className="mt-3 overflow-x-auto">
-          <table className="w-full text-left text-sm">
-            <thead>
-              <tr className="border-b border-[#3f6593] text-xs uppercase text-[#80aad3]">
-                <th className="w-1/2 py-2 pr-4 font-medium">Name</th>
-                <th className="py-2 pr-4 font-medium">Roll no.</th>
-                <th className="py-2 text-right font-medium">
-                  <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {members.map((m) => (
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        aria-expanded={expanded}
+        className="flex w-full items-center justify-between gap-3 text-left"
+      >
+        <span className="text-[16px] font-semibold text-[#c0e6fd]">
+          {title} ({members.length})
+        </span>
+        <span
+          aria-hidden="true"
+          className="text-sm text-[#80aad3] transition-transform duration-200 ease-out"
+        >
+          {expanded ? '▾' : '▸'}
+        </span>
+      </button>
+      {expanded &&
+        (members.length === 0 ? (
+          <p className="mt-3 text-sm text-[#80aad3]">
+            Nobody here yet — members appear once they join with the course
+            code.
+          </p>
+        ) : (
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead>
+                <tr className="border-b border-[#3f6593] text-xs uppercase text-[#80aad3]">
+                  <th className="w-1/2 py-2 pr-4 font-medium">Name</th>
+                  <th className="py-2 pr-4 font-medium">Roll no.</th>
+                  <th className="py-2 text-right font-medium">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {sorted.map((m) => (
                 <tr
                   key={m._id}
                   className="border-b border-white/10 last:border-0"
@@ -337,11 +369,11 @@ function RosterSection({ title, members, courseId, onChanged, setError }) {
                     </button>
                   </td>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
     </div>
   );
 }

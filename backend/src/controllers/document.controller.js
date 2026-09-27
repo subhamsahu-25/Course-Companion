@@ -85,14 +85,21 @@ const uploadDocument = asyncHandler(async (req, res) => {
          const result = await ragService.ingestDocument(
             document._id.toString(),
             moduleId,
+            module.course._id.toString(),
             req.file.originalname,
             req.file.buffer.toString("base64"),
          );
 
-         if (result?.skipped) {
+         // The ingester is idempotent: re-uploading identical content
+         // reports skipped/"unchanged", which still means indexed.
+         if (result?.contentHash) {
+            document.contentHash = result.contentHash;
+         }
+         if (result?.skipped && result?.reason !== "unchanged — same content already indexed") {
             document.indexingError = result.reason || "Indexing was skipped";
          } else {
             document.isIndexed = true;
+            document.indexingError = null;
          }
       } catch (err) {
          // rag service may be down/unreachable — don't block the upload on it

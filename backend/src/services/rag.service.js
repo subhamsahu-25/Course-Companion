@@ -41,10 +41,19 @@ const ragRequest = async (endpoint, options = {}) => {
 // Sends an uploaded file to the rag service to be chunked, embedded, and
 // added to the vector store — this is the step that was missing entirely
 // before: uploading a document saved the file but never indexed it.
-const ingestDocument = (documentId, moduleId, filename, fileBase64) =>
+const ingestDocument = (documentId, moduleId, courseId, filename, fileBase64) =>
    ragRequest("/ingest", {
       method: "POST",
-      body: JSON.stringify({ documentId, moduleId, filename, fileBase64 }),
+      body: JSON.stringify({ documentId, moduleId, courseId, filename, fileBase64 }),
+   });
+
+// Removes every vector in a course/module scope — documents plus
+// TA-verified ("golden") answers, which aren't Document records but carry
+// the same scope tags. Used on course hard-delete.
+const purgeVectors = ({ moduleIds, courseId } = {}) =>
+   ragRequest("/ingest/purge", {
+      method: "POST",
+      body: JSON.stringify({ moduleIds, courseId }),
    });
 
 // Best-effort cleanup so a deleted document's chunks stop showing up in
@@ -52,18 +61,18 @@ const ingestDocument = (documentId, moduleId, filename, fileBase64) =>
 const removeIngestedDocument = (documentId) =>
    ragRequest(`/ingest/${documentId}`, { method: "DELETE" });
 
-const submitQuestion = (studentId, question, moduleId) =>
+const submitQuestion = (studentId, question, moduleId, courseId) =>
    ragRequest("/submit-question", {
       method: "POST",
-      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId }),
+      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId, course_id: courseId }),
    });
 
 const getReviewQueue = () => ragRequest("/review-queue");
 
-const approveAnswer = (id, editedAnswer) =>
+const approveAnswer = (id, editedAnswer, rating) =>
    ragRequest(`/review-queue/${id}/approve`, {
       method: "POST",
-      body: JSON.stringify({ editedAnswer }),
+      body: JSON.stringify({ editedAnswer, rating }),
    });
 
 const rejectAnswer = (id, note) =>
@@ -112,6 +121,7 @@ export {
    getStats,
    ingestDocument,
    removeIngestedDocument,
+   purgeVectors,
    purgeReviewQueueForModules,
    purgeMemberHistory,
    getModuleHistory,

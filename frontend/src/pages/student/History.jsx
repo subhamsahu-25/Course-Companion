@@ -6,11 +6,22 @@ import {
   getCourses,
   getModulesByCourse,
 } from '../../api/client.js';
+import { RATING_LABELS, formatRating } from '../../utils/rating.js';
 const STATUS_LABELS = {
   pending: 'Awaiting TA review',
   approved: 'TA-reviewed answer',
   rejected: 'TA response',
 };
+// Builds the "Page 3" half of a citation tag pair — page only. Line
+// numbers were dropped: chunk-overlap anchoring made them approximate,
+// while page numbers come straight from the PDF structure and are exact.
+// Returns null when the citation has no page (TA-verified answers) —
+// those show the source tag alone.
+function citationPage(citation) {
+  return citation.page !== null && citation.page !== undefined
+    ? `Page ${citation.page}`
+    : null;
+}
 export default function StudentHistory({ onPageChange }) {
   const [courses, setCourses] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState('');
@@ -83,7 +94,7 @@ export default function StudentHistory({ onPageChange }) {
     pollRefs.current[requestId] = setTimeout(async () => {
       try {
         const res = await getMyAnswer(requestId);
-        const { status, answer } = res.data;
+        const { status, answer, rating, citations } = res.data;
         if (status === 'pending') {
           pollForAnswer(requestId);
           return;
@@ -91,7 +102,9 @@ export default function StudentHistory({ onPageChange }) {
         delete pollRefs.current[requestId];
         setAllAnswers((old) =>
           old.map((item) =>
-            item.id === requestId ? { ...item, status, answer } : item,
+            item.id === requestId
+              ? { ...item, status, answer, rating, citations }
+              : item,
           ),
         );
       } catch {
@@ -239,9 +252,38 @@ export default function StudentHistory({ onPageChange }) {
                   Still being reviewed by a TA.
                 </p>
               ) : (
-                <p className="mt-3 text-[15px] leading-6 text-[#80aad3]">
-                  {item.answer}
-                </p>
+                <>
+                  <p className="mt-3 text-[15px] leading-6 text-[#80aad3]">
+                    {item.answer}
+                  </p>
+                  {(item.citations?.length ?? 0) > 0 && (
+                    <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                      <span
+                        title={
+                          item.citations[0].golden
+                            ? 'Verified by a TA'
+                            : item.citations[0].source
+                        }
+                        className="max-w-56 truncate rounded-full border border-[#3f6593] bg-[#1b3554] px-2.5 py-0.5 text-xs font-medium text-[#c0e6fd]"
+                      >
+                        {item.citations[0].source}
+                      </span>
+                      {citationPage(item.citations[0]) && (
+                        <span className="rounded-full border border-[#3f6593]/60 bg-white/5 px-2.5 py-0.5 text-xs text-[#80aad3]">
+                          {citationPage(item.citations[0])}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                  {formatRating(item.rating) && (
+                    <p
+                      title={RATING_LABELS[item.rating]}
+                      className="mt-2 text-xs font-medium text-amber-400/90"
+                    >
+                      TA rating: {formatRating(item.rating)}
+                    </p>
+                  )}
+                </>
               )}
             </div>
           ))}

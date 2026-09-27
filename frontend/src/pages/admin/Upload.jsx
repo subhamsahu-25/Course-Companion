@@ -406,16 +406,16 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
                   key={doc._id}
                   className="flex items-center justify-between gap-4 rounded-lg border border-[#3f6593] bg-white/5 p-3"
                 >
-                  <div className="min-w-0">
+                  <div className="flex min-w-0 items-center gap-2">
+                    <FileIcon title={doc.type} />
                     <a
                       href={getDocumentFileUrl(doc._id)}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="block break-all text-sm font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
+                      className="min-w-0 flex-1 break-all text-sm font-medium text-[#c0e6fd] hover:underline hover:opacity-80"
                     >
                       {doc.title}
                     </a>
-                    <FileIcon title={doc.type} className="mt-1 size-6" />
                   </div>
                   <button
                     onClick={() => handleDeleteDocument(doc)}

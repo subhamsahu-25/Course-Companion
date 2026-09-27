@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 import { RecursiveCharacterTextSplitter } from "@langchain/textsplitters";
@@ -45,34 +46,115 @@ async function getVectorStore() {
    });
 }
 
-// Extracts plain text from a file buffer. Returns `null` (not a string) for
-// file types we have no text-extraction path for yet (video/image/slides) —
-// callers use that to distinguish "nothing to index" from "indexed, but
-// empty".
-async function extractText(buffer, filename) {
+// Extracts per-page text from a file buffer: [{ page, text }]. Page numbers
+// are what power the "which PDF, which page, which line" citation tags —
+// chunk metadata records them, so answers stay traceable to their source
+// location. Returns `null` (not an array) for file types we have no
+// text-extraction path for yet (video/image/slides) — callers use that to
+// distinguish "nothing to index" from "indexed, but empty" ([]).
+// Exported for diagnostics / future tests (see checkRetrieval.js) —
+// ingestion itself only uses these internally.
+export async function extractPages(buffer, filename) {
    const ext = path.extname(filename).toLowerCase();
 
    if (ext === ".pdf") {
       let parser;
       try {
          parser = new PDFParse({ data: buffer });
+         // One pass yields both the concatenated text and the per-page
+         // breakdown (TextResult.pages: [{ num, text }]).
          const result = await parser.getText();
-         return result?.text || "";
+         const pages = (result?.pages || [])
+            .map((p) => ({ page: p.num, text: p.text || "" }))
+            .filter((p) => p.text.trim().length > 0);
+         if (pages.length > 0) return pages;
+         const flat = result?.text || "";
+         return flat.trim().length > 0 ? [{ page: 1, text: flat }] : [];
       } finally {
          if (parser) await parser.destroy();
       }
    }
 
    if (ext === ".txt") {
-      return buffer.toString("utf-8");
+      const text = buffer.toString("utf-8");
+      // Plain text has no pages — everything lives on page 1, with real
+      // line numbers inside it.
+      return text.trim().length > 0 ? [{ page: 1, text }] : [];
    }
 
    return null;
 }
 
+// Locates a chunk inside its page text and converts the character offset
+// into 1-based line numbers (lines = newline-split page text). Approximate
+// by nature — chunk overlap means boundaries are fuzzy — but it points at
+// the right region of the page, which is what the citation tag promises.
+function locateLines(pageText, chunkText) {
+   const anchor = chunkText.slice(0, 80);
+   const found = pageText.indexOf(anchor);
+   const start = found < 0 ? 0 : found;
+   const lineStart = pageText.slice(0, start).split("\n").length;
+   const lineEnd = pageText.slice(0, start + chunkText.length).split("\n").length;
+   return { lineStart, lineEnd };
+}
+
+// Splits each page separately so chunks never straddle a page boundary
+// (which would make their page number a lie), tagging every chunk with
+// its page + line range alongside the caller-supplied base metadata.
+export async function chunkPages(pages, baseMetadata) {
+   const textSplitter = new RecursiveCharacterTextSplitter({
+      chunkSize: 500,
+      chunkOverlap: 150,
+   });
+   const out = [];
+   for (const { page, text } of pages) {
+      const chunks = await textSplitter.createDocuments([text], [{ source: baseMetadata.source }]);
+      for (const c of chunks) {
+         const { lineStart, lineEnd } = locateLines(text, c.pageContent);
+         out.push({
+            pageContent: c.pageContent,
+            metadata: { ...baseMetadata, page, lineStart, lineEnd },
+         });
+      }
+   }
+   return out;
+}
+
 const documentFilter = (documentId) => ({
    must: [{ key: "metadata.documentId", match: { value: documentId } }],
 });
+
+// Builds a Qdrant filter scoping points to one course and/or one module.
+// Every retrieval path funnels through this so a question asked in course A
+// can never draw on course B's material. Either key may be absent (legacy
+// chunks, unscoped queries) — absent keys simply don't constrain.
+export function scopeFilter({ courseId, moduleId } = {}) {
+   const must = [];
+   if (courseId) must.push({ key: "metadata.courseId", match: { value: courseId } });
+   if (moduleId) must.push({ key: "metadata.moduleId", match: { value: moduleId } });
+   return must.length > 0 ? { must } : undefined;
+}
+
+// sha256 of the extracted text — the idempotency key for incremental
+// ingestion. Same text re-uploaded (retry, duplicate upload, re-seed)
+// short-circuits before any embedding call, so re-ingests are free.
+function contentHash(text) {
+   return crypto.createHash("sha256").update(text, "utf-8").digest("hex");
+}
+
+// Returns the stored content hash for a documentId, or null when nothing
+// is indexed for it yet.
+async function storedContentHash(documentId) {
+   const client = getQdrantClient();
+   await ensureQdrantCollection(client, COLLECTION_NAME);
+   const { points } = await client.scroll(COLLECTION_NAME, {
+      filter: documentFilter(documentId),
+      limit: 1,
+      with_payload: true,
+      with_vector: false,
+   });
+   return points?.[0]?.payload?.metadata?.contentHash ?? null;
+}
 
 // Removes every chunk previously ingested for a given document. Scoped to
 // `documentId` via a metadata filter, so — unlike the old bulk ingest,
@@ -91,42 +173,117 @@ export async function removeDocumentChunks(documentId) {
    return count;
 }
 
+// Removes every chunk in a course/module scope — documents, TA-verified
+// ("golden") answers, anything carrying the scope tags. Used when a course
+// is hard-deleted so neither material nor learned answers outlive it. At
+// least one of moduleIds / courseId is required; refuses to run unscoped
+// rather than risk wiping the whole collection.
+export async function removeScopeChunks({ moduleIds, courseId } = {}) {
+   const ids = Array.isArray(moduleIds) ? moduleIds.filter(Boolean) : [];
+   if (ids.length === 0 && !courseId) {
+      throw new Error("removeScopeChunks requires moduleIds or courseId");
+   }
+   const must = [];
+   if (ids.length > 0) {
+      must.push({ key: "metadata.moduleId", match: { any: ids } });
+   }
+   if (courseId) {
+      must.push({ key: "metadata.courseId", match: { value: courseId } });
+   }
+   const client = getQdrantClient();
+   await ensureQdrantCollection(client, COLLECTION_NAME);
+   const filter = { must };
+   const { count } = await client.count(COLLECTION_NAME, { filter, exact: true });
+   if (count > 0) {
+      await client.delete(COLLECTION_NAME, { filter });
+   }
+   return count;
+}
+
 // Ingest (or re-ingest) a single uploaded document into the shared
 // collection. This is what actually makes an uploaded document answerable
 // by the RAG pipeline — it's called from the backend right after a
 // document is saved (see document.controller.js).
 //
-// Chunks are tagged with `documentId` and `moduleId` metadata so that:
-//   - re-uploading/replacing a file can cleanly remove its old chunks first
-//     (see removeDocumentChunks) instead of piling up duplicates, and
-//   - retrieval can eventually be scoped to a module/course (see
-//     server.js's /submit-question), instead of searching every course's
-//     material at once.
-export async function ingestSingleDocument({ buffer, filename, documentId, moduleId }) {
+// Incremental: the extracted text is hashed, and when the stored hash for
+// this documentId already matches, ingestion short-circuits before a single
+// embedding call — retries and duplicate uploads are free. Changed content
+// removes the old chunks first (see removeDocumentChunks) instead of
+// piling up duplicates.
+//
+// Chunks are tagged with `documentId`, `moduleId`, and `courseId` metadata
+// so retrieval can be scoped to the asking student's course/module (see
+// scopeFilter + server.js's /submit-question) instead of searching every
+// course's material at once.
+export async function ingestSingleDocument({ buffer, filename, documentId, moduleId, courseId }) {
    if (!documentId) throw new Error("documentId is required");
    if (!buffer || !filename) throw new Error("buffer and filename are required");
 
-   const text = await extractText(buffer, filename);
-   if (text === null) {
+   const pages = await extractPages(buffer, filename);
+   if (pages === null) {
       return { skipped: true, reason: `No text-extraction support for this file type: ${filename}` };
    }
-   if (text.trim().length === 0) {
+   if (pages.length === 0) {
       return { skipped: true, reason: `No readable text found in ${filename}` };
+   }
+
+   const hash = contentHash(pages.map((p) => p.text).join("\n"));
+   if ((await storedContentHash(documentId)) === hash) {
+      return { skipped: true, reason: "unchanged — same content already indexed", contentHash: hash };
+   }
+
+   // Clear out any chunks left over from a previous ingest of this same
+   // document (e.g. the file was replaced) before adding the new ones.
+   await removeDocumentChunks(documentId);
+
+   const metadata = { source: filename, documentId, contentHash: hash };
+   if (moduleId) metadata.moduleId = moduleId;
+   if (courseId) metadata.courseId = courseId;
+
+   const chunks = await chunkPages(pages, metadata);
+   const vectorStore = await getVectorStore();
+   await vectorStore.addDocuments(chunks);
+
+   return { skipped: false, chunksIngested: chunks.length, contentHash: hash };
+}
+
+// Ingests a TA-approved answer back into the collection as a "golden"
+// chunk set, so the pipeline learns from human review instead of repeating
+// mistakes TAs already corrected. Keyed as documentId `golden:<reviewId>`
+// with remove-then-add, so re-approving the same item never duplicates.
+//
+// Golden chunks carry the question's course/module scope (they only ever
+// answer for that scope) and the TA's star rating when one was given.
+export async function ingestGoldenAnswer({ question, answer, reviewId, moduleId, courseId, rating }) {
+   if (!reviewId) throw new Error("reviewId is required");
+   if (!answer || answer.trim().length === 0) {
+      return { skipped: true, reason: "empty answer — nothing to learn from" };
    }
 
    const textSplitter = new RecursiveCharacterTextSplitter({
       chunkSize: 500,
       chunkOverlap: 150,
    });
+   const chunks = await textSplitter.createDocuments(
+      [answer],
+      [{ source: "TA-verified answer" }]
+   );
 
-   const chunks = await textSplitter.createDocuments([text], [{ source: filename }]);
-
-   // Clear out any chunks left over from a previous ingest of this same
-   // document (e.g. the file was replaced) before adding the new ones.
+   const documentId = `golden:${reviewId}`;
    await removeDocumentChunks(documentId);
 
-   const metadata = { source: filename, documentId };
+   const metadata = {
+      source: "TA-verified answer",
+      documentId,
+      golden: true,
+      contentHash: contentHash(answer),
+      // Qdrant keyword payloads need comparable scalars — keep the question
+      // short and the rating numeric-or-absent.
+      question: String(question ?? "").slice(0, 500),
+   };
    if (moduleId) metadata.moduleId = moduleId;
+   if (courseId) metadata.courseId = courseId;
+   if (rating !== null && rating !== undefined) metadata.rating = rating;
 
    const vectorStore = await getVectorStore();
    await vectorStore.addDocuments(
@@ -136,17 +293,22 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
    return { skipped: false, chunksIngested: chunks.length };
 }
 
-// Bulk seed path — reads every PDF in ./course_materials and replaces the
-// entire collection with their contents. This is the original ingestion
-// logic (still used by `node ingest.js` for manually seeding demo course
-// materials); it is NOT used by the live upload flow anymore, which calls
-// ingestSingleDocument above instead.
+// Bulk seed path — reads every PDF in ./course_materials and upserts each
+// file's chunks idempotently (still used by `node ingest.js` for manually
+// seeding demo course materials); it is NOT used by the live upload flow,
+// which calls ingestSingleDocument above instead.
+//
+// Incremental, never destructive: each file is keyed as documentId
+// `seed:<filename>` with a content hash, so re-running the seed only
+// re-embeds files that actually changed. Files removed from the directory
+// have their seeded chunks swept — scoped to `seeded:true` points only, so
+// live-uploaded documents are never touched. (The old version wiped the
+// whole collection on every run, including live uploads.)
 export async function ingestDocuments() {
    const directoryPath = "./course_materials";
    const absolutePath = path.resolve(directoryPath);
 
    console.log(`\n📂 Reading PDFs from: ${absolutePath}`);
-   const documents = [];
 
    if (!fs.existsSync(directoryPath)) {
       fs.mkdirSync(directoryPath);
@@ -154,76 +316,71 @@ export async function ingestDocuments() {
       return { chunksIngested: 0, filesProcessed: 0 };
    }
 
-   const files = fs.readdirSync(directoryPath);
+   const files = fs.readdirSync(directoryPath).filter(
+      (file) =>
+         file.endsWith(".pdf") &&
+         !file.startsWith("$") &&
+         !file.startsWith("~") &&
+         !file.startsWith(".")
+   );
 
-   for (const file of files) {
-      if (file.startsWith("$") || file.startsWith("~") || file.startsWith(".")) {
-         continue;
-      }
-
-      if (file.endsWith(".pdf")) {
-         const filePath = path.join(directoryPath, file);
-         const dataBuffer = fs.readFileSync(filePath);
-         let parser;
-         try {
-            parser = new PDFParse({ data: dataBuffer });
-            const result = await parser.getText();
-            const rawText = result?.text || "";
-            const charCount = rawText.trim().length;
-
-            if (charCount > 0) {
-               console.log(` Read ${file}: Extracted ${charCount} characters`);
-               documents.push({
-                  pageContent: rawText,
-                  metadata: { source: file }
-               });
-            } else {
-               console.log(` Skipped ${file}: No readable text found.`);
-            }
-         } catch (err) {
-            console.error(` Failed to parse ${file}:`, err.message);
-         } finally {
-            if (parser) await parser.destroy();
-         }
-      }
-   }
-
-   if (documents.length === 0) {
-      console.log("\n No valid PDFs found.");
+   if (files.length === 0) {
+      console.log("\n No valid PDFs found — leaving the collection untouched.");
       return { chunksIngested: 0, filesProcessed: 0 };
    }
 
-   console.log("\n2. Splitting text into chunks...");
-   const textSplitter = new RecursiveCharacterTextSplitter({
-      chunkSize: 500,
-      chunkOverlap: 150,
-   });
-
-   const chunks = await textSplitter.createDocuments(
-      documents.map(doc => doc.pageContent),
-      documents.map(doc => doc.metadata)
-   );
-
-   console.log("3. Connecting to Qdrant & Gemini...");
-   const client = getQdrantClient();
-
-   // Wipe the collection so a re-seed never piles up duplicates. Unlike the
-   // old Chroma setup (where delete + recreate broke server.js's cached
-   // collection handle until restart), Qdrant is addressed by name on every
-   // call, so the running server keeps working without a restart.
-   try {
-      await client.deleteCollection(COLLECTION_NAME);
-   } catch {
-      // Collection didn't exist yet — nothing to wipe.
-   }
-   await ensureQdrantCollection(client, COLLECTION_NAME);
-
-   console.log("4. Pushing vectors to database...");
    const vectorStore = await getVectorStore();
-   await vectorStore.addDocuments(
-      chunks.map((c) => ({ pageContent: c.pageContent, metadata: c.metadata }))
-   );
 
-   console.log(`🎉 Ingestion complete! Saved ${chunks.length} chunks.`);
-   return { chunksIngested: chunks.length, filesProcessed: documents.length };
+   let chunksIngested = 0;
+   let filesProcessed = 0;
+   for (const file of files) {
+      const dataBuffer = fs.readFileSync(path.join(directoryPath, file));
+      try {
+         const pages = await extractPages(dataBuffer, file);
+         if (!pages || pages.length === 0) {
+            console.log(` Skipped ${file}: No readable text found.`);
+            continue;
+         }
+
+         const documentId = `seed:${file}`;
+         const hash = contentHash(pages.map((p) => p.text).join("\n"));
+         if ((await storedContentHash(documentId)) === hash) {
+            console.log(` Skipped ${file}: unchanged since last seed.`);
+            continue;
+         }
+
+         await removeDocumentChunks(documentId);
+         const chunks = await chunkPages(pages, {
+            source: file,
+            documentId,
+            seeded: true,
+            contentHash: hash,
+         });
+         await vectorStore.addDocuments(chunks);
+         console.log(` Ingested ${file}: ${chunks.length} chunks.`);
+         chunksIngested += chunks.length;
+         filesProcessed += 1;
+      } catch (err) {
+         console.error(` Failed to parse ${file}:`, err.message);
+      }
+   }
+
+   // Sweep seeded chunks whose file is gone from the directory. Scoped to
+   // `seeded:true` — live uploads (seeded absent) can never match.
+   const client = getQdrantClient();
+   const sweepFilter = {
+      must: [{ key: "metadata.seeded", match: { value: true } }],
+      must_not: [{ key: "metadata.source", match: { any: files } }],
+   };
+   const { count: stale } = await client.count(COLLECTION_NAME, {
+      filter: sweepFilter,
+      exact: true,
+   });
+   if (stale > 0) {
+      await client.delete(COLLECTION_NAME, { filter: sweepFilter });
+      console.log(` Swept ${stale} stale seeded chunks (files removed).`);
+   }
+
+   console.log(`🎉 Seed complete! ${chunksIngested} chunks across ${filesProcessed} changed files.`);
+   return { chunksIngested, filesProcessed };
 }

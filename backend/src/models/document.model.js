@@ -42,6 +42,13 @@ const documentSchema = new Schema({
       type: String,
       default: null,
    },
+   // sha256 of the extracted text at last successful ingest (set by the rag
+   // service). Lets re-uploads of identical content short-circuit before
+   // any embedding call, and makes "is this file already indexed?" cheap.
+   contentHash: {
+      type: String,
+      default: null,
+   },
    order: {
       type: Number,
       default: 0

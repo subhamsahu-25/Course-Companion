@@ -421,10 +421,10 @@ export const getReviewQueue = () => request('/qa/queue');
 export const getModuleHistory = (moduleId) =>
   request(`/qa/history/${moduleId}`);
 
-export const approveAnswer = (id, editedAnswer) =>
+export const approveAnswer = (id, editedAnswer, rating) =>
   request(`/qa/queue/${id}/approve`, {
     method: 'POST',
-    body: JSON.stringify({ editedAnswer }),
+    body: JSON.stringify({ editedAnswer, rating }),
   });
 
 export const rejectAnswer = (id, note) =>

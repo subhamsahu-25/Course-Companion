@@ -227,6 +227,18 @@ const deleteCourse = asyncHandler(async (req, res) => {
       }
    }
 
+   // Scope-wide vector purge: the per-document loop above can't reach
+   // TA-verified ("golden") answers — those aren't Document records, but
+   // they carry the same module tags, so this catches them plus any other
+   // straggler chunks. Best-effort like everything else here.
+   if (moduleIds.length > 0) {
+      try {
+         await ragService.purgeVectors({ moduleIds: moduleIds.map((mid) => mid.toString()) });
+      } catch (err) {
+         console.error(`Failed to purge vectors for course ${course._id}:`, err.message);
+      }
+   }
+
    const questionIds = await Question.find({ module: { $in: moduleIds } }).distinct("_id");
 
    await Promise.all([

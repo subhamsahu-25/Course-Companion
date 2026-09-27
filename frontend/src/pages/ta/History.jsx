@@ -4,6 +4,7 @@ import {
   getMyModules,
   getModuleHistory,
 } from '../../api/client.js';
+import { RATING_LABELS, formatRating } from '../../utils/rating.js';
 const HISTORY_STATUS_STYLES = {
   pending: 'bg-amber-100 text-amber-700',
   approved: 'bg-green-100 text-green-700',
@@ -166,14 +167,24 @@ export default function History({ onPageChange }) {
               <div className="text-[16px] font-semibold text-[#c0e6fd]">
                 {item.question}
               </div>
-              <span
-                className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium ${
-                  HISTORY_STATUS_STYLES[item.status] ||
-                  'bg-gray-100 text-gray-600'
-                }`}
-              >
-                {HISTORY_STATUS_LABELS[item.status] || item.status}
-              </span>
+              <div className="flex shrink-0 items-center gap-2">
+                {formatRating(item.rating) && (
+                  <span
+                    title={RATING_LABELS[item.rating]}
+                    className="rounded-full bg-amber-100 px-3 py-1 text-xs font-medium text-amber-700"
+                  >
+                    {formatRating(item.rating)}
+                  </span>
+                )}
+                <span
+                  className={`rounded-full px-3 py-1 text-xs font-medium ${
+                    HISTORY_STATUS_STYLES[item.status] ||
+                    'bg-gray-100 text-gray-600'
+                  }`}
+                >
+                  {HISTORY_STATUS_LABELS[item.status] || item.status}
+                </span>
+              </div>
             </div>
             <p className="mt-2 text-xs text-[#80aad3]">
               {new Date(item.createdAt).toLocaleString()}

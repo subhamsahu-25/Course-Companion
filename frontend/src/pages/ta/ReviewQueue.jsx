@@ -6,6 +6,7 @@ import {
   getCourses,
   getMyModules,
 } from '../../api/client.js';
+import { RATING_LABELS } from '../../utils/rating.js';
 export default function ReviewQueue({ onPageChange }) {
   const [items, setItems] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -20,12 +21,22 @@ export default function ReviewQueue({ onPageChange }) {
   const [selectedModuleId, setSelectedModuleId] = useState('');
   const [editingId, setEditingId] = useState(null);
   const [answerText, setAnswerText] = useState('');
-  // Which item + which action is in flight — tracked separately so only
-  // the clicked button shows its …ing label (both stay disabled to avoid
-  // double-submits). { id, kind: 'approve' | 'reject' } | null
-  const [actioning, setActioning] = useState(null);
-  const busyId = actioning?.id ?? null;
-  const busyKind = actioning?.kind ?? null;
+  // Pending item id -> 1..5 star rating. Absent key = unattended (sent as
+  // undefined, stored as null) — never defaulted, so "unrated" stays
+  // distinct from "rated poorly".
+  const [ratings, setRatings] = useState({});
+  function setRating(id, value) {
+    // Clicking the active star again clears it back to unattended.
+    setRatings((old) => ({ ...old, [id]: old[id] === value ? undefined : value }));
+  }
+  // In-flight actions by item id, so every clicked button shows its own
+  // …ing label even when several items are processing at once. Previously
+  // this held a single { id, kind }, so clicking approve on a second item
+  // stole the loading label while the first request was still running.
+  // { [id]: 'approve' | 'reject' }
+  const [actioning, setActioning] = useState({});
+  const busyKindFor = (id) => actioning[id] ?? null;
+  const isBusy = (id) => Boolean(actioning[id]);
   async function loadAll() {
     setLoading(true);
     setError(null);
@@ -71,18 +82,29 @@ export default function ReviewQueue({ onPageChange }) {
     setEditingId(null);
     setAnswerText('');
   }
-  async function approve(id, editedAnswer) {
-    setActioning({ id, kind: 'approve' });
+  function markBusy(id, kind) {
+    setActioning((old) => ({ ...old, [id]: kind }));
+  }
+  function clearBusy(id) {
+    setActioning((old) => {
+      const next = { ...old };
+      delete next[id];
+      return next;
+    });
+  }
+  async function approve(id, editedAnswer, rating) {
+    markBusy(id, 'approve');
     setError(null);
     try {
-      await approveAnswer(id, editedAnswer);
+      await approveAnswer(id, editedAnswer, rating);
       setEditingId(null);
       setAnswerText('');
+      setRatings((old) => ({ ...old, [id]: undefined }));
       await reloadQueue();
     } catch (err) {
       setError(err.message);
     } finally {
-      setActioning(null);
+      clearBusy(id);
     }
   }
   async function reject(id) {
@@ -90,7 +112,7 @@ export default function ReviewQueue({ onPageChange }) {
       'Optional note for the student (leave blank to use the default message):',
     );
     if (note === null) return; // they hit cancel
-    setActioning({ id, kind: 'reject' });
+    markBusy(id, 'reject');
     setError(null);
     try {
       await rejectAnswer(id, note || undefined);
@@ -98,7 +120,7 @@ export default function ReviewQueue({ onPageChange }) {
     } catch (err) {
       setError(err.message);
     } finally {
-      setActioning(null);
+      clearBusy(id);
     }
   }
   if (loading) {
@@ -276,21 +298,53 @@ export default function ReviewQueue({ onPageChange }) {
                     {item.draftAnswer}
                   </p>
                 )}
-                <div className="mt-5 flex flex-wrap gap-2">
+                {/* Optional star rating — travels with the approval and
+                    decides whether the answer teaches future drafts (3+,
+                    or unrated) or is kept out (1–2). */}
+                <div className="mt-5 flex flex-wrap items-center gap-1">
+                  <span className="mr-1 text-xs font-medium uppercase tracking-wide text-[#80aad3]">
+                    Rate
+                  </span>
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      title={RATING_LABELS[star]}
+                      aria-label={`Rate ${star} out of 5: ${RATING_LABELS[star]}`}
+                      onClick={() => setRating(item._id, star)}
+                      disabled={isBusy(item._id)}
+                      className={`text-xl leading-none transition-all duration-150 ease-out active:scale-90 disabled:opacity-60 ${
+                        ratings[item._id] >= star
+                          ? 'text-amber-400'
+                          : 'text-[#5b86b6]/50 hover:text-amber-300'
+                      }`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                  <span className="ml-1 text-xs text-[#80aad3]/70">
+                    {ratings[item._id]
+                      ? RATING_LABELS[ratings[item._id]]
+                      : 'optional'}
+                  </span>
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
                   {editingId === item._id ? (
                     <>
                       <button
-                        onClick={() => approve(item._id, answerText)}
-                        disabled={busyId === item._id}
+                        onClick={() =>
+                          approve(item._id, answerText, ratings[item._id])
+                        }
+                        disabled={isBusy(item._id)}
                         className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
                       >
-                        {busyId === item._id && busyKind === 'approve'
+                        {busyKindFor(item._id) === 'approve'
                           ? 'Saving…'
                           : 'Save & approve'}
                       </button>
                       <button
                         onClick={cancelEditing}
-                        disabled={busyId === item._id}
+                        disabled={isBusy(item._id)}
                         className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
                       >
                         Cancel
@@ -299,27 +353,29 @@ export default function ReviewQueue({ onPageChange }) {
                   ) : (
                     <>
                       <button
-                        onClick={() => approve(item._id)}
-                        disabled={busyId === item._id}
+                        onClick={() =>
+                          approve(item._id, undefined, ratings[item._id])
+                        }
+                        disabled={isBusy(item._id)}
                         className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
                       >
-                        {busyId === item._id && busyKind === 'approve'
+                        {busyKindFor(item._id) === 'approve'
                           ? 'Approving…'
                           : 'Approve'}
                       </button>
                       <button
                         onClick={() => startEditing(item)}
-                        disabled={busyId === item._id}
+                        disabled={isBusy(item._id)}
                         className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => reject(item._id)}
-                        disabled={busyId === item._id}
+                        disabled={isBusy(item._id)}
                         className="rounded-xl border border-[#5b86b6]/60 bg-[#3f6593] px-4 py-2 text-sm text-[#c0e6fd] hover:bg-[#5b86b6] active:scale-[0.98] disabled:opacity-60"
                       >
-                        {busyId === item._id && busyKind === 'reject'
+                        {busyKindFor(item._id) === 'reject'
                           ? 'Rejecting…'
                           : 'Reject'}
                       </button>

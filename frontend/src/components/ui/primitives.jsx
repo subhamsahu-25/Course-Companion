@@ -66,11 +66,11 @@ export function FileIcon({ className, title = 'File' }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 40 40"
+      viewBox="-1 -1 42 42"
       fill="none"
       role="img"
       aria-label={title}
-      className={cn('size-8 shrink-0', className)}
+      className={cn('size-4 shrink-0 overflow-visible', className)}
     >
       <title>{title}</title>
       <path
