@@ -1,5 +1,5 @@
 // frontend/src/pages/admin/Modules.jsx
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
   getCourseById,
   getModulesByCourse,
@@ -11,13 +11,32 @@ import {
   getImportantQuestions,
   getCourseQaStats,
 } from '../../api/client.js';
-import { FileIcon, LoadingState } from '../../components/ui/primitives.jsx';
+import { ConfirmDialog, FileIcon, LoadingState } from '../../components/ui/primitives.jsx';
+import {
+  getStoredUid,
+  cacheGet,
+  cacheSet,
+  cacheInvalidate,
+} from '../../utils/cache.js';
 export default function AdminModules({ courseId, onPageChange }) {
   const [course, setCourse] = useState(null);
   const [modules, setModules] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showNewModule, setShowNewModule] = useState(false);
+  // Click-outside dismiss for the create form (the toggle button lives
+  // inside the watched block so opening clicks don't instantly close).
+  const newModuleRef = useRef(null);
+  useEffect(() => {
+    if (!showNewModule) return;
+    function onPointerDown(event) {
+      if (newModuleRef.current && !newModuleRef.current.contains(event.target)) {
+        setShowNewModule(false);
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [showNewModule]);
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [expandedModules, setExpandedModules] = useState(() => new Set());
@@ -27,10 +46,19 @@ export default function AdminModules({ courseId, onPageChange }) {
   const [importantQuestions, setImportantQuestions] = useState([]);
   const [qaStats, setQaStats] = useState({ asked: [], reviewed: [], gaps: [], quality: null });
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    const uid = getStoredUid();
+    const cachedCourse = cacheGet(uid, `course:${courseId}`);
+    const cachedModules = cacheGet(uid, `modules:${courseId}`);
+    if (cachedCourse && cachedModules) {
+      setCourse(cachedCourse);
+      setModules(cachedModules);
+    } else {
+      setLoading(true);
+    }
     try {
       const courseRes = await getCourseById(courseId);
       setCourse(courseRes.data);
+      cacheSet(uid, `course:${courseId}`, courseRes.data);
       const modulesRes = await getModulesByCourse(courseId);
       try {
         const [importantRes, statsRes] = await Promise.all([
@@ -38,7 +66,7 @@ export default function AdminModules({ courseId, onPageChange }) {
           getCourseQaStats(courseId),
         ]);
         setImportantQuestions(importantRes.data || []);
-        setQaStats(statsRes.data || { asked: [], reviewed: [] });
+        setQaStats(statsRes.data || { asked: [], reviewed: [], gaps: [], quality: null });
       } catch {
         // rag service down — rosters and modules below still render.
         setImportantQuestions([]);
@@ -46,14 +74,14 @@ export default function AdminModules({ courseId, onPageChange }) {
       }
       // Documents already arrive populated on each module — the card
       // expands to file names with clickable links, zero extra requests.
-      setModules(
-        (modulesRes.data || []).map((mod) => ({
-          ...mod,
-          documents: mod.documents || [],
-        })),
-      );
+      const fresh = (modulesRes.data || []).map((mod) => ({
+        ...mod,
+        documents: mod.documents || [],
+      }));
+      setModules(fresh);
+      cacheSet(uid, `modules:${courseId}`, fresh);
     } catch (err) {
-      setError(err.message);
+      if (!cachedCourse || !cachedModules) setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -87,31 +115,75 @@ export default function AdminModules({ courseId, onPageChange }) {
       setSubmitting(false);
     }
   }
-  async function handleDeleteModule(mod, event) {
+  // Pending danger action for the custom confirm dialog (replaces the
+  // browser's window.confirm). { title, message, run } | null.
+  const [confirm, setConfirm] = useState(null);
+  async function runConfirm() {
+    const action = confirm?.run;
+    setConfirm(null);
+    if (action) await action();
+  }
+  function handleDeleteModule(mod, event) {
     event.stopPropagation();
-    const confirmed = window.confirm(
-      `Delete "${mod.title}"? This cannot be undone. Documents inside it will not be deleted automatically.`,
-    );
-    if (!confirmed) return;
+    setConfirm({
+      title: `Delete "${mod.title}"?`,
+      message: 'This cannot be reverted back.',
+      run: async () => {
+        const previous = modules;
+        setModules((old) => old.filter((m) => m._id !== mod._id));
+        try {
+          await deleteModule(mod._id);
+          cacheInvalidate(getStoredUid(), `modules:${courseId}`);
+        } catch (err) {
+          setModules(previous);
+          setError(err.message);
+        }
+      },
+    });
+  }
+  // Optimistic member removal: the roster row vanishes instantly and
+  // the request runs behind; failure restores the exact previous course.
+  // No list refetch — the local state IS the update.
+  async function handleRemoveMember(member) {
+    const previous = course;
+    setCourse((old) => {
+      if (!old) return old;
+      const without = (list) => (list || []).filter((m) => (m._id || m) !== member._id);
+      return { ...old, students: without(old.students), tas: without(old.tas) };
+    });
     try {
-      await deleteModule(mod._id);
-      await loadAll();
+      await removeCourseMember(course._id, member._id);
+      cacheInvalidate(getStoredUid(), `course:${course._id}`);
     } catch (err) {
+      setCourse(previous);
       setError(err.message);
     }
   }
-  async function handleDeleteDocument(doc, event) {
+  function handleDeleteDocument(doc, event) {
     event.stopPropagation();
-    const confirmed = window.confirm(
-      `Delete "${doc.title}"? The file and its indexed RAG content will be removed.`,
-    );
-    if (!confirmed) return;
-    try {
-      await deleteDocument(doc._id);
-      await loadAll();
-    } catch (err) {
-      setError(err.message);
-    }
+    setConfirm({
+      title: `Delete "${doc.title}"?`,
+      message: 'This cannot be reverted back.',
+      run: async () => {
+        const previous = modules;
+        setModules((old) =>
+          old.map((m) => ({
+            ...m,
+            documents: (m.documents || []).filter((d) => {
+              const id = d._id || d;
+              return id !== doc._id;
+            }),
+          })),
+        );
+        try {
+          await deleteDocument(doc._id);
+          cacheInvalidate(getStoredUid(), `modules:${courseId}`);
+        } catch (err) {
+          setModules(previous);
+          setError(err.message);
+        }
+      },
+    });
   }
   if (!courseId) {
     return (
@@ -140,6 +212,7 @@ export default function AdminModules({ courseId, onPageChange }) {
       >
         ← Back to courses
       </button>
+      <div ref={newModuleRef}>
       <div className="mt-4 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <div className="text-sm font-medium uppercase tracking-[0.12em] text-body">
@@ -183,6 +256,7 @@ export default function AdminModules({ courseId, onPageChange }) {
           </button>
         </form>
       )}
+      </div>
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {modules.length === 0 && (
           <p className="text-sm text-body">
@@ -286,6 +360,7 @@ export default function AdminModules({ courseId, onPageChange }) {
         members={course?.students || []}
         courseId={course?._id}
         onChanged={loadAll}
+        onRemoveMember={handleRemoveMember}
         setError={setError}
       />
       <RosterSection
@@ -293,6 +368,7 @@ export default function AdminModules({ courseId, onPageChange }) {
         members={course?.tas || []}
         courseId={course?._id}
         onChanged={loadAll}
+        onRemoveMember={handleRemoveMember}
         setError={setError}
       />
       <ImportantQuestionsSection
@@ -302,6 +378,14 @@ export default function AdminModules({ courseId, onPageChange }) {
       <AnswerQualitySection quality={qaStats.quality} />
       <ContentGapsSection gaps={qaStats.gaps || []} modules={modules} />
       <CourseActivitySection stats={qaStats} />
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          onConfirm={runConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }
@@ -492,8 +576,14 @@ function CourseActivitySection({ stats }) {
 // Removing pulls the member out of the course (instantly revoking access,
 // which is membership-based everywhere) and purges their Q&A history in
 // this course's modules.
-function RosterSection({ title, members, courseId, onChanged, setError }) {
+function RosterSection({ title, members, onRemoveMember }) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(null);
+  async function runConfirmRemove() {
+    const action = confirmRemove?.run;
+    setConfirmRemove(null);
+    if (action) await action();
+  }
   // Ascending roll-no. order (numeric-aware, so "2" < "10"); members
   // without a roll no. sink to the bottom instead of floating randomly.
   const sorted = useMemo(
@@ -509,16 +599,11 @@ function RosterSection({ title, members, courseId, onChanged, setError }) {
     [members],
   );
   async function handleRemove(member) {
-    const confirmed = window.confirm(
-      `Remove "${member.fullName || member.username}" from this course? They will lose access immediately, and their Q&A history in this course will be deleted.`,
-    );
-    if (!confirmed) return;
-    try {
-      await removeCourseMember(courseId, member._id);
-      await onChanged();
-    } catch (err) {
-      setError(err.message);
-    }
+    setConfirmRemove({
+      title: `Remove "${member.fullName || member.username}"?`,
+      message: 'This cannot be reverted back.',
+      run: () => onRemoveMember(member),
+    });
   }
   return (
     <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
@@ -582,6 +667,15 @@ function RosterSection({ title, members, courseId, onChanged, setError }) {
             </table>
           </div>
         ))}
+      {confirmRemove && (
+        <ConfirmDialog
+          title={confirmRemove.title}
+          message={confirmRemove.message}
+          confirmLabel="Remove"
+          onConfirm={runConfirmRemove}
+          onCancel={() => setConfirmRemove(null)}
+        />
+      )}
     </div>
   );
 }

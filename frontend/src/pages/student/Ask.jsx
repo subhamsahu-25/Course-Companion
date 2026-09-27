@@ -10,7 +10,7 @@ import {
 import ThreadChat from '../../components/ThreadChat.jsx';
 import { LoadingDots } from '../../components/ui/primitives.jsx';
 import { Select } from '../../components/ui/select.jsx';
-export default function StudentAsk({ initialModuleId, initialThread, onPageChange }) {
+export default function StudentAsk({ initialModuleId, initialThread, entryModuleId, onPageChange }) {
   // Follow-up mode renders the chatbot thread instead of the ask form —
   // the thread's module carries the scope, so no dropdowns needed.
   const threadMode = Boolean(initialThread?.threadId);
@@ -160,7 +160,7 @@ export default function StudentAsk({ initialModuleId, initialThread, onPageChang
   return (
     <div>
       <div>
-        {threadMode && (
+        {threadMode ? (
           <button
             onClick={() =>
               onPageChange &&
@@ -173,6 +173,20 @@ export default function StudentAsk({ initialModuleId, initialThread, onPageChang
           >
             ← Back to history
           </button>
+        ) : (
+          entryModuleId && (
+            <button
+              onClick={() =>
+                onPageChange &&
+                onPageChange('student-modules', {
+                  courseId: selectedCourseId,
+                })
+              }
+              className="mb-3 rounded-md border border-border px-3 py-1.5 text-sm text-body transition-all duration-200 ease-out hover:bg-white/10 hover:text-heading hover:opacity-80 active:scale-[0.99]"
+            >
+              ← Back to modules
+            </button>
+          )
         )}
         <h1 className="mt-1 font-sans text-[34px] text-heading">
           {threadMode ? 'Ask follow-up questions' : 'Ask a question'}

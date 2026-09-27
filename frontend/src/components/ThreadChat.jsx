@@ -18,21 +18,16 @@ function AnswerBubble({ message }) {
     return (
       <div className="flex justify-start">
         <div
-          className="flex flex-col items-start gap-2 rounded-2xl rounded-tl-md border border-border bg-bg px-4 py-3"
-          aria-label="Getting your answer ready"
+          className="flex items-center gap-1.5 rounded-2xl rounded-tl-md border border-border bg-bg px-4 py-3"
+          aria-label="Answering…"
         >
-          <div className="flex items-center gap-1.5">
-            {[0, 1, 2].map((dot) => (
-              <span
-                key={dot}
-                style={{ animationDelay: `${dot * 180}ms` }}
-                className="typing-dot size-2 rounded-full bg-body"
-              />
-            ))}
-          </div>
-          <span className="text-xs font-medium text-body">
-            Getting your answer ready
-          </span>
+          {[0, 1, 2].map((dot) => (
+            <span
+              key={dot}
+              style={{ animationDelay: `${dot * 180}ms` }}
+              className="typing-dot size-2 rounded-full bg-body"
+            />
+          ))}
         </div>
       </div>
     );

@@ -6,6 +6,7 @@ import {
   getDocumentFileUrl,
 } from '../../api/client.js';
 import { FileIcon, LoadingState } from '../../components/ui/primitives.jsx';
+import { getStoredUid, cacheGet, cacheSet } from '../../utils/cache.js';
 
 export default function StudentModules({ courseId, onPageChange }) {
   const [course, setCourse] = useState(null);
@@ -27,23 +28,32 @@ export default function StudentModules({ courseId, onPageChange }) {
   }
 
   const loadAll = useCallback(async () => {
-    setLoading(true);
+    const uid = getStoredUid();
+    const cachedCourse = cacheGet(uid, `course:${courseId}`);
+    const cachedModules = cacheGet(uid, `modules:${courseId}`);
+    if (cachedCourse && cachedModules) {
+      setCourse(cachedCourse);
+      setModules(cachedModules);
+    } else {
+      setLoading(true);
+    }
     try {
       const courseRes = await getCourseById(courseId);
       setCourse(courseRes.data);
+      cacheSet(uid, `course:${courseId}`, courseRes.data);
 
       const modulesRes = await getModulesByCourse(courseId);
 
       // getModulesByCourse already populates each module's documents, so
       // file names + open links render with zero extra requests.
-      setModules(
-        (modulesRes.data || []).map((mod) => ({
-          ...mod,
-          documents: mod.documents || [],
-        })),
-      );
+      const fresh = (modulesRes.data || []).map((mod) => ({
+        ...mod,
+        documents: mod.documents || [],
+      }));
+      setModules(fresh);
+      cacheSet(uid, `modules:${courseId}`, fresh);
     } catch (err) {
-      setError(err.message);
+      if (!cachedCourse || !cachedModules) setError(err.message);
     } finally {
       setLoading(false);
     }

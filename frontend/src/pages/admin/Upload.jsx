@@ -8,15 +8,23 @@ import {
   deleteDocument,
   getDocumentFileUrl,
 } from '../../api/client.js';
-import { FileIcon, LoadingDots, LoadingState } from '../../components/ui/primitives.jsx';
+import { ConfirmDialog, FileIcon, LoadingDots, LoadingState } from '../../components/ui/primitives.jsx';
 import { Select } from '../../components/ui/select.jsx';
+import {
+  getStoredUid,
+  cacheGet,
+  cacheSet,
+  cacheInvalidate,
+} from '../../utils/cache.js';
 
 // Rough indexing estimate so the instructor sees a remaining-time hint
-// while the RAG service chunks + embeds. Real time varies with RAG load,
-// so this is a floor estimate that counts up, never a fake promise.
+// while the RAG service extracts, chunks, embeds, and captions. The bill
+// behind one file: text extraction + N embedding calls + overview LLM
+// call + up to 8 figure captions — so this scales steeply with size and
+// the display below stops counting down past it (never "~0s left" lies).
 function estimateIndexSeconds(file) {
   const mb = file.size / 1024 / 1024;
-  return Math.min(180, Math.max(10, Math.round(8 + mb * 5)));
+  return Math.min(300, Math.max(20, Math.round(20 + mb * 10)));
 }
 export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
   const [courses, setCourses] = useState([]);
@@ -44,6 +52,26 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
   }, []);
   const loadModules = useCallback(
     async ({ ignore } = {}) => {
+      const uid = getStoredUid();
+      const cachedCourses = cacheGet(uid, 'courses');
+      const cachedFlat = cacheGet(uid, 'modules-flat');
+      const applyModules = (coursesData, flat) => {
+        setCourses(coursesData);
+        setModules(flat);
+        // Prefer the module the admin actually clicked "+ upload material"
+        // on (plus its course) — otherwise first course + its first module.
+        const initial = flat.find((m) => m._id === initialModuleId);
+        const courseId = initial
+          ? initial.courseId
+          : coursesData[0]?._id || '';
+        setSelectedCourse(courseId);
+        const inCourse = flat.filter((m) => m.courseId === courseId);
+        setSelectedModule(initial ? initial._id : inCourse[0]?._id || '');
+      };
+      if (cachedCourses && cachedFlat) {
+        if (ignore?.()) return;
+        applyModules(cachedCourses, cachedFlat);
+      }
       try {
         const [coursesRes, modulesRes] = await Promise.all([
           getCourses(),
@@ -56,17 +84,9 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
           courseId: m.course?._id || m.course,
         }));
         if (ignore?.()) return;
-        setCourses(coursesRes.data);
-        setModules(flat);
-        // Prefer the module the admin actually clicked "+ upload material"
-        // on (plus its course) — otherwise first course + its first module.
-        const initial = flat.find((m) => m._id === initialModuleId);
-        const courseId = initial
-          ? initial.courseId
-          : coursesRes.data[0]?._id || '';
-        setSelectedCourse(courseId);
-        const inCourse = flat.filter((m) => m.courseId === courseId);
-        setSelectedModule(initial ? initial._id : inCourse[0]?._id || '');
+        applyModules(coursesRes.data, flat);
+        cacheSet(uid, 'courses', coursesRes.data);
+        cacheSet(uid, 'modules-flat', flat);
       } catch (err) {
         if (ignore?.()) return;
         setError(err.message);
@@ -80,14 +100,18 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
         setDocuments([]);
         return;
       }
-      setLoadingDocs(true);
+      const uid = getStoredUid();
+      const cached = cacheGet(uid, `documents:${selectedModule}`);
+      if (cached) setDocuments(cached);
+      else setLoadingDocs(true);
       try {
         const res = await getDocumentsByModule(selectedModule);
         if (ignore?.()) return;
         setDocuments(res.data);
+        cacheSet(uid, `documents:${selectedModule}`, res.data);
       } catch (err) {
         if (ignore?.()) return;
-        setError(err.message);
+        if (!cached) setError(err.message);
       } finally {
         if (!ignore?.()) setLoadingDocs(false);
       }
@@ -194,15 +218,30 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
       setUploading(false);
     }
   }
-  async function handleDeleteDocument(doc) {
-    const confirmed = window.confirm(`Delete "${doc.title}"?`);
-    if (!confirmed) return;
-    try {
-      await deleteDocument(doc._id);
-      await loadDocuments();
-    } catch (err) {
-      setError(err.message);
-    }
+  // Pending danger action for the custom confirm dialog (replaces the
+  // browser's window.confirm). { title, message, run } | null.
+  const [confirm, setConfirm] = useState(null);
+  async function runConfirm() {
+    const action = confirm?.run;
+    setConfirm(null);
+    if (action) await action();
+  }
+  function handleDeleteDocument(doc) {
+    setConfirm({
+      title: `Delete "${doc.title}"?`,
+      message: 'This cannot be reverted back.',
+      run: async () => {
+        const previous = documents;
+        setDocuments((old) => old.filter((d) => d._id !== doc._id));
+        try {
+          await deleteDocument(doc._id);
+          cacheInvalidate(getStoredUid(), `documents:${selectedModule}`);
+        } catch (err) {
+          setDocuments(previous);
+          setError(err.message);
+        }
+      },
+    });
   }
 
   // Bar position: upload bytes fill 0→70%, RAG processing eases 70→95%
@@ -217,6 +256,10 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
             70 + (progress.elapsed / Math.max(1, progress.estimate)) * 25,
           ),
         );
+  // Countdown while under estimate; past it, admit the overrun with the
+  // live elapsed clock instead of a "~0s left" lie.
+  const overEstimate =
+    !!progress && progress.elapsed > progress.estimate;
   const remainingSecs = progress
     ? Math.max(0, progress.estimate - progress.elapsed)
     : 0;
@@ -372,11 +415,12 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
                 style={{ width: `${displayPercent}%` }}
               />
             </div>
-            <div className="mt-2 flex items-center gap-2 text-xs text-body">
-              <LoadingDots />
+            <div className="mt-2 text-xs text-body">
               {progress.phase === 'uploading'
                 ? 'Uploading file…'
-                : `RAG is chunking this file for search… ~${remainingSecs}s left (${progress.elapsed}s elapsed)`}
+                : overEstimate
+                  ? `Still working on it… (${progress.elapsed}s elapsed — larger files take longer)`
+                  : `RAG is chunking this file for search… ~${remainingSecs}s left (${progress.elapsed}s elapsed)`}
             </div>
           </div>
         )}
@@ -428,6 +472,14 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
             </div>
           )}
         </div>
+      )}
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          onConfirm={runConfirm}
+          onCancel={() => setConfirm(null)}
+        />
       )}
     </div>
   );

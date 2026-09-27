@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react';
 import { getCourses, getMyModules } from '../../api/client.js';
 import { LoadingState } from '../../components/ui/primitives.jsx';
+import { getStoredUid, cacheGet, cacheSet } from '../../utils/cache.js';
 
 export default function StudentCourses({
   onPageChange,
@@ -15,7 +16,14 @@ export default function StudentCourses({
     loadCourses();
   }, []);
 
+  // Stale-while-revalidate: cached catalog renders instantly (no
+  // loading flash), then the network refreshes it underneath. Cache is
+  // per-user and wiped on logout — see utils/cache.js.
   async function loadCourses() {
+    const uid = getStoredUid();
+    const cached = cacheGet(uid, 'courses');
+    if (cached) setCourses(cached);
+    else setLoading(true);
     try {
       const [coursesRes, modulesRes] = await Promise.all([
         getCourses(),
@@ -28,14 +36,16 @@ export default function StudentCourses({
         counts[cid] = (counts[cid] || 0) + 1;
       }
 
-      setCourses(
-        coursesRes.data.map((course) => ({
-          ...course,
-          moduleCount: counts[course._id] || 0,
-        })),
-      );
+      const fresh = coursesRes.data.map((course) => ({
+        ...course,
+        moduleCount: counts[course._id] || 0,
+      }));
+      setCourses(fresh);
+      cacheSet(uid, 'courses', fresh);
     } catch (err) {
-      setError(err.message);
+      // A failed background refresh over a cache hit stays silent — the
+      // stale list is already on screen. Only a cold failure surfaces.
+      if (!cached) setError(err.message);
     } finally {
       setLoading(false);
     }

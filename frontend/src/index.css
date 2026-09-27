@@ -46,7 +46,7 @@ select {
     transform: translateY(0);
   }
   30% {
-    transform: translateY(-8px);
+    transform: translateY(-6px);
   }
 }
 

@@ -108,6 +108,46 @@ export function LoadingState({ message, className, compact = false }) {
     </div>
   );
 }
+// Danger confirm dialog — replaces window.confirm everywhere so deletes
+// speak the app's font, colors, and motion. Backdrop click and Cancel
+// dismiss; the confirm button runs `onConfirm` (destructive, red).
+export function ConfirmDialog({
+  title,
+  message,
+  confirmLabel = 'Delete',
+  onConfirm,
+  onCancel,
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-black/60" onClick={onCancel} />
+      <div className="relative w-full max-w-sm rounded-xl border border-border bg-surface p-6 shadow-xl">
+        <h2 className="text-center font-sans text-lg font-semibold text-heading">
+          {title}
+        </h2>
+        {message && (
+          <p className="mt-2 text-center text-sm leading-6 text-body">{message}</p>
+        )}
+        <div className="mt-5 flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="rounded-xl px-5 py-2.5 text-sm font-medium text-body hover:bg-white/10 hover:text-heading hover:opacity-80"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-out hover:bg-red-600 active:scale-[0.98]"
+          >
+            {confirmLabel}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 export function Input({ className, ...props }) {
   return (
     <input

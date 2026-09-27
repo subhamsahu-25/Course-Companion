@@ -1,5 +1,12 @@
 // frontend/src/pages/admin/Courses.jsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import { ConfirmDialog } from '../../components/ui/primitives.jsx';
+import {
+  getStoredUid,
+  cacheGet,
+  cacheSet,
+  cacheInvalidate,
+} from '../../utils/cache.js';
 import { LoadingState } from '../../components/ui/primitives.jsx';
 import {
   getCourses,
@@ -15,6 +22,19 @@ export default function AdminCourses({ onPageChange }) {
   const [showNewCourse, setShowNewCourse] = useState(false);
   const [newCourseTitle, setNewCourseTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  // Click-outside dismiss for the create form (the toggle button lives
+  // inside the watched block so opening clicks don't instantly close).
+  const newCourseRef = useRef(null);
+  useEffect(() => {
+    if (!showNewCourse) return;
+    function onPointerDown(event) {
+      if (newCourseRef.current && !newCourseRef.current.contains(event.target)) {
+        setShowNewCourse(false);
+      }
+    }
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => document.removeEventListener('pointerdown', onPointerDown);
+  }, [showNewCourse]);
   // Which course's code was just copied (icon-only button, no text) —
   // shows a brief "Copied" hint next to it.
   const [copiedId, setCopiedId] = useState(null);
@@ -56,7 +76,10 @@ export default function AdminCourses({ onPageChange }) {
     loadCourses();
   }, []);
   async function loadCourses() {
-    setLoading(true);
+    const uid = getStoredUid();
+    const cached = cacheGet(uid, 'courses');
+    if (cached) setCourses(cached);
+    else setLoading(true);
     try {
       const [coursesRes, modulesRes] = await Promise.all([
         getCourses(),
@@ -67,14 +90,14 @@ export default function AdminCourses({ onPageChange }) {
         const cid = mod.course?._id || mod.course;
         counts[cid] = (counts[cid] || 0) + 1;
       }
-      setCourses(
-        coursesRes.data.map((course) => ({
-          ...course,
-          moduleCount: counts[course._id] || 0,
-        })),
-      );
+      const fresh = coursesRes.data.map((course) => ({
+        ...course,
+        moduleCount: counts[course._id] || 0,
+      }));
+      setCourses(fresh);
+      cacheSet(uid, 'courses', fresh);
     } catch (err) {
-      setError(err.message);
+      if (!cached) setError(err.message);
     } finally {
       setLoading(false);
     }
@@ -105,24 +128,45 @@ export default function AdminCourses({ onPageChange }) {
       setError(err.message);
     }
   }
-  async function handleDelete(course, event) {
+  // Pending danger action for the custom confirm dialog (replaces the
+  // browser's window.confirm). { title, message, run } | null.
+  const [confirm, setConfirm] = useState(null);
+  async function runConfirm() {
+    const action = confirm?.run;
+    setConfirm(null);
+    if (action) await action();
+  }
+  function handleDelete(course, event) {
     event.stopPropagation();
-    const confirmed = window.confirm(
-      `Delete "${course.title}"? This cannot be undone. Modules and documents inside it will not be deleted automatically.`,
-    );
-    if (!confirmed) return;
-    try {
-      await deleteCourse(course._id);
-      await loadCourses();
-    } catch (err) {
-      setError(err.message);
-    }
+    setConfirm({
+      title: `Delete "${course.title}"?`,
+      message: 'This cannot be reverted back.',
+      // Optimistic: the card leaves instantly, the request runs behind.
+      // Failure restores the exact previous list — no refetch needed.
+      run: async () => {
+        const previous = courses;
+        setCourses((old) => old.filter((c) => c._id !== course._id));
+        try {
+          await deleteCourse(course._id);
+          // Optimistic path skips the refetch, so evict the stale cache
+          // entry explicitly — otherwise the deleted course flashes back
+          // on next visit before the background refresh corrects it.
+          cacheInvalidate(getStoredUid(), 'courses');
+        } catch (err) {
+          setCourses(previous);
+          setError(err.message);
+        }
+      },
+    });
   }
   if (loading) {
     return <LoadingState message="Getting the courses ready for you" />;
   }
   return (
     <div>
+      {/* Clicking anywhere outside this block (other than the input and
+          Create) dismisses the form instantly. */}
+      <div ref={newCourseRef}>
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="mt-1 font-sans text-[36px] text-heading">Courses</h1>
@@ -165,6 +209,7 @@ export default function AdminCourses({ onPageChange }) {
           </button>
         </form>
       )}
+      </div>
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {courses.length === 0 && (
           <p className="text-sm text-body">
@@ -232,6 +277,14 @@ export default function AdminCourses({ onPageChange }) {
           </div>
         ))}
       </div>
+      {confirm && (
+        <ConfirmDialog
+          title={confirm.title}
+          message={confirm.message}
+          onConfirm={runConfirm}
+          onCancel={() => setConfirm(null)}
+        />
+      )}
     </div>
   );
 }

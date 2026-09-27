@@ -29,6 +29,11 @@ import AdminUpload from './pages/admin/Upload.jsx';
 
 import JoinCourse from './pages/JoinCourse.jsx';
 import { LoadingState } from './components/ui/primitives.jsx';
+import {
+  setStoredUid,
+  getStoredUid,
+  clearUserCache,
+} from './utils/cache.js';
 
 function defaultPageForRole(role) {
   if (role === 'ta') return 'ta-review';
@@ -66,6 +71,10 @@ export default function App() {
   // with context (Back-to-history, "view in history"). Set ONLY on such
   // jumps — direct sidebar visits pass nothing and start blank.
   const [historyContext, setHistoryContext] = useState(null);
+  // Ask entry context: the module the student came from (if any). The
+  // shared selectedModuleId goes stale across sidebar visits, so the
+  // Back-to-modules button keys off this explicit value instead.
+  const [askEntryModule, setAskEntryModule] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -87,6 +96,7 @@ export default function App() {
         if (cancelled) return;
         clearTimeout(timeout);
         if (res && res.data) {
+          setStoredUid(res.data?._id || null);
           setUser(res.data);
           setCurrentPage(defaultPageForRole(res.data.role));
           setAuthStatus('authenticated');
@@ -100,6 +110,7 @@ export default function App() {
           if (cancelled) return;
           clearTimeout(timeout);
           if (res && res.data) {
+            setStoredUid(res.data?._id || null);
             setUser(res.data);
             setCurrentPage(defaultPageForRole(res.data.role));
             setAuthStatus('authenticated');
@@ -140,6 +151,7 @@ export default function App() {
   }, []);
 
   function handleLogin(loggedInUser) {
+    setStoredUid(loggedInUser?._id || null);
     setUser(loggedInUser);
     setAuthNotice(null);
     setAuthStatus('authenticated');
@@ -153,6 +165,11 @@ export default function App() {
       // even if the network call fails, still clear local state so the
       // user isn't stuck on a page that assumes they're logged in
     }
+    // Privacy first: wipe this user's cached catalog data so nothing
+    // personal survives on shared machines. Read the uid before clearing
+    // state — after setUser(null) it's gone.
+    clearUserCache(getStoredUid());
+    setStoredUid(null);
     setUser(null);
     setAuthStatus('anonymous');
     setAuthView('login');
@@ -177,6 +194,9 @@ export default function App() {
       });
     } else {
       setFollowUp(null);
+    }
+    if (page === 'student-ask') {
+      setAskEntryModule(params.moduleId || null);
     }
     if (page === 'student-history' && (params.courseId || params.moduleId)) {
       setHistoryContext({
@@ -210,6 +230,7 @@ export default function App() {
         <StudentAsk
           initialModuleId={selectedModuleId}
           initialThread={followUp}
+          entryModuleId={askEntryModule}
           onPageChange={changePage}
         />
       );
