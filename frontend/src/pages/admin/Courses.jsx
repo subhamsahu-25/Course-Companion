@@ -177,7 +177,7 @@ export default function AdminCourses({ onPageChange }) {
             onClick={() =>
               onPageChange('admin-modules', { courseId: course._id })
             }
-            className="cursor-pointer rounded-xl border border-border bg-accent p-6 text-left shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-hover hover:shadow-md"
+            className="cursor-pointer rounded-xl border border-border bg-white/5 p-6 text-left shadow-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-accent-hover hover:shadow-md"
           >
             <div className="flex items-start justify-between gap-3">
               <div className="text-[19px] font-semibold text-heading">
