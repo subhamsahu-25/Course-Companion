@@ -40,7 +40,7 @@ export default function StudentDashboard({ onPageChange }) {
         </div>
       )}
       {loading ? (
-        <LoadingState message="Getting your dashboard ready" compact />
+        <LoadingState message="Getting your dashboard ready" />
       ) : (
         <div className="mt-8 grid gap-5 sm:grid-cols-3">
           <div className="rounded-2xl bg-surface p-6 text-white shadow-sm">
