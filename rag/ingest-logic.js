@@ -388,6 +388,14 @@ export async function ingestGoldenAnswer({ question, answer, reviewId, moduleId,
       [answer],
       [{ source: "TA-verified answer" }]
    );
+   // Plus the question itself as a match target: related-question search
+   // is question-to-question (strong signal), while answer chunks match
+   // question-to-answer (weak — question words rarely appear in answers).
+   // Without this, near-random answers surface as "related".
+   const questionChunk = {
+      pageContent: `Question: ${question}`,
+      metadata: { source: "TA-verified answer" },
+   };
 
    const documentId = `golden:${reviewId}`;
    await removeDocumentChunks(documentId);
@@ -409,8 +417,16 @@ export async function ingestGoldenAnswer({ question, answer, reviewId, moduleId,
    await vectorStore.addDocuments(
       chunks.map((c) => ({ pageContent: c.pageContent, metadata }))
    );
+   // The question chunk carries the same scope/rating, flagged so related
+   // search can prefer question-to-question matches.
+   await vectorStore.addDocuments([
+      {
+         pageContent: questionChunk.pageContent,
+         metadata: { ...metadata, questionChunk: true },
+      },
+   ]);
 
-   return { skipped: false, chunksIngested: chunks.length };
+   return { skipped: false, chunksIngested: chunks.length + 1 };
 }
 
 // Bulk seed path — reads every PDF in ./course_materials and upserts each

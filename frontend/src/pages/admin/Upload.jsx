@@ -58,15 +58,14 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
       const applyModules = (coursesData, flat) => {
         setCourses(coursesData);
         setModules(flat);
-        // Prefer the module the admin actually clicked "+ upload material"
-        // on (plus its course) — otherwise first course + its first module.
+        // Preselect only on an explicit entry (module's "+ upload
+        // material"). Independent visits start blank — the instructor
+        // picks course + module deliberately.
+        if (!initialModuleId) return;
         const initial = flat.find((m) => m._id === initialModuleId);
-        const courseId = initial
-          ? initial.courseId
-          : coursesData[0]?._id || '';
-        setSelectedCourse(courseId);
-        const inCourse = flat.filter((m) => m.courseId === courseId);
-        setSelectedModule(initial ? initial._id : inCourse[0]?._id || '');
+        if (!initial) return;
+        setSelectedCourse(initial.courseId);
+        setSelectedModule(initial._id);
       };
       if (cachedCourses && cachedFlat) {
         if (ignore?.()) return;
@@ -265,7 +264,7 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
     : 0;
   return (
     <div>
-      {onPageChange && selectedCourse && (
+      {onPageChange && initialModuleId && (
         <button
           onClick={() =>
             onPageChange('admin-modules', { courseId: selectedCourse })
@@ -385,19 +384,21 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
             </div>
           </div>
         )}
-        <button
-          onClick={handleUpload}
-          disabled={!files.length || uploading || !selectedModule}
-          className="mt-6 rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {uploading ? (
-            <span className="inline-flex items-center gap-2">
-              <LoadingDots /> Uploading
-            </span>
-          ) : (
-            'Add to module'
-          )}
-        </button>
+        <div className="mt-6 flex justify-center">
+          <button
+            onClick={handleUpload}
+            disabled={!files.length || uploading || !selectedModule}
+            className="rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {uploading ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingDots /> Uploading
+              </span>
+            ) : (
+              'Add to module'
+            )}
+          </button>
+        </div>
         {progress && (
           <div className="mt-4 rounded-xl border border-border bg-white/5 p-4">
             <div className="flex items-center justify-between gap-3 text-sm">

@@ -47,6 +47,16 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
   // request per keystroke.
   const [related, setRelated] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  // Related answers render truncated with a "Read more" expander each.
+  const [expandedRelated, setExpandedRelated] = useState(() => new Set());
+  function toggleRelatedExpanded(id) {
+    setExpandedRelated((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   const relatedTimer = useRef(null);
   // All state updates live inside the timeout callback — updating state
   // synchronously in the effect body trips purity lint and fires per
@@ -281,17 +291,31 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
             </div>
             {!loadingRelated && (
               <ul className="mt-2 space-y-3">
-                {related.slice(0, 3).map((item) => (
-                  <li key={item.id}>
-                    <div className="text-sm font-semibold text-heading">
-                      {item.question}
-                    </div>
-                    <p className="mt-1 text-[13px] leading-5 text-body">
-                      {item.answer}
-                      {item.answer?.length >= 220 ? '…' : ''}
-                    </p>
-                  </li>
-                ))}
+                {related.slice(0, 3).map((item) => {
+                  const expanded = expandedRelated.has(item.id);
+                  const long = (item.answer?.length ?? 0) > 220;
+                  return (
+                    <li key={item.id}>
+                      <div className="text-sm font-semibold text-heading">
+                        {item.question}
+                      </div>
+                      <p className="mt-1 text-[13px] leading-5 text-body">
+                        {expanded || !long
+                          ? item.answer
+                          : `${item.answer.slice(0, 220)}…`}
+                      </p>
+                      {long && (
+                        <button
+                          type="button"
+                          onClick={() => toggleRelatedExpanded(item.id)}
+                          className="mt-1 text-xs font-medium text-body hover:underline hover:opacity-80"
+                        >
+                          {expanded ? 'Show less' : 'Read more'}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>

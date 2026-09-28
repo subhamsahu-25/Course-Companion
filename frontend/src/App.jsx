@@ -75,6 +75,9 @@ export default function App() {
   // shared selectedModuleId goes stale across sidebar visits, so the
   // Back-to-modules button keys off this explicit value instead.
   const [askEntryModule, setAskEntryModule] = useState(null);
+  // Upload entry context, same idea for instructors: only a jump carrying
+  // a module preselects course/module and shows Back-to-modules.
+  const [uploadEntryModule, setUploadEntryModule] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -205,6 +208,9 @@ export default function App() {
         setSelectedModuleId('');
       }
     }
+    if (page === 'admin-upload') {
+      setUploadEntryModule(params.moduleId || null);
+    }
     if (page === 'student-history' && (params.courseId || params.moduleId)) {
       setHistoryContext({
         courseId: params.courseId || '',
@@ -275,10 +281,10 @@ export default function App() {
 
       case 'admin-upload':
         return (
-          <AdminUpload
-            initialModuleId={selectedModuleId}
-            onPageChange={changePage}
-          />
+        <AdminUpload
+          initialModuleId={uploadEntryModule}
+          onPageChange={changePage}
+        />
         );
 
       case 'account':

@@ -166,16 +166,35 @@ const embeddings = new GoogleGenerativeAIEmbeddings({
     model: "gemini-embedding-001",
 });
 
-// Chat model is env-overridable (GEMINI_MODEL): gemini-3.6-flash is the
-// quality pick, but its free tier is only ~20 req/day — set
-// GEMINI_MODEL=gemini-3.1-flash-lite locally to test without burning
-// quota. The stay-close-to-source prompt carries over either way.
-const CHAT_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
-const llm = new ChatGoogleGenerativeAI({
-   apiKey: GEMINI_API_KEY,
-   model: CHAT_MODEL,
-   temperature: 0,
-});
+// Primary chat model (env-overridable). On quota/rate-limit failures the
+// draft automatically replays once against FALLBACK_MODEL instead of
+// dying — max quality while budget lasts, graceful degradation after.
+// Set GEMINI_MODEL=gemini-3.1-flash-lite to run cheap everywhere; leave
+// both unset for 3.6 primary with lite fallback.
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
+
+function buildChatModel(model) {
+   return new ChatGoogleGenerativeAI({
+      apiKey: GEMINI_API_KEY,
+      model,
+      temperature: 0,
+   });
+}
+
+const llm = buildChatModel(PRIMARY_MODEL);
+let fallbackLlm = null;
+function getFallbackLlm() {
+   if (!fallbackLlm) fallbackLlm = buildChatModel(FALLBACK_MODEL);
+   return fallbackLlm;
+}
+
+// True when the failure is quota/rate-limiting (worth replaying on the
+// fallback) as opposed to a real error (bad request, auth, network).
+function isQuotaError(error) {
+   if (error?.status === 429) return true;
+   return /429|quota|rate.?limit|exhausted|retry.?later/i.test(error?.message || "");
+}
 
 // 2. Connect to the existing vector collection.
 // Qdrant Cloud persists the vectors server-side, so unlike the old
@@ -357,13 +376,31 @@ async function generateDraftAnswer(item, { direct = false } = {}) {
             .join("\n\n");
         const context = [threadContext, golden, formatDocs(docs)].filter(Boolean).join("\n\n");
 
-        const ragChain = RunnableSequence.from([
-            direct ? directPromptTemplate : promptTemplate,
-            llm,
-            new StringOutputParser()
-        ]);
+        const buildChain = (model) =>
+            RunnableSequence.from([
+                direct ? directPromptTemplate : promptTemplate,
+                model,
+                new StringOutputParser()
+            ]);
 
-        const rawAnswer = await ragChain.invoke({ context, question: item.question });
+        let rawAnswer;
+        try {
+            rawAnswer = await buildChain(llm).invoke({ context, question: item.question });
+        } catch (primaryError) {
+            // Same prompt, cheaper model — only for quota failures and
+            // only when the fallback actually differs from primary.
+            if (FALLBACK_MODEL !== PRIMARY_MODEL && isQuotaError(primaryError)) {
+                console.error(
+                    `Primary model ${PRIMARY_MODEL} quota-hit for ${item._id}, replaying on ${FALLBACK_MODEL}.`
+                );
+                rawAnswer = await buildChain(getFallbackLlm()).invoke({
+                    context,
+                    question: item.question,
+                });
+            } else {
+                throw primaryError;
+            }
+        }
         const { answer: draftAnswer, sources } = splitAnswerAndSources(rawAnswer);
 
         item.draftAnswer = draftAnswer;
@@ -788,6 +825,11 @@ app.post('/review-queue/:id/important', async (req, res) => {
     });
 });
 
+// Minimum cosine similarity for a "related" suggestion. Question-to-
+// question matches score high; anything below this is noise wearing a
+// trenchcoat — previously unfiltered, hence the unrelated suggestions.
+const RELATED_MIN_SIMILARITY = 0.6;
+
 // Live "related answers" for the ask form: top golden matches in scope
 // with their verified answers attached, so students often find their
 // answer without submitting. Approved + servable-rated only — drafts and
@@ -805,16 +847,20 @@ app.get('/related-questions', async (req, res) => {
         const scored = await vectorStore.similaritySearchWithScore(q, k * 2, { must });
 
         // Several chunks can belong to one answer — keep each answer once,
-        // at its best score.
+        // at its best score. Question chunks (strong signal) outrank
+        // answer chunks before the floor applies, so a great paraphrase
+        // never loses to a mediocre answer-text overlap.
         const bestByReview = new Map();
         for (const [doc, score] of scored) {
+            if (score < RELATED_MIN_SIMILARITY) continue;
             const documentId = String(doc.metadata?.documentId ?? '');
             if (!documentId.startsWith('golden:')) continue;
             const reviewId = documentId.slice('golden:'.length);
-            if (!bestByReview.has(reviewId) || bestByReview.get(reviewId) > score) {
-                bestByReview.set(reviewId, score);
+            const boost = doc.metadata?.questionChunk === true ? 0.05 : 0;
+            const ranked = Math.min(1, score + boost);
+            if (!bestByReview.has(reviewId) || bestByReview.get(reviewId) < ranked) {
+                bestByReview.set(reviewId, ranked);
             }
-            if (bestByReview.size >= k) break;
         }
         if (bestByReview.size === 0) return res.json([]);
 
@@ -829,11 +875,14 @@ app.get('/related-questions', async (req, res) => {
                 .map((item) => ({
                     id: item._id.toString(),
                     question: item.question,
-                    answer: String(item.finalAnswer || '').slice(0, 220),
+                    // Full verified text (bounded) — the ask form
+                    // truncates with a "Read more" expander client-side.
+                    answer: String(item.finalAnswer || '').slice(0, 2000),
                     rating: item.rating ?? null,
                     score: bestByReview.get(item._id.toString()),
                 }))
                 .sort((a, b) => b.score - a.score)
+                .slice(0, k)
         );
     } catch (error) {
         console.error("Error fetching related questions:", error);
