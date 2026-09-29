@@ -9,6 +9,9 @@ import {
   forgotPassword as forgotPasswordRequest,
   getCurrentUser,
   uploadAvatar as uploadAvatarRequest,
+  getGeminiKeyStatus,
+  setGeminiKey as saveGeminiKey,
+  deleteGeminiKey as removeGeminiKey,
 } from '../api/client.js';
 import { LoadingDots, LoadingState } from '../components/ui/primitives.jsx';
 export default function Account() {
@@ -30,6 +33,53 @@ export default function Account() {
   const [accountEmail, setAccountEmail] = useState('');
   const [resetState, setResetState] = useState('idle'); // idle | sending | sent
   const [resetError, setResetError] = useState(null);
+  // ---- Gemini key (BYOK) state ----
+  const [keyStatus, setKeyStatus] = useState(null);
+  const [keyInput, setKeyInput] = useState('');
+  const [keyBusy, setKeyBusy] = useState(false);
+  const [keyMsg, setKeyMsg] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    getGeminiKeyStatus()
+      .then((res) => {
+        if (!cancelled) setKeyStatus(res.data || null);
+      })
+      .catch(() => {
+        if (!cancelled) setKeyStatus(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  async function handleSaveKey(event) {
+    event.preventDefault();
+    if (keyInput.trim().length < 10 || keyBusy) return;
+    setKeyBusy(true);
+    setKeyMsg(null);
+    try {
+      const res = await saveGeminiKey(keyInput.trim());
+      setKeyStatus(res.data || null);
+      setKeyInput('');
+      setKeyMsg({ tone: 'ok', text: res.message || 'Key saved.' });
+    } catch (err) {
+      setKeyMsg({ tone: 'error', text: err.message });
+    } finally {
+      setKeyBusy(false);
+    }
+  }
+  async function handleRemoveKey() {
+    if (keyBusy) return;
+    setKeyBusy(true);
+    setKeyMsg(null);
+    try {
+      await removeGeminiKey();
+      setKeyStatus({ present: false });
+    } catch (err) {
+      setKeyMsg({ tone: 'error', text: err.message });
+    } finally {
+      setKeyBusy(false);
+    }
+  }
   useEffect(() => {
     let cancelled = false;
     setProfileLoading(true);
@@ -295,6 +345,99 @@ export default function Account() {
           )}
         </button>
       </form>
+      {/* Same gate as signup: TA keys would fund nothing (no Ask UI,
+          no uploads), so the section hides for that role entirely. */}
+      {profile?.role !== 'ta' && (
+      <div className="mt-8 rounded-xl border border-border bg-surface p-6">
+        <h2 className="text-lg font-semibold text-heading">
+          Gemini API key
+        </h2>
+        <p className="mt-1 text-sm text-body">
+          {profile?.role === 'instructor' || profile?.role === 'admin'
+            ? 'Optional. Your key funds overview and figure-caption generation when you upload documents — shared quota stays the fallback. Stored encrypted, deletable anytime.'
+            : 'Optional. Your key funds your own premium answers (about 20 top-quality answers a day) — shared quota stays the fallback. Stored encrypted, used only for your questions, deletable anytime.'}
+        </p>
+        {keyStatus?.present ? (
+          <div className="mt-3 space-y-2 text-sm">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="rounded-full bg-white/10 px-3 py-1 font-mono text-xs text-heading">
+                {keyStatus.masked || '••••'}
+              </span>
+              <span
+                className={`rounded-full px-3 py-1 text-xs font-medium ${
+                  keyStatus.status === 'active'
+                    ? 'bg-green-100 text-green-700'
+                    : keyStatus.status === 'exhausted'
+                      ? 'bg-amber-100 text-amber-700'
+                      : 'bg-red-100 text-red-600'
+                }`}
+              >
+                {keyStatus.status === 'active'
+                  ? 'Active'
+                  : keyStatus.status === 'exhausted'
+                    ? 'Quota done — back tomorrow'
+                    : keyStatus.status || 'Unknown'}
+              </span>
+              {typeof keyStatus.usageToday === 'number' && (
+                <span className="text-xs text-body">
+                  {keyStatus.usageToday} used today
+                </span>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={handleRemoveKey}
+              disabled={keyBusy}
+              className="text-xs font-medium text-red-400/70 hover:text-red-400 hover:underline hover:opacity-80 disabled:opacity-60"
+            >
+              Remove key
+            </button>
+          </div>
+        ) : null}
+        <form onSubmit={handleSaveKey} className="mt-3 flex flex-col gap-2 sm:flex-row">
+          <input
+            type="password"
+            value={keyInput}
+            onChange={(e) => setKeyInput(e.target.value)}
+            placeholder={
+              keyStatus?.present ? 'Paste a new key to replace' : 'Paste your Gemini API key'
+            }
+            autoComplete="off"
+            className="min-w-0 flex-1 rounded-lg border border-border bg-bg p-3 font-mono text-sm text-heading outline-none placeholder:font-sans placeholder:text-body focus:border-accent"
+          />
+          <button
+            type="submit"
+            disabled={keyBusy || keyInput.trim().length < 10}
+            className="shrink-0 rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
+          >
+            {keyBusy ? (
+              <span className="inline-flex items-center gap-2">
+                <LoadingDots /> Saving
+              </span>
+            ) : keyStatus?.present ? (
+              'Replace key'
+            ) : (
+              'Save key'
+            )}
+          </button>
+        </form>
+        {keyMsg && (
+          <div
+            className={`mt-3 rounded-lg border p-3 text-sm ${
+              keyMsg.tone === 'ok'
+                ? 'border-green-200 bg-green-50 text-green-700'
+                : 'border-red-200 bg-red-50 text-red-700'
+            }`}
+          >
+            {keyMsg.text}
+          </div>
+        )}
+        <p className="mt-3 text-xs text-body">
+          Get one free at AI Studio (aistudio.google.com) → Get API key.
+          Never share it — anyone with it spends your quota.
+        </p>
+      </div>
+      )}
       <div className="mt-8 rounded-xl border border-border bg-surface p-6">
         <h2 className="text-lg font-semibold text-heading">
           Forgot your current password?

@@ -2,7 +2,6 @@ const studentLinks = [
   ['student-dashboard', 'Dashboard'],
   ['student-join', 'Join a course'],
   ['student-courses', 'Courses'],
-  ['student-ask', 'Ask a question'],
   ['student-history', 'History'],
 ];
 
@@ -13,7 +12,8 @@ const taLinks = [
 
 const adminLinks = [
   ['admin-courses', 'Courses'],
-  ['admin-upload', 'Upload material'],
+  ['admin-students', 'Manage students'],
+  ['admin-tas', 'Manage TAs'],
 ];
 
 export function linksForRole(role) {

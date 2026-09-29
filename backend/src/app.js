@@ -27,6 +27,7 @@ import documentRouter from "./routes/document.route.js";
 import questionRouter from "./routes/question.route.js";
 import answerRouter from "./routes/answer.route.js";
 import qaRouter from "./routes/qa.route.js";
+import geminiKeyRouter from "./routes/geminikey.route.js";
 
 app.use("/api/v1/auth", authRouter);
 app.use("/api/v1/courses", courseRouter);
@@ -35,6 +36,7 @@ app.use("/api/v1/documents", documentRouter);
 app.use("/api/v1/questions", questionRouter);
 app.use("/api/v1/answers", answerRouter);
 app.use("/api/v1/qa", qaRouter);
+app.use("/api/v1/users/me/gemini-key", geminiKeyRouter);
 
 app.get("/", (req, res) => {
    res.send("Hello ! This is my homepage")

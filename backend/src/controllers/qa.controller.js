@@ -6,6 +6,7 @@ import { Module } from "../models/module.model.js";
 import { Course } from "../models/course.model.js";
 import { User } from "../models/user.model.js";
 import { answerApprovedMailgenContent, sendEmail } from "../utils/mail.js";
+import { resolveHealthyUserKey, recordKeyUsage, syncKeyOutcome } from "../services/user-key.service.js";
 import * as ragService from "../services/rag.service.js";
 import { assertCourseAccess } from "../utils/course-access.js";
 
@@ -30,7 +31,18 @@ const askQuestion = asyncHandler(async (req, res) => {
    // It scopes the question's retrieval to this course's material, so one
    // course's documents can never answer another course's questions.
    const courseId = module.course._id.toString();
-   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId, courseId, threadId);
+   // BYOK funding: the asker's own key first (their quota), shared pool
+   // otherwise. Metered on supply (attempt made) — approximate by design,
+   // since fire-and-forget generation reports no synchronous outcome.
+   // Synchronous outcomes (direct answers) additionally sync key state.
+   const userKey = await resolveHealthyUserKey(req.user);
+   const result = await ragService.submitQuestion(req.user._id.toString(), question, moduleId, courseId, threadId, userKey);
+   if (userKey) {
+      recordKeyUsage(req.user._id.toString());
+      if (result?.fundedBy || result?.userKeyStatus) {
+         syncKeyOutcome(req.user._id.toString(), result.fundedBy, result.userKeyStatus);
+      }
+   }
    // Instant answers and direct follow-up answers skip review entirely —
    // say so plainly instead of pointing the student at a queue their
    // question never entered.
@@ -126,6 +138,14 @@ const rejectQuestion = asyncHandler(async (req, res) => {
    return res.status(200).json(new ApiResponse(200, result, "Answer rejected"));
 });
 
+// Retries generation for a stuck pending item whose draft failed. The new
+// draft lands on next queue refresh — nothing else about the item changes.
+const retryAnswer = asyncHandler(async (req, res) => {
+   const { id } = req.params;
+   const result = await ragService.retryAnswer(id);
+   return res.status(200).json(new ApiResponse(200, result, "Answer generation retried"));
+});
+
 // Toggles the calling TA's important mark on a question. Any TA (or admin)
 // may mark; unmarking is the same call again (checkbox semantics).
 const toggleImportant = asyncHandler(async (req, res) => {
@@ -196,6 +216,54 @@ const getRelatedQuestions = asyncHandler(async (req, res) => {
    return res.status(200).json(new ApiResponse(200, result, "Related questions fetched"));
 });
 
+// Shared-quota strain signal for the frontend nudge ("out of shared
+// answers — add your key"). Strained = a shared failure within the last
+// 6h; older blips and fresh restarts read as healthy.
+const getQuotaStatus = asyncHandler(async (req, res) => {
+   try {
+      const health = await ragService.getQuotaStatus();
+      const lastFailure = health?.sharedQuota?.lastFailureAt
+         ? new Date(health.sharedQuota.lastFailureAt).getTime()
+         : null;
+      const strained = lastFailure !== null && Date.now() - lastFailure < 6 * 3600 * 1000;
+      return res.status(200).json(new ApiResponse(200, { strained }, "Quota status fetched"));
+   } catch {
+      // Rag unreachable — no signal either way, never block the UI on it.
+      return res.status(200).json(new ApiResponse(200, { strained: false }, "Quota status fetched"));
+   }
+});
+
+// Saves a verified related answer into the student's own history (same
+// course + module). No generation, no review — the source already passed
+// both. Membership is checked on the module before anything is cloned.
+const saveAnswer = asyncHandler(async (req, res) => {
+   const { sourceId, moduleId } = req.body;
+   if (!sourceId) throw new ApiError(400, "sourceId is required");
+   if (!moduleId) throw new ApiError(400, "moduleId is required");
+
+   const module = await Module.findById(moduleId).populate("course");
+   if (!module) throw new ApiError(404, "Module not found");
+   assertCourseAccess(module.course, req.user);
+
+   const result = await ragService.saveAnswer(
+      req.user._id.toString(),
+      sourceId,
+      moduleId,
+      module.course._id.toString()
+   );
+   return res.status(200).json(new ApiResponse(200, result, "Answer saved to your history"));
+});
+
+// Removes one of the student's own saved/instant answers from history.
+// Ownership + auto-served checks live in the rag service; the controller
+// only forwards the authenticated identity (never trusted from body).
+const unsaveAnswer = asyncHandler(async (req, res) => {
+   const { requestId } = req.body;
+   if (!requestId) throw new ApiError(400, "requestId is required");
+   const result = await ragService.unsaveAnswer(req.user._id.toString(), requestId);
+   return res.status(200).json(new ApiResponse(200, result, "Saved answer removed"));
+});
+
 const getMyAnswer = asyncHandler(async (req, res) => {
    const { id } = req.params;
    const result = await ragService.getMyAnswer(id);
@@ -260,6 +328,10 @@ const getModuleHistory = asyncHandler(async (req, res) => {
 export {
    askQuestion,
    getRelatedQuestions,
+   saveAnswer,
+   unsaveAnswer,
+   retryAnswer,
+   getQuotaStatus,
    getReviewQueue,
    approveQuestion,
    rejectQuestion,

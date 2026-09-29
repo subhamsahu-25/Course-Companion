@@ -36,10 +36,11 @@ function getEmbeddings() {
 
 // Chat model shared by overview + figure captions. Env-overridable like
 // server.js (GEMINI_MODEL) so quota-constrained testing can drop to
-// flash-lite without code changes.
-function getChatModel() {
+// flash-lite without code changes. An explicit apiKey (the uploader's own,
+// passed per call) replaces the shared one — never stored, never logged.
+function getChatModel(apiKey = null) {
    return new ChatGoogleGenerativeAI({
-      apiKey: GEMINI_API_KEY,
+      apiKey: apiKey || GEMINI_API_KEY,
       model: process.env.GEMINI_MODEL || "gemini-3.6-flash",
       temperature: 0,
    });
@@ -56,7 +57,7 @@ function getChatModel() {
 const MAX_FIGURES = 8;
 const MIN_FIGURE_DIM = 200;
 
-async function captionAndChunkFigures(buffer, baseMetadata, vectorStore) {
+async function captionAndChunkFigures(buffer, baseMetadata, vectorStore, apiKey = null) {
    let parser;
    try {
       parser = new PDFParse({ data: buffer });
@@ -74,7 +75,7 @@ async function captionAndChunkFigures(buffer, baseMetadata, vectorStore) {
       }
       if (figures.length === 0) return 0;
 
-      const llm = getChatModel();
+      const llm = getChatModel(apiKey);
 
       let ingested = 0;
       for (const figure of figures) {
@@ -120,14 +121,14 @@ async function captionAndChunkFigures(buffer, baseMetadata, vectorStore) {
 // a failure here can never fail the ingest itself (callers treat null as
 // "no blurb"). Reads only the opening of the document: titles and
 // headings live up front, which is what an orientation blurb needs.
-async function generateOverview(pages) {
+async function generateOverview(pages, apiKey = null) {
    const head = pages
       .map((p) => p.text)
       .join("\n")
       .slice(0, 5000);
    if (head.trim().length < 200) return null;
 
-   const llm = getChatModel();
+   const llm = getChatModel(apiKey);
    const raw = await llm.invoke(
       "Summarize what the document below covers in 3-4 plain sentences, " +
       "so a student can decide whether to read it. Use the document's own " +
@@ -322,7 +323,7 @@ export async function removeScopeChunks({ moduleIds, courseId } = {}) {
 // so retrieval can be scoped to the asking student's course/module (see
 // scopeFilter + server.js's /submit-question) instead of searching every
 // course's material at once.
-export async function ingestSingleDocument({ buffer, filename, documentId, moduleId, courseId }) {
+export async function ingestSingleDocument({ buffer, filename, documentId, moduleId, courseId, userKey = null }) {
    if (!documentId) throw new Error("documentId is required");
    if (!buffer || !filename) throw new Error("buffer and filename are required");
 
@@ -352,14 +353,14 @@ export async function ingestSingleDocument({ buffer, filename, documentId, modul
    await vectorStore.addDocuments(chunks);
 
    // Figures/diagrams the text extractor can't see (best-effort, bounded).
-   const figureChunks = await captionAndChunkFigures(buffer, metadata, vectorStore);
+   const figureChunks = await captionAndChunkFigures(buffer, metadata, vectorStore, userKey);
 
    // Orientation blurb for the student portal — best-effort: an LLM outage
    // must never fail the ingest, worst case this document just shows no
    // blurb until re-uploaded.
    let overview = null;
    try {
-      overview = await generateOverview(pages);
+      overview = await generateOverview(pages, userKey);
    } catch (err) {
       console.error(`Overview generation failed for ${filename}:`, err.message);
    }

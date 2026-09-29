@@ -70,7 +70,34 @@ const userSchema = new Schema(
       },
       emailVerificationExpiry: {
          type: Date
-      }
+      },
+      // User-supplied Gemini API key (BYOK hybrid) — AES-256-GCM blob,
+      // NEVER plaintext. Funds that user's own premium answers; the
+      // shared quota stays the fallback. See utils/keyvault.js — this
+      // field must never leave the server (no API response, no logs).
+      geminiApiKeyCipher: {
+         type: String,
+         default: null,
+      },
+      geminiKeyStatus: {
+         type: String,
+         enum: ["active", "exhausted", "invalid", null],
+         default: null,
+      },
+      geminiKeyCooldownUntil: {
+         type: Date,
+         default: null,
+      },
+      // Approximate daily meter (our own call count — Google offers no
+      // per-key quota API). Resets when the calendar day rolls over.
+      geminiKeyUsageDate: {
+         type: String,
+         default: null,
+      },
+      geminiKeyUsageCount: {
+         type: Number,
+         default: 0,
+      },
    },
    {
       timestamps: true

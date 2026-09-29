@@ -12,6 +12,8 @@ import {
   getCurrentUser,
   refreshAccessToken,
   logout as logoutRequest,
+  setGeminiKey as savePendingGeminiKey,
+  getGeminiKeyStatus,
 } from './api/client.js';
 
 import StudentDashboard from './pages/student/Dashboard.jsx';
@@ -25,9 +27,11 @@ import TaHistory from './pages/ta/History.jsx';
 
 import AdminCourses from './pages/admin/Courses.jsx';
 import AdminModules from './pages/admin/Modules.jsx';
+import AdminRoster from './pages/admin/Roster.jsx';
 import AdminUpload from './pages/admin/Upload.jsx';
 
 import JoinCourse from './pages/JoinCourse.jsx';
+import Showcase from './pages/Showcase.jsx';
 import { LoadingState } from './components/ui/primitives.jsx';
 import {
   setStoredUid,
@@ -71,6 +75,19 @@ export default function App() {
   // with context (Back-to-history, "view in history"). Set ONLY on such
   // jumps — direct sidebar visits pass nothing and start blank.
   const [historyContext, setHistoryContext] = useState(null);
+  // Key prompt: shown after every sign-in while the account has no key.
+  // TAs excluded (no key UI exists for that role). Dismissal lasts the
+  // session only — next sign-in asks again until a key is saved.
+  const [keyPrompt, setKeyPrompt] = useState(false);
+  async function maybeKeyPrompt(user) {
+    if (!user || user.role === 'ta') return;
+    try {
+      const res = await getGeminiKeyStatus();
+      if (!res.data?.present) setKeyPrompt(true);
+    } catch {
+      // Status check must never block or break sign-in.
+    }
+  }
   // Ask entry context: the module the student came from (if any). The
   // shared selectedModuleId goes stale across sidebar visits, so the
   // Back-to-modules button keys off this explicit value instead.
@@ -100,6 +117,7 @@ export default function App() {
         clearTimeout(timeout);
         if (res && res.data) {
           setStoredUid(res.data?._id || null);
+          maybeKeyPrompt(res.data);
           setUser(res.data);
           setCurrentPage(defaultPageForRole(res.data.role));
           setAuthStatus('authenticated');
@@ -114,6 +132,7 @@ export default function App() {
           clearTimeout(timeout);
           if (res && res.data) {
             setStoredUid(res.data?._id || null);
+            maybeKeyPrompt(res.data);
             setUser(res.data);
             setCurrentPage(defaultPageForRole(res.data.role));
             setAuthStatus('authenticated');
@@ -153,8 +172,29 @@ export default function App() {
     }
   }, []);
 
+  // Post-signup showcase role — set only by a fresh signup, so plain
+  // sign-ins never see the tour.
+  const [pendingRole, setPendingRole] = useState(null);
+  // Optional signup-time Gemini key — verification stands between signup
+  // and first login, so it waits in localStorage (plaintext, same risk
+  // class as a typed-but-unsent form) and flushes to the vault once.
+  const PENDING_KEY = 'cc_pending_gemini_key';
+
   function handleLogin(loggedInUser) {
     setStoredUid(loggedInUser?._id || null);
+    // Flush any signup-time key into the vault exactly once.
+    try {
+      const pending = localStorage.getItem(PENDING_KEY);
+      if (pending) {
+        localStorage.removeItem(PENDING_KEY);
+        savePendingGeminiKey(pending).catch(() => {
+          // Invalid key surfaces in Account — login must not fail for it.
+        });
+      }
+    } catch {
+      // Private mode — the key simply doesn't survive; Account covers it.
+    }
+    maybeKeyPrompt(loggedInUser);
     setUser(loggedInUser);
     setAuthNotice(null);
     setAuthStatus('authenticated');
@@ -279,6 +319,15 @@ export default function App() {
           <AdminModules courseId={selectedCourseId} onPageChange={changePage} />
         );
 
+      // Keyed by section: same component type at the same tree position
+      // would otherwise reuse state across tabs (stale list under fresh
+      // labels). The key forces a clean mount per section.
+      case 'admin-students':
+        return <AdminRoster key="students" kind="students" />;
+
+      case 'admin-tas':
+        return <AdminRoster key="tas" kind="tas" />;
+
       case 'admin-upload':
         return (
         <AdminUpload
@@ -294,6 +343,16 @@ export default function App() {
         return (
           <div className="rounded-lg bg-surface p-6">Page not found</div>
         );
+    }
+  }
+
+  // DEV-ONLY showcase preview (?showcase=student|ta|instructor|admin,
+  // dev builds only) — renders the post-signup tour with no account.
+  // Remove with Showcase.jsx once it has served its purpose.
+  if (import.meta.env.DEV && typeof window !== 'undefined') {
+    const previewRole = new URLSearchParams(window.location.search).get('showcase');
+    if (previewRole && ['student', 'ta', 'instructor', 'admin'].includes(previewRole)) {
+      return <Showcase role={previewRole} onContinue={() => setAuthView('login')} />;
     }
   }
 
@@ -339,17 +398,31 @@ export default function App() {
     if (authView === 'signup') {
       return (
         <Signup
-          onSignupSuccess={() => {
-            // Login is hard-blocked until the email is verified, so tell
-            // first-time users to check their inbox instead of letting them
-            // walk into a confusing 403.
+          onSignupSuccess={(role, geminiKey) => {
+            // Login is hard-blocked until the email is verified, so first
+            // show the role tour — then the inbox notice on the login
+            // screen. Plain sign-ins never pass through here.
             setAuthNotice(
               'Account created! Check your email for the verification link, then sign in.',
             );
-            setAuthView('login');
+            try {
+              if (geminiKey) localStorage.setItem(PENDING_KEY, geminiKey);
+              else localStorage.removeItem(PENDING_KEY);
+            } catch {
+              // Private mode — Account covers key setup instead.
+            }
+            setPendingRole(role || 'student');
+            setAuthView('showcase');
           }}
           onSwitchToLogin={() => setAuthView('login')}
         />
+      );
+    }
+
+    // Post-signup section tour (signup only — never on plain sign-in).
+    if (authView === 'showcase' && pendingRole) {
+      return (
+        <Showcase role={pendingRole} onContinue={() => setAuthView('login')} />
       );
     }
 
@@ -371,14 +444,55 @@ export default function App() {
   }
 
       return (
-        <RoleLayout
-          role={user.role}
-          user={user}
-          currentPage={currentPage}
-          onPageChange={changePage}
-          onLogout={handleLogout}
-        >
-          {getPage()}
-        </RoleLayout>
+        <>
+          <RoleLayout
+            role={user.role}
+            user={user}
+            currentPage={currentPage}
+            onPageChange={changePage}
+            onLogout={handleLogout}
+          >
+            {getPage()}
+          </RoleLayout>
+          {keyPrompt && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+              <div
+                className="absolute inset-0 bg-black/60"
+                onClick={() => setKeyPrompt(false)}
+              />
+              <div className="relative w-full max-w-sm rounded-xl border border-border bg-surface p-6 text-center shadow-xl">
+                <h2 className="font-sans text-lg font-semibold text-heading">
+                  {user.role === 'student'
+                    ? 'Unlock premium answers'
+                    : 'Unlock fast uploads'}
+                </h2>
+                <p className="mt-2 text-sm leading-6 text-body">
+                  {user.role === 'student'
+                    ? 'Add your free Gemini key to get 20 top quality answers per day.'
+                    : 'Add your free Gemini key to quickly upload files.'}
+                </p>
+                <div className="mt-5 flex justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setKeyPrompt(false)}
+                    className="rounded-xl px-5 py-2.5 text-sm font-medium text-body hover:bg-white/10 hover:text-heading hover:opacity-80"
+                  >
+                    Later
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setKeyPrompt(false);
+                      changePage('account');
+                    }}
+                    className="rounded-xl border border-border bg-accent px-5 py-2.5 text-sm font-medium text-accent-ink hover:bg-accent-hover"
+                  >
+                    Add key
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       );
 }

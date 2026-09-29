@@ -6,10 +6,39 @@ import {
   getModulesByCourse,
   getMyModules,
   getRelatedQuestions,
+  getQuotaStatus,
+  getGeminiKeyStatus,
+  saveAnswer,
+  unsaveAnswer,
 } from '../../api/client.js';
 import ThreadChat from '../../components/ThreadChat.jsx';
 import { LoadingDots } from '../../components/ui/primitives.jsx';
 import { Select } from '../../components/ui/select.jsx';
+
+// Bookmark glyph (phosphor BookmarkSimple): outline when unsaved,
+// violet-filled once saved to history. Module scope, not nested —
+// creating it per render remounts every icon on each keystroke.
+function BookmarkSimpleIcon({ filled }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="32"
+      height="32"
+      viewBox="0 0 256 256"
+      aria-hidden="true"
+    >
+      <rect width="256" height="256" fill="none" />
+      <path
+        d="M192,224l-64-40L64,224V48a8,8,0,0,1,8-8H184a8,8,0,0,1,8,8Z"
+        fill={filled ? 'currentColor' : 'none'}
+        stroke="currentColor"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth="16"
+      />
+    </svg>
+  );
+}
 export default function StudentAsk({ initialModuleId, initialThread, entryModuleId, onPageChange }) {
   // Follow-up mode renders the chatbot thread instead of the ask form —
   // the thread's module carries the scope, so no dropdowns needed.
@@ -42,11 +71,61 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
     setFlashSent(true);
     flashTimer.current = setTimeout(() => setFlashSent(false), 1000);
   }
+  // Quota-strain nudge: when the shared pool is exhausted AND this
+  // student has no key of their own, point them at Account — the moment
+  // motivation peaks. Keyed students fail over silently instead.
+  const [showKeyNudge, setShowKeyNudge] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([getQuotaStatus().catch(() => null), getGeminiKeyStatus().catch(() => null)]).then(
+      ([quotaRes, keyRes]) => {
+        if (cancelled) return;
+        const strained = quotaRes?.data?.strained === true;
+        const hasKey = keyRes?.data?.present === true;
+        setShowKeyNudge(strained && !hasKey);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   // Live related verified answers as the student types — same scope as
   // the pending submission. Debounced so typing doesn't fan out into a
   // request per keystroke.
   const [related, setRelated] = useState([]);
   const [loadingRelated, setLoadingRelated] = useState(false);
+  // Saved-to-history related answers: source id -> saved clone id, so
+  // tapping the violet bookmark again deletes the clone (true toggle).
+  const [savedRelated, setSavedRelated] = useState({});
+  const [savingRelated, setSavingRelated] = useState(() => new Set());
+  async function handleToggleSave(sourceId) {
+    if (savingRelated.has(sourceId)) return;
+    setSavingRelated((old) => new Set(old).add(sourceId));
+    setError(null);
+    try {
+      if (savedRelated[sourceId]) {
+        await unsaveAnswer(savedRelated[sourceId]);
+        setSavedRelated((old) => {
+          const next = { ...old };
+          delete next[sourceId];
+          return next;
+        });
+      } else {
+        const res = await saveAnswer(sourceId, selectedModuleId);
+        const cloneId = res.data?.request_id;
+        if (!cloneId) throw new Error('Save did not return an answer id.');
+        setSavedRelated((old) => ({ ...old, [sourceId]: cloneId }));
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSavingRelated((old) => {
+        const next = new Set(old);
+        next.delete(sourceId);
+        return next;
+      });
+    }
+  }
   // Related answers render truncated with a "Read more" expander each.
   const [expandedRelated, setExpandedRelated] = useState(() => new Set());
   function toggleRelatedExpanded(id) {
@@ -207,6 +286,18 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
             : 'Ask something about the course material.'}
         </p>
       </div>
+      {showKeyNudge && !threadMode && onPageChange && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+          Out of shared answers for today — add your free Gemini key to keep
+          going.{' '}
+          <button
+            onClick={() => onPageChange('account')}
+            className="font-medium underline hover:no-underline"
+          >
+            Add it in Account
+          </button>
+        </div>
+      )}
       {threadMode && (
         <ThreadChat
           thread={{
@@ -282,8 +373,32 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
           className="mt-2 w-full resize-none rounded-lg border border-border bg-bg p-4 text-[16px] text-heading outline-none placeholder:text-body focus:border-accent"
         />
         {(loadingRelated || related.length > 0) && (
-          <div className="mt-3 rounded-lg border border-border bg-bg p-4">
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-body">
+          <div className="relative mt-3 rounded-lg border border-border bg-bg p-4">
+            {!loadingRelated && related.length > 0 && (
+              <button
+                type="button"
+                onClick={() => handleToggleSave(related[0].id)}
+                disabled={savingRelated.has(related[0].id)}
+                title={
+                  savedRelated[related[0].id]
+                    ? 'Saved — click to remove from history'
+                    : 'Save to my history'
+                }
+                aria-label={
+                  savedRelated[related[0].id]
+                    ? 'Remove from history'
+                    : 'Save to my history'
+                }
+                className={`absolute right-2 top-2 transition-all duration-200 ease-out active:scale-90 disabled:cursor-default ${
+                  savedRelated[related[0].id]
+                    ? 'text-accent'
+                    : 'text-body/50 hover:text-heading'
+                }`}
+              >
+                <BookmarkSimpleIcon filled={Boolean(savedRelated[related[0].id])} />
+              </button>
+            )}
+            <div className="flex items-center gap-2 pr-10 text-xs font-semibold uppercase tracking-wide text-body">
               {loadingRelated && <LoadingDots />}
               {loadingRelated
                 ? 'Searching verified answers for you'

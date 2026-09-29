@@ -437,6 +437,9 @@ export const rejectAnswer = (id, note) =>
 export const toggleImportant = (id) =>
   request(`/qa/queue/${id}/important`, { method: 'POST' });
 
+export const retryAnswer = (id) =>
+  request(`/qa/queue/${id}/retry`, { method: 'POST' });
+
 export const getImportantQuestions = (courseId) =>
   request(`/qa/important?courseId=${encodeURIComponent(courseId)}`);
 
@@ -444,6 +447,32 @@ export const getRelatedQuestions = (moduleId, q) =>
   request(
     `/qa/related?moduleId=${encodeURIComponent(moduleId)}&q=${encodeURIComponent(q)}`,
   );
+
+export const getQuotaStatus = () => request('/qa/quota-status');
+
+export const saveAnswer = (sourceId, moduleId) =>
+  request('/qa/save', {
+    method: 'POST',
+    body: JSON.stringify({ sourceId, moduleId }),
+  });
+
+export const unsaveAnswer = (requestId) =>
+  request('/qa/unsave', {
+    method: 'POST',
+    body: JSON.stringify({ requestId }),
+  });
+
+// ---- BYOK: user's own Gemini key (never returned, only status) --------
+export const getGeminiKeyStatus = () => request('/users/me/gemini-key');
+
+export const setGeminiKey = (apiKey) =>
+  request('/users/me/gemini-key', {
+    method: 'POST',
+    body: JSON.stringify({ apiKey }),
+  });
+
+export const deleteGeminiKey = () =>
+  request('/users/me/gemini-key', { method: 'DELETE' });
 
 export const getCourseQaStats = (courseId) =>
   request(`/qa/course-stats?courseId=${encodeURIComponent(courseId)}`);

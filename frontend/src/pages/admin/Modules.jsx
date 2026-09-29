@@ -1,5 +1,5 @@
 // frontend/src/pages/admin/Modules.jsx
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   getCourseById,
   getModulesByCourse,
@@ -7,7 +7,6 @@ import {
   deleteModule,
   deleteDocument,
   getDocumentFileUrl,
-  removeCourseMember,
   getImportantQuestions,
   getCourseQaStats,
 } from '../../api/client.js';
@@ -141,24 +140,6 @@ export default function AdminModules({ courseId, onPageChange }) {
       },
     });
   }
-  // Optimistic member removal: the roster row vanishes instantly and
-  // the request runs behind; failure restores the exact previous course.
-  // No list refetch — the local state IS the update.
-  async function handleRemoveMember(member) {
-    const previous = course;
-    setCourse((old) => {
-      if (!old) return old;
-      const without = (list) => (list || []).filter((m) => (m._id || m) !== member._id);
-      return { ...old, students: without(old.students), tas: without(old.tas) };
-    });
-    try {
-      await removeCourseMember(course._id, member._id);
-      cacheInvalidate(getStoredUid(), `course:${course._id}`);
-    } catch (err) {
-      setCourse(previous);
-      setError(err.message);
-    }
-  }
   function handleDeleteDocument(doc, event) {
     event.stopPropagation();
     setConfirm({
@@ -288,7 +269,7 @@ export default function AdminModules({ courseId, onPageChange }) {
                 </div>
                 <button
                   onClick={(e) => handleDeleteModule(mod, e)}
-                  className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"
+                  className="shrink-0 text-xs text-red-400/70 hover:text-red-400 hover:underline hover:opacity-80"
                 >
                   Delete
                 </button>
@@ -343,7 +324,7 @@ export default function AdminModules({ courseId, onPageChange }) {
                       </a>
                       <button
                         onClick={(e) => handleDeleteDocument(doc, e)}
-                        className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"
+                        className="shrink-0 text-xs text-red-400/70 hover:text-red-400 hover:underline hover:opacity-80"
                       >
                         Delete
                       </button>
@@ -355,29 +336,12 @@ export default function AdminModules({ courseId, onPageChange }) {
           );
         })}
       </div>
-      <RosterSection
-        title="Enrolled students"
-        members={course?.students || []}
-        courseId={course?._id}
-        onChanged={loadAll}
-        onRemoveMember={handleRemoveMember}
-        setError={setError}
-      />
-      <RosterSection
-        title="Teaching assistants"
-        members={course?.tas || []}
-        courseId={course?._id}
-        onChanged={loadAll}
-        onRemoveMember={handleRemoveMember}
-        setError={setError}
-      />
       <ImportantQuestionsSection
         questions={importantQuestions}
         modules={modules}
       />
       <AnswerQualitySection quality={qaStats.quality} />
       <ContentGapsSection gaps={qaStats.gaps || []} modules={modules} />
-      <CourseActivitySection stats={qaStats} />
       {confirm && (
         <ConfirmDialog
           title={confirm.title}
@@ -511,173 +475,3 @@ function ContentGapsSection({ gaps, modules }) {
     </div>
   );
 }
-// One activity table (member + count), reused for "asked" and "resolved"
-// sides. Module scope (not nested) so React doesn't remount it per render.
-function ActivityTable({ rows, what }) {
-  const memberName = (u) => u?.fullName || u?.username || 'Unknown member';
-  return (
-    <div className="mt-3 overflow-x-auto">
-      <table className="w-full text-left text-sm">
-        <tbody>
-          {rows.map((row) => (
-            <tr
-              key={row.studentId || row.taId}
-              className="border-b border-white/10 last:border-0"
-            >
-              <td className="py-2 pr-4 text-heading">
-                {memberName(row.user)}
-                {row.user?.rollNo && (
-                  <span className="ml-2 font-mono text-xs text-body">
-                    {row.user.rollNo}
-                  </span>
-                )}
-              </td>
-              <td className="py-2 text-right text-body">
-                {row.count} {what}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-// Per-member Q&A activity for the course: questions asked per student,
-// reviews resolved per TA. Members with zero activity are simply absent.
-function CourseActivitySection({ stats }) {
-  const asked = [...(stats.asked || [])].sort((a, b) => b.count - a.count);
-  const reviewed = [...(stats.reviewed || [])].sort(
-    (a, b) => b.count - a.count,
-  );
-  if (asked.length === 0 && reviewed.length === 0) return null;
-  return (
-    <div className="mt-8 grid gap-6 md:grid-cols-2">
-      {asked.length > 0 && (
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <div className="text-[16px] font-semibold text-heading">
-            Questions asked
-          </div>
-          <ActivityTable rows={asked} what="asked" />
-        </div>
-      )}
-      {reviewed.length > 0 && (
-        <div className="rounded-xl border border-border bg-surface p-6 shadow-sm">
-          <div className="text-[16px] font-semibold text-heading">
-            Reviews resolved
-          </div>
-          <ActivityTable rows={reviewed} what="resolved" />
-        </div>
-      )}
-    </div>
-  );
-}
-// One roster table (name + roll no.) reused for the students and TAs
-// sections. Pre-rollNo accounts show "—" instead of a blank cell.
-// Removing pulls the member out of the course (instantly revoking access,
-// which is membership-based everywhere) and purges their Q&A history in
-// this course's modules.
-function RosterSection({ title, members, onRemoveMember }) {
-  const [expanded, setExpanded] = useState(false);
-  const [confirmRemove, setConfirmRemove] = useState(null);
-  async function runConfirmRemove() {
-    const action = confirmRemove?.run;
-    setConfirmRemove(null);
-    if (action) await action();
-  }
-  // Ascending roll-no. order (numeric-aware, so "2" < "10"); members
-  // without a roll no. sink to the bottom instead of floating randomly.
-  const sorted = useMemo(
-    () =>
-      [...members].sort((a, b) => {
-        if (!a.rollNo && !b.rollNo) return 0;
-        if (!a.rollNo) return 1;
-        if (!b.rollNo) return -1;
-        return String(a.rollNo).localeCompare(String(b.rollNo), undefined, {
-          numeric: true,
-        });
-      }),
-    [members],
-  );
-  async function handleRemove(member) {
-    setConfirmRemove({
-      title: `Remove ${member.fullName || member.username} ?`,
-      message: 'This cannot be reverted back.',
-      run: () => onRemoveMember(member),
-    });
-  }
-  return (
-    <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
-      <button
-        type="button"
-        onClick={() => setExpanded((open) => !open)}
-        aria-expanded={expanded}
-        className="flex w-full items-center justify-between gap-3 text-left"
-      >
-        <span className="text-[16px] font-semibold text-heading">
-          {title} ({members.length})
-        </span>
-        <span
-          aria-hidden="true"
-          className="text-sm text-body transition-transform duration-200 ease-out"
-        >
-          {expanded ? '▾' : '▸'}
-        </span>
-      </button>
-      {expanded &&
-        (members.length === 0 ? (
-          <p className="mt-3 text-sm text-body">
-            Nobody here yet — members appear once they join with the course
-            code.
-          </p>
-        ) : (
-          <div className="mt-3 overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs uppercase text-body">
-                  <th className="w-1/2 py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Roll no.</th>
-                  <th className="py-2 text-right font-medium">
-                    <span className="sr-only">Actions</span>
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.map((m) => (
-                <tr
-                  key={m._id}
-                  className="border-b border-white/10 last:border-0"
-                >
-                  <td className="py-2.5 pr-4 text-heading">
-                    {m.fullName || m.username}
-                  </td>
-                  <td className="py-2.5 pr-4 font-mono text-body">
-                    {m.rollNo || '—'}
-                  </td>
-                  <td className="py-2.5 text-right">
-                    <button
-                      onClick={() => handleRemove(m)}
-                      className="text-xs text-red-400 hover:underline hover:opacity-80"
-                    >
-                      Remove
-                    </button>
-                  </td>
-                </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      {confirmRemove && (
-        <ConfirmDialog
-          title={confirmRemove.title}
-          message={confirmRemove.message}
-          confirmLabel="Remove"
-          onConfirm={runConfirmRemove}
-          onCancel={() => setConfirmRemove(null)}
-        />
-      )}
-    </div>
-  );
-}
-
-

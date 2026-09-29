@@ -8,6 +8,7 @@ import { Document } from "../models/document.model.js";
 import { Module } from "../models/module.model.js";
 import { ALLOWED_MIME_TYPES } from "../middlewares/upload.middleware.js";
 import * as ragService from "../services/rag.service.js";
+import { resolveHealthyUserKey, recordKeyUsage } from "../services/user-key.service.js";
 import { assertCourseAccess } from "../utils/course-access.js";
 import {
    uploadDocumentToCloudinary,
@@ -82,13 +83,18 @@ const uploadDocument = asyncHandler(async (req, res) => {
    // retried later.
    if (INDEXABLE_TYPES.has(docType)) {
       try {
+         // The uploader's own key funds overview + figure captions when
+         // healthy; shared pool otherwise. Metered on supply, like asks.
+         const userKey = await resolveHealthyUserKey(req.user);
          const result = await ragService.ingestDocument(
             document._id.toString(),
             moduleId,
             module.course._id.toString(),
             req.file.originalname,
             req.file.buffer.toString("base64"),
+            userKey,
          );
+         if (userKey) recordKeyUsage(req.user._id.toString());
 
          // The ingester is idempotent: re-uploading identical content
          // reports skipped/"unchanged", which still means indexed.

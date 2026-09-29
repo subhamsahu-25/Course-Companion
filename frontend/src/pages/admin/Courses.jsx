@@ -213,7 +213,8 @@ export default function AdminCourses({ onPageChange }) {
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         {courses.length === 0 && (
           <p className="text-sm text-body">
-            No courses yet — create one above to get started.
+            No courses yet — create one above, add a module, then upload
+            material from the module.
           </p>
         )}
         {courses.map((course) => (
@@ -230,7 +231,7 @@ export default function AdminCourses({ onPageChange }) {
               </div>
               <button
                 onClick={(e) => handleDelete(course, e)}
-                className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"
+                className="shrink-0 text-xs text-red-400/70 hover:text-red-400 hover:underline hover:opacity-80"
               >
                 Delete
               </button>

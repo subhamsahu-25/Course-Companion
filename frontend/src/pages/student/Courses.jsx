@@ -74,7 +74,10 @@ export default function StudentCourses({
 
       <div className="mt-8 space-y-4">
         {courses.length === 0 && !error && (
-          <p className="text-sm text-body">No courses available yet.</p>
+          <p className="text-sm text-body">
+            No courses available yet. Join one, open any module, and hit
+            Ask.
+          </p>
         )}
 
         {courses.map((course) => (

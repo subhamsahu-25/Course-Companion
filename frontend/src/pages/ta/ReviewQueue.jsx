@@ -3,6 +3,7 @@ import {
   getReviewQueue,
   approveAnswer,
   rejectAnswer,
+  retryAnswer,
   toggleImportant,
   getCourses,
   getMyModules,
@@ -193,6 +194,28 @@ export default function ReviewQueue({ onPageChange }) {
     } catch (err) {
       setError(err.message);
       await reloadQueue();
+    }
+  }
+  // Retry state for failed generations (item ids with a retry in
+  // flight). Fire-and-forget server-side, so the queue reloads on a
+  // delay to pick up the fresh draft.
+  const [retrying, setRetrying] = useState(() => new Set());
+  async function retry(id) {
+    if (retrying.has(id)) return;
+    setError(null);
+    try {
+      await retryAnswer(id);
+      setRetrying((old) => new Set(old).add(id));
+      setTimeout(async () => {
+        await reloadQueue();
+        setRetrying((old) => {
+          const next = new Set(old);
+          next.delete(id);
+          return next;
+        });
+      }, 25000);
+    } catch (err) {
+      setError(err.message);
     }
   }
   async function reject(id) {
@@ -405,7 +428,43 @@ export default function ReviewQueue({ onPageChange }) {
                 <div className="text-[18px] font-semibold text-heading">
                   {item.question}
                 </div>
-                {editingId === item._id ? (
+                {/* No draft yet means one of two things — still
+                    generating (no error recorded) or failed (error
+                    recorded). One shared box confused both, so they split:
+                    a live generating state vs an explicit failed state
+                    with Retry. */}
+                {!item.draftAnswer && !item.generationError && editingId !== item._id ? (
+                  <div className="mt-4 flex items-center gap-2.5 rounded-lg border border-border bg-white/5 p-4 text-sm text-body">
+                    <LoadingDots />
+                    <span>Generating answer… it will appear here when ready.</span>
+                  </div>
+                ) : null}
+                {!item.draftAnswer && item.generationError && editingId !== item._id ? (
+                  <div className="mt-4 rounded-lg border border-red-200 bg-red-50 p-4">
+                    <p className="text-sm font-medium text-red-700">
+                      Answer generation failed
+                      {item.generationAttempts > 1
+                        ? ` (${item.generationAttempts} attempts)`
+                        : ''}
+                      .
+                    </p>
+                    {item.generationError && (
+                      <p className="mt-1 text-xs text-red-600">
+                        {item.generationError}
+                      </p>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => retry(item._id)}
+                      disabled={retrying.has(item._id)}
+                      className="mt-3 rounded-xl border border-border bg-accent px-4 py-2 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {retrying.has(item._id)
+                        ? 'Retrying — fresh draft lands on refresh…'
+                        : 'Retry generation'}
+                    </button>
+                  </div>
+                ) : editingId === item._id ? (
                   <textarea
                     value={answerText}
                     onChange={(event) => setAnswerText(event.target.value)}
@@ -419,7 +478,9 @@ export default function ReviewQueue({ onPageChange }) {
                 )}
                 {/* Optional star rating — travels with the approval and
                     decides whether the answer teaches future drafts (3+,
-                    or unrated) or is kept out (1–2). */}
+                    or unrated) or is kept out (1–2). Hidden while there
+                    is no draft to rate. */}
+                {item.draftAnswer && (
                 <div className="mt-5 flex flex-wrap items-center gap-1">
                   <span className="mr-1 text-xs font-medium uppercase tracking-wide text-body">
                     Rate
@@ -447,6 +508,7 @@ export default function ReviewQueue({ onPageChange }) {
                       : 'optional'}
                   </span>
                 </div>
+                )}
                 {/* Important marker — one TA's toggle is one vote; enough
                     distinct-TA votes (threshold, currently 2) highlights
                     the question on the instructor portal. */}
@@ -458,7 +520,19 @@ export default function ReviewQueue({ onPageChange }) {
                   />
                 </div>
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {editingId === item._id ? (
+                  {!item.draftAnswer && editingId !== item._id ? (
+                    // Failed draft: nothing to approve or edit — Retry
+                    // lives above; Reject stays valid.
+                    <button
+                      onClick={() => reject(item._id)}
+                      disabled={Boolean(pendingRemoval[item._id])}
+                      className="rounded-xl border border-border bg-accent px-4 py-2 text-sm text-accent-ink transition-all duration-200 ease-out hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
+                    >
+                      {pendingRemoval[item._id] === 'reject'
+                        ? 'Rejecting…'
+                        : 'Reject'}
+                    </button>
+                  ) : editingId === item._id ? (
                     <>
                       <button
                         onClick={() =>

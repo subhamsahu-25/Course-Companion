@@ -139,7 +139,7 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-xl bg-red-500 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-out hover:bg-red-600 active:scale-[0.98]"
+            className="rounded-xl bg-red-500/70 px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 ease-out hover:bg-red-500 active:scale-[0.98]"
           >
             {confirmLabel}
           </button>

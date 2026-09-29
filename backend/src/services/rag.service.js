@@ -41,10 +41,10 @@ const ragRequest = async (endpoint, options = {}) => {
 // Sends an uploaded file to the rag service to be chunked, embedded, and
 // added to the vector store — this is the step that was missing entirely
 // before: uploading a document saved the file but never indexed it.
-const ingestDocument = (documentId, moduleId, courseId, filename, fileBase64) =>
+const ingestDocument = (documentId, moduleId, courseId, filename, fileBase64, userKey) =>
    ragRequest("/ingest", {
       method: "POST",
-      body: JSON.stringify({ documentId, moduleId, courseId, filename, fileBase64 }),
+      body: JSON.stringify({ documentId, moduleId, courseId, filename, fileBase64, user_key: userKey }),
    });
 
 // Removes every vector in a course/module scope — documents plus
@@ -61,11 +61,18 @@ const purgeVectors = ({ moduleIds, courseId } = {}) =>
 const removeIngestedDocument = (documentId) =>
    ragRequest(`/ingest/${documentId}`, { method: "DELETE" });
 
-const submitQuestion = (studentId, question, moduleId, courseId, threadId) =>
+const submitQuestion = (studentId, question, moduleId, courseId, threadId, userKey) =>
    ragRequest("/submit-question", {
       method: "POST",
-      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId, course_id: courseId, thread_id: threadId }),
+      body: JSON.stringify({ student_id: studentId, question, module_id: moduleId, course_id: courseId, thread_id: threadId, user_key: userKey }),
    });
+
+// Key health by sha256 hex (never the key) — backs funding decisions.
+const checkUserKeyHealth = (hash) =>
+   ragRequest(`/user-key-health?hash=${encodeURIComponent(hash)}`);
+
+// Shared-quota signal for the frontend strain nudge.
+const getQuotaStatus = () => ragRequest("/health");
 
 const getReviewQueue = () => ragRequest("/review-queue");
 
@@ -88,6 +95,10 @@ const toggleImportant = (id, taId) =>
       body: JSON.stringify({ taId }),
    });
 
+// Retries generation for a stuck pending item (failed draft).
+const retryAnswer = (id) =>
+   ragRequest(`/review-queue/${id}/retry`, { method: "POST" });
+
 // Questions in a course with enough TA important marks to highlight.
 const getImportantQuestions = (courseId) =>
    ragRequest(`/review-queue/important?courseId=${encodeURIComponent(courseId)}`);
@@ -102,6 +113,21 @@ const getRelatedQuestions = (moduleId, courseId, q) =>
    ragRequest(
       `/related-questions?moduleId=${encodeURIComponent(moduleId)}&courseId=${encodeURIComponent(courseId)}&q=${encodeURIComponent(q)}`
    );
+
+// Saves a verified (approved, in-scope) answer into a student's history
+// without generating or reviewing anything new.
+const saveAnswer = (studentId, sourceId, moduleId, courseId) =>
+   ragRequest("/save-answer", {
+      method: "POST",
+      body: JSON.stringify({ student_id: studentId, source_id: sourceId, module_id: moduleId, course_id: courseId }),
+   });
+
+// Removes one of the student's own auto-served clones from history.
+const unsaveAnswer = (studentId, requestId) =>
+   ragRequest("/unsave-answer", {
+      method: "POST",
+      body: JSON.stringify({ student_id: studentId, request_id: requestId }),
+   });
 
 const getMyAnswer = (id) => ragRequest(`/my-answer/${id}`);
 
@@ -136,13 +162,18 @@ const getModuleHistory = (moduleId) => ragRequest(`/module-history/${moduleId}`)
 
 export {
    submitQuestion,
+   checkUserKeyHealth,
+   getQuotaStatus,
    getReviewQueue,
    approveAnswer,
    rejectAnswer,
    toggleImportant,
+   retryAnswer,
    getImportantQuestions,
    getCourseQaStats,
    getRelatedQuestions,
+   saveAnswer,
+   unsaveAnswer,
    getMyAnswer,
    getMyAnswers,
    getStats,

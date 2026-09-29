@@ -44,6 +44,17 @@ export default function StudentHistory({
   // requestId -> timeout id, so pending items keep polling for a status
   // update without the student having to hit Refresh.
   const pollRefs = useRef({});
+  // Long answers render truncated with a per-item Read more expander,
+  // same as the related-answers box on Ask.
+  const [expandedAnswers, setExpandedAnswers] = useState(() => new Set());
+  function toggleAnswerExpanded(id) {
+    setExpandedAnswers((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
   useEffect(() => {
     loadCourses();
     loadHistory();
@@ -275,8 +286,22 @@ export default function StudentHistory({
               ) : (
                 <>
                   <p className="mt-3 text-[15px] leading-6 text-body">
-                    {item.answer}
+                    {(() => {
+                      const expanded = expandedAnswers.has(item.id);
+                      const long = (item.answer?.length ?? 0) > 220;
+                      return expanded || !long
+                        ? item.answer
+                        : `${item.answer.slice(0, 220)}…`;
+                    })()}
                   </p>
+                  {(item.answer?.length ?? 0) > 220 && (
+                    <button
+                      onClick={() => toggleAnswerExpanded(item.id)}
+                      className="mt-1 text-xs font-medium text-body hover:underline hover:opacity-80"
+                    >
+                      {expandedAnswers.has(item.id) ? 'Show less' : 'Read more'}
+                    </button>
+                  )}
                   <div className="mt-3 flex justify-center">
                     <button
                       onClick={() =>

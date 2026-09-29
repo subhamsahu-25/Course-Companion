@@ -61,6 +61,8 @@ export default function StudentDashboard({ onPageChange }) {
           </div>
         </div>
       )}
+      {/* Asking happens from inside a module (pre-scoped) — no
+          contextless shortcut lives here anymore. */}
       <div className="mt-8 grid gap-5 sm:grid-cols-2">
         <button
           onClick={() => onPageChange('student-courses')}
@@ -70,11 +72,11 @@ export default function StudentDashboard({ onPageChange }) {
           <div className="mt-2">Browse your courses</div>
         </button>
         <button
-          onClick={() => onPageChange('student-ask')}
+          onClick={() => onPageChange('student-history')}
           className="min-h-30 rounded-2xl border-2 border-dashed border-border bg-surface p-6 text-center text-[17px] text-body transition-all duration-200 ease-out hover:border-accent-hover hover:bg-white/5"
         >
-          <div className="text-2xl">+</div>
-          <div className="mt-2">Ask a question</div>
+          <div className="text-2xl">✓</div>
+          <div className="mt-2">Review your answers</div>
         </button>
       </div>
       <div className="mt-8 rounded-xl border border-border bg-surface p-5">

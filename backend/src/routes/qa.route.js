@@ -6,6 +6,10 @@ import { authGuard, roleGuard } from "../middlewares/auth.middleware.js";
 import {
    askQuestion,
    getRelatedQuestions,
+   saveAnswer,
+   unsaveAnswer,
+   retryAnswer,
+   getQuotaStatus,
    getReviewQueue,
    approveQuestion,
    rejectQuestion,
@@ -20,6 +24,9 @@ import {
 
 router.route("/ask").post(authGuard, askQuestion);
 router.route("/related").get(authGuard, getRelatedQuestions);
+router.route("/save").post(authGuard, saveAnswer);
+router.route("/unsave").post(authGuard, unsaveAnswer);
+router.route("/quota-status").get(authGuard, getQuotaStatus);
 router.route("/my-answer/:id").get(authGuard, getMyAnswer);
 router.route("/my-answers").get(authGuard, getMyAnswers);
 router.route("/stats").get(authGuard, getStats);
@@ -28,6 +35,7 @@ router.route("/queue").get(authGuard, roleGuard("ta", "admin"), getReviewQueue);
 router.route("/queue/:id/approve").post(authGuard, roleGuard("ta", "admin"), approveQuestion);
 router.route("/queue/:id/reject").post(authGuard, roleGuard("ta", "admin"), rejectQuestion);
 router.route("/queue/:id/important").post(authGuard, roleGuard("ta", "admin"), toggleImportant);
+router.route("/queue/:id/retry").post(authGuard, roleGuard("ta", "admin"), retryAnswer);
 router.route("/history/:moduleId").get(authGuard, roleGuard("ta", "admin"), getModuleHistory);
 // Instructor portal: highlighted questions + per-course activity. The
 // instructor of the course (or admin) only — course membership is checked

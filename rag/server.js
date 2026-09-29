@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import crypto from 'crypto';
 import express from 'express';
 import mongoose from 'mongoose';
 import { PromptTemplate } from "@langchain/core/prompts";
@@ -36,8 +37,19 @@ app.use(express.json({ limit: "65mb" }));
 // everything else on this service sits behind the service-key gate,
 // so monitors need one ungated URL that answers 200 when alive.
 app.get("/health", (req, res) => {
-    res.status(200).json({ status: "ok", service: "rag" });
+    res.status(200).json({
+        status: "ok",
+        service: "rag",
+        // Shared-quota signal for the frontend strain nudge: null when no
+        // shared failure has been seen (recently restarted or all clear).
+        sharedQuota: {
+            ok: lastSharedQuotaFailureAt === null,
+            lastFailureAt: lastSharedQuotaFailureAt,
+        },
+    });
 });
+
+
 
 // 0. Service-to-service auth.
 // This service exposes internal endpoints (approve/reject a TA review, read
@@ -56,6 +68,25 @@ app.use((req, res, next) => {
         return res.status(401).json({ error: "Unauthorized" });
     }
     next();
+});
+
+// Key-health lookup for the backend's funding decisions. The backend sends
+// sha256 hex of the decrypted key (never the key) and gets back whether
+// this service would actually attempt it right now.
+app.get('/user-key-health', async (req, res) => {
+    try {
+        const { hash } = req.query;
+        if (!hash || typeof hash !== 'string' || !/^[0-9a-f]{64}$/i.test(hash)) {
+            return res.status(400).json({ error: "hash (sha256 hex) is required." });
+        }
+        pruneKeyHealth();
+        const entry = userKeyHealth.get(hash.toLowerCase());
+        if (!entry) return res.json({ status: 'ok', until: null });
+        res.json({ status: entry.status, until: entry.until });
+    } catch (error) {
+        console.error("Error checking key health:", error);
+        res.status(500).json({ error: "Internal server error" });
+    }
 });
 
 // 0.5 Connect to MongoDB — same cluster/DB the main backend uses, so this
@@ -98,6 +129,11 @@ const reviewQueueItemSchema = new mongoose.Schema(
         // behind this draft (0–1, null when nothing was retrieved). Lets
         // the TA queue triage shakiest-first instead of oldest-first.
         confidence: { type: Number, default: null },
+        // Generation failure record: message + attempt count. A failed
+        // draft stays pending with an empty draftAnswer — historically
+        // invisible to the queue forever. Now it surfaces with a Retry.
+        generationError: { type: String, default: null },
+        generationAttempts: { type: Number, default: 0 },
         // True when the TA edited the draft before approving — lets the
         // feedback loop (and future analytics) tell "approved as-is" apart
         // from "approved with corrections".
@@ -173,20 +209,19 @@ const embeddings = new GoogleGenerativeAIEmbeddings({
 // both unset for 3.6 primary with lite fallback.
 const PRIMARY_MODEL = process.env.GEMINI_MODEL || "gemini-3.6-flash";
 const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || "gemini-3.1-flash-lite";
+// Follow-ups always run here: high daily quota, and threads need speed,
+// not frontier reasoning. Tunable without code.
+const LIGHT_MODEL = process.env.GEMINI_LIGHT_MODEL || FALLBACK_MODEL;
 
-function buildChatModel(model) {
+// Per-request funding: a caller-supplied user key replaces the shared one
+// for this client only. The key itself is never stored or logged here —
+// it arrives per call and dies with the request.
+function buildKeyedChatModel(model, apiKey) {
    return new ChatGoogleGenerativeAI({
-      apiKey: GEMINI_API_KEY,
+      apiKey: apiKey || GEMINI_API_KEY,
       model,
       temperature: 0,
    });
-}
-
-const llm = buildChatModel(PRIMARY_MODEL);
-let fallbackLlm = null;
-function getFallbackLlm() {
-   if (!fallbackLlm) fallbackLlm = buildChatModel(FALLBACK_MODEL);
-   return fallbackLlm;
 }
 
 // True when the failure is quota/rate-limiting (worth replaying on the
@@ -195,6 +230,62 @@ function isQuotaError(error) {
    if (error?.status === 429) return true;
    return /429|quota|rate.?limit|exhausted|retry.?later/i.test(error?.message || "");
 }
+
+// 401/403-shaped rejections mean the KEY is bad (not empty quota).
+function isInvalidKeyError(error) {
+   if (error?.status === 401 || error?.status === 403) return true;
+   return /api key not valid|invalid.*key|key.*invalid|permission denied/i.test(error?.message || "");
+}
+
+// Per-user-key health, keyed by sha256 hex of the key (never the key).
+// Lets repeat failures short-circuit without burning calls: quota →
+// cooled until next PT midnight; invalid → parked until the key changes
+// (a new key hashes differently, so it starts clean automatically).
+const userKeyHealth = new Map();
+
+function hashUserKey(userKey) {
+   return crypto.createHash("sha256").update(String(userKey), "utf-8").digest("hex");
+}
+
+function pruneKeyHealth() {
+   const now = Date.now();
+   for (const [hash, entry] of userKeyHealth) {
+      if (entry.until && entry.until <= now) userKeyHealth.delete(hash);
+   }
+}
+
+// 'ok' | 'quota' | 'invalid'. Unknown keys are 'ok' (first try is free).
+function checkUserKeyHealth(userKey) {
+   if (!userKey) return 'ok';
+   pruneKeyHealth();
+   return userKeyHealth.get(hashUserKey(userKey))?.status ?? 'ok';
+}
+
+function noteUserKeyFailure(userKey, status) {
+   if (!userKey) return;
+   if (status === 'invalid') {
+      userKeyHealth.set(hashUserKey(userKey), { status: 'invalid', until: null });
+      return;
+   }
+   if (status === 'quota') {
+      userKeyHealth.set(hashUserKey(userKey), { status: 'quota', until: nextPtMidnightMs() });
+   }
+}
+
+function clearUserKeyHealth(userKey) {
+   if (userKey) userKeyHealth.delete(hashUserKey(userKey));
+}
+
+function nextPtMidnightMs() {
+   const ptNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles' }));
+   const next = new Date(ptNow);
+   next.setHours(24, 0, 0, 0);
+   return Date.now() + (next - ptNow);
+}
+
+// Shared-key quota signal for the quota-status endpoint (powers the
+// frontend "shared answers strained" nudge).
+let lastSharedQuotaFailureAt = null;
 
 // 2. Connect to the existing vector collection.
 // Qdrant Cloud persists the vectors server-side, so unlike the old
@@ -233,6 +324,7 @@ Rules:
 - If one or more chunks contain information relevant to the question, ANSWER FROM THEM — even if no single chunk holds the complete answer. Combine relevant chunks freely.
 - Stay as close to the source wording as possible: reuse the context's exact terms, names, dates, and numbers. Sentence structure may differ, but the words and facts must come straight from the material.
 - Include every concrete detail relevant to the question — never compress a specific answer (tanks, infantry, air support; France; mid-1940) into a vague generic statement (speed, surprise, force).
+- Format for scanning: when the answer holds multiple distinct points, steps, causes, or items, list them as bullets (-) or numbers (1.) — one idea per line, never a wall of paragraph. Single-point answers stay as short prose.
 - Write the answer as plain, direct prose a student would read.
 - Do NOT explain your reasoning, do NOT mention chunk numbers or which chunks you used, do NOT add any notes about your process.
 - Every name, date, number, and factual claim in your answer must appear in the context — only plain grammar and connective words may be your own. If a question can only be answered with facts missing from the context, respond with exactly: "I don't know."
@@ -261,6 +353,7 @@ Rules:
 - Stay as close to the source wording as possible for anything the context covers: reuse its exact terms, names, dates, and numbers.
 - If the question goes beyond the context (e.g. defining a term the material uses but never defines), answer from general knowledge — but begin the answer with exactly: (Beyond course material)
 - Do NOT explain your reasoning, do NOT mention chunk numbers or which chunks you used, do NOT add any notes about your process.
+- Format for scanning: multiple distinct points, steps, causes, or items go as bullets (-) or numbers (1.), one idea per line — never a single paragraph. Single-point answers stay as short prose.
 - Write the answer as plain, direct prose a student would read.
 - After the answer, on a new line, list only the chunk numbers you drew from, in this exact format: SOURCES: 1, 3. If you used no chunks, write exactly: SOURCES: none
 
@@ -297,7 +390,12 @@ function splitAnswerAndSources(raw) {
 // knowledge allowed, labeled) instead of the strict grounded one. Only
 // the direct-answer path passes true — everything TA-reviewed stays on
 // the strict prompt.
-async function generateDraftAnswer(item, { direct = false } = {}) {
+// Funding ladder per draft: the asker's own key first (their quota),
+// then the shared primary, then the shared fallback — each step only on
+// quota-shaped failures (or a bad user key, which also degrades
+// gracefully). Returns funding metadata alongside the draft so callers
+// can meter and cool down keys. chatApiKey is never stored or logged.
+async function generateDraftAnswer(item, { direct = false, chatApiKey = null } = {}) {
     try {
         const scope = { courseId: item.courseId, moduleId: item.moduleId };
 
@@ -376,43 +474,107 @@ async function generateDraftAnswer(item, { direct = false } = {}) {
             .join("\n\n");
         const context = [threadContext, golden, formatDocs(docs)].filter(Boolean).join("\n\n");
 
-        const buildChain = (model) =>
+        const buildChain = (model, apiKey) =>
             RunnableSequence.from([
                 direct ? directPromptTemplate : promptTemplate,
-                model,
+                buildKeyedChatModel(model, apiKey),
                 new StringOutputParser()
             ]);
 
+        // Ordered attempts: [user key + primary] → [shared + primary] →
+        // [shared + fallback]. A healthy user key short-circuits at step
+        // one; a cooled/invalid one is skipped before any call (see
+        // checkUserKeyHealth). Non-quota errors stop the ladder — replaying
+        // a bad request on another model just burns quota twice.
+        // Direct (follow-up) answers pin to the light model — threads need
+        // speed and quota headroom, not frontier reasoning. Funding still
+        // prefers the asker's key, then shared.
+        const baseModel = direct ? LIGHT_MODEL : PRIMARY_MODEL;
+        const attempts = [];
+        if (chatApiKey && checkUserKeyHealth(chatApiKey) === 'ok') {
+            attempts.push({ model: baseModel, apiKey: chatApiKey, fund: 'user' });
+        }
+        attempts.push({ model: baseModel, apiKey: null, fund: 'shared' });
+        if (!direct && FALLBACK_MODEL !== PRIMARY_MODEL) {
+            attempts.push({ model: FALLBACK_MODEL, apiKey: null, fund: 'shared' });
+        }
+        // Drop exact duplicates (e.g. light == fallback) so no call fires
+        // twice for the same rung.
+        const seen = new Set();
+        const ladder = attempts.filter((attempt) => {
+            const key = `${attempt.model}|${attempt.fund}|${attempt.apiKey ? 'u' : 's'}`;
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+        });
+
         let rawAnswer;
-        try {
-            rawAnswer = await buildChain(llm).invoke({ context, question: item.question });
-        } catch (primaryError) {
-            // Same prompt, cheaper model — only for quota failures and
-            // only when the fallback actually differs from primary.
-            if (FALLBACK_MODEL !== PRIMARY_MODEL && isQuotaError(primaryError)) {
-                console.error(
-                    `Primary model ${PRIMARY_MODEL} quota-hit for ${item._id}, replaying on ${FALLBACK_MODEL}.`
-                );
-                rawAnswer = await buildChain(getFallbackLlm()).invoke({
+        let fundedBy = 'shared';
+        let userKeyStatus = chatApiKey ? checkUserKeyHealth(chatApiKey) : null;
+        if (userKeyStatus !== 'ok') userKeyStatus = null;
+        let lastError = null;
+        for (const attempt of ladder) {
+            try {
+                rawAnswer = await buildChain(attempt.model, attempt.apiKey).invoke({
                     context,
                     question: item.question,
                 });
-            } else {
-                throw primaryError;
+                fundedBy = attempt.fund;
+                if (attempt.fund === 'user' && chatApiKey) {
+                    clearUserKeyHealth(chatApiKey);
+                    userKeyStatus = 'ok';
+                }
+                lastError = null;
+                break;
+            } catch (attemptError) {
+                lastError = attemptError;
+                if (attempt.fund === 'user' && chatApiKey) {
+                    if (isInvalidKeyError(attemptError)) {
+                        noteUserKeyFailure(chatApiKey, 'invalid');
+                        userKeyStatus = 'invalid';
+                    } else if (isQuotaError(attemptError)) {
+                        noteUserKeyFailure(chatApiKey, 'quota');
+                        userKeyStatus = 'quota';
+                    } else {
+                        userKeyStatus = 'error';
+                    }
+                    console.error(`User-key attempt failed for ${item._id} (${userKeyStatus}), falling back to shared.`);
+                    continue;
+                }
+                if (attempt.fund === 'shared') {
+                    if (isQuotaError(attemptError)) {
+                        lastSharedQuotaFailureAt = Date.now();
+                        console.error(
+                            `Shared ${attempt.model} quota-hit for ${item._id}, trying next rung.`
+                        );
+                        continue;
+                    }
+                    break;
+                }
             }
         }
+        if (lastError) throw lastError;
+
         const { answer: draftAnswer, sources } = splitAnswerAndSources(rawAnswer);
 
         item.draftAnswer = draftAnswer;
         item.sources = sources;
+        // A success clears any earlier failure record (e.g. after retry).
+        item.generationError = null;
         await item.save();
-        return { draftAnswer, sources };
+        return { draftAnswer, sources, fundedBy, userKeyStatus };
     } catch (error) {
         console.error(`Error generating draft answer for ${item._id}:`, error);
-        // Leave draftAnswer empty rather than crashing — the item just
-        // stays invisible to the TA queue (see the /review-queue filter)
-        // until someone notices and investigates, instead of showing a
-        // broken/half-written draft.
+        // Record the failure ON the item (instead of just logging): the
+        // queue surfaces draftless pending items with a Retry action, so
+        // a dead generation can never strand a question silently again.
+        try {
+            item.generationError = String(error?.message || error).slice(0, 500);
+            item.generationAttempts = (item.generationAttempts || 0) + 1;
+            await item.save();
+        } catch (saveError) {
+            console.error(`Failed to record generation error for ${item._id}:`, saveError.message);
+        }
     }
 }
 
@@ -424,14 +586,14 @@ async function generateDraftAnswer(item, { direct = false } = {}) {
 // through to "I don't know."
 app.post('/ingest', async (req, res) => {
     try {
-        const { documentId, moduleId, courseId, filename, fileBase64 } = req.body;
+        const { documentId, moduleId, courseId, filename, fileBase64, user_key } = req.body;
 
         if (!documentId || !filename || !fileBase64) {
             return res.status(400).json({ error: "documentId, filename and fileBase64 are required." });
         }
 
         const buffer = Buffer.from(fileBase64, "base64");
-        const result = await ingestSingleDocument({ buffer, filename, documentId, moduleId, courseId });
+        const result = await ingestSingleDocument({ buffer, filename, documentId, moduleId, courseId, userKey: user_key ?? null });
         res.json(result);
     } catch (error) {
         console.error("Error ingesting document:", error);
@@ -528,7 +690,10 @@ async function findInstantAnswer(question, scope) {
 
 app.post('/submit-question', async (req, res) => {
     try {
-        const { student_id, question, module_id, course_id, thread_id } = req.body;
+        // user_key is the asker's own Gemini key (BYOK), passed through by
+        // the backend after decrypting. Per-call only: used for this
+        // question's funding ladder, never stored, never logged.
+        const { student_id, question, module_id, course_id, thread_id, user_key } = req.body;
 
         if (!question) return res.status(400).json({ error: "Question is required." });
 
@@ -584,7 +749,7 @@ app.post('/submit-question', async (req, res) => {
                 normalizedQuestion: normalizeQuestion(question) || null,
                 threadId: thread_id,
             });
-            const generated = await generateDraftAnswer(item, { direct: true });
+            const generated = await generateDraftAnswer(item, { direct: true, chatApiKey: user_key ?? null });
             if (generated) {
                 item.status = 'approved';
                 item.finalAnswer = generated.draftAnswer;
@@ -595,6 +760,8 @@ app.post('/submit-question', async (req, res) => {
                     request_id: item._id.toString(),
                     threadAnswered: true,
                     answer: item.finalAnswer,
+                    fundedBy: generated.fundedBy,
+                    userKeyStatus: generated.userKeyStatus,
                 });
             }
             // Generation failed — item stays pending below for TA review.
@@ -624,7 +791,10 @@ app.post('/submit-question', async (req, res) => {
         });
 
         // Fire-and-forget: not awaited, runs after the response is sent.
-        generateDraftAnswer(item);
+        // Funding outcome lands nowhere observable here by design — the
+        // backend meters on supply (key included ⇒ attempt made) and the
+        // rag-side health map short-circuits repeat failures.
+        generateDraftAnswer(item, { chatApiKey: user_key ?? null });
 
     } catch (error) {
         console.error("Error processing question:", error);
@@ -639,10 +809,10 @@ app.post('/submit-question', async (req, res) => {
 // draftAnswer means generateDraftAnswer hasn't finished (or failed) yet,
 // and there's nothing for a TA to approve/edit/reject in the meantime.
 app.get('/review-queue', async (req, res) => {
-    const filter = {
-        status: 'pending',
-        draftAnswer: { $ne: "" },
-    };
+    // ALL pending items, including draftless ones whose generation failed
+    // — those render with their error + a Retry action instead of rotting
+    // invisibly (the old draftAnswer filter hid them forever).
+    const filter = { status: 'pending' };
     // Optional course scoping (?courseId=...) so callers can pull one
     // course's queue without sifting the whole platform's. Absent = all
     // pending, preserving the old behavior for existing callers.
@@ -651,6 +821,21 @@ app.get('/review-queue', async (req, res) => {
         .sort({ createdAt: 1 })
         .lean();
     res.json(pending);
+});
+
+// Retries generation for a stuck pending item (empty draft after a
+// failed attempt). Fire-and-forget like the original submit path — the
+// TA sees the fresh draft on next queue refresh.
+app.post('/review-queue/:id/retry', async (req, res) => {
+    const item = await ReviewQueueItem.findById(req.params.id);
+    if (!item) return res.status(404).json({ error: "Not found" });
+    if (item.status !== 'pending') {
+        return res.status(400).json({ error: "Only pending items can be retried." });
+    }
+    item.generationError = null;
+    await item.save();
+    generateDraftAnswer(item, { chatApiKey: null });
+    res.json({ status: 'retrying', id: item._id.toString() });
 });
 
 // Purges every Q&A history item tied to any of the given modules. Called
@@ -887,6 +1072,81 @@ app.get('/related-questions', async (req, res) => {
     } catch (error) {
         console.error("Error fetching related questions:", error);
         res.status(500).json({ error: "Internal server error" });
+    }
+});
+
+// Save a verified answer into another student's history: the asker saw
+// their exact question in "related" while typing and takes the verified
+// answer as-is. No generation, no review — the source was already
+// TA-approved. Scope must match (same course + module), rating must be
+// servable; anything else 4xxs. The clone is marked autoServed so it
+// reads naturally in history/stats without ever touching the queue.
+app.post('/save-answer', async (req, res) => {
+    try {
+        const { student_id, source_id, module_id, course_id } = req.body;
+        if (!source_id) return res.status(400).json({ error: "source_id is required." });
+
+        const source = await ReviewQueueItem.findById(source_id).lean();
+        if (!source) return res.status(404).json({ error: "Source answer not found." });
+        if (source.status !== 'approved') {
+            return res.status(400).json({ error: "Only approved answers can be saved." });
+        }
+        if (!SERVABLE_RATINGS(source.rating)) {
+            return res.status(400).json({ error: "That answer is not servable." });
+        }
+        if ((source.moduleId ?? null) !== (module_id ?? null) ||
+            (source.courseId ?? null) !== (course_id ?? null)) {
+            return res.status(400).json({ error: "Source answer is from a different scope." });
+        }
+
+        const item = await ReviewQueueItem.create({
+            studentId: student_id ?? null,
+            moduleId: source.moduleId,
+            courseId: source.courseId,
+            question: source.question,
+            normalizedQuestion: source.normalizedQuestion || normalizeQuestion(source.question) || null,
+            draftAnswer: source.finalAnswer || "",
+            finalAnswer: source.finalAnswer,
+            citations: source.citations || [],
+            rating: source.rating ?? null,
+            wasEdited: source.wasEdited ?? false,
+            status: 'approved',
+            autoServed: true,
+            servedFrom: source._id.toString(),
+        });
+        res.json({
+            status: "success",
+            message: "Answer saved to your history.",
+            request_id: item._id.toString(),
+        });
+    } catch (error) {
+        console.error("Error saving answer:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error" });
+        }
+    }
+});
+
+// Removes a saved/instant clone from a student's own history. Only the
+// owning student, only auto-served clones — reviewed answers are never
+// deletable through here (TA History is the record for those).
+app.post('/unsave-answer', async (req, res) => {
+    try {
+        const { student_id, request_id } = req.body;
+        if (!request_id) return res.status(400).json({ error: "request_id is required." });
+
+        const item = await ReviewQueueItem.findById(request_id);
+        if (!item) return res.status(404).json({ error: "Not found." });
+        if (item.studentId !== (student_id ?? null) || !item.autoServed) {
+            return res.status(403).json({ error: "Only your own saved answers can be removed." });
+        }
+        await ReviewQueueItem.deleteOne({ _id: request_id });
+        res.json({ status: "success", removed: true });
+    } catch (error) {
+        console.error("Error removing saved answer:", error);
+        if (!res.headersSent) {
+            res.status(500).json({ error: "Internal server error" });
+        }
     }
 });
 

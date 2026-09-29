@@ -464,7 +464,7 @@ export default function AdminUpload({ initialModuleId, onPageChange } = {}) {
                   </div>
                   <button
                     onClick={() => handleDeleteDocument(doc)}
-                    className="shrink-0 text-xs text-red-400 hover:underline hover:opacity-80"
+                    className="shrink-0 text-xs text-red-400/70 hover:text-red-400 hover:underline hover:opacity-80"
                   >
                     Delete
                   </button>
