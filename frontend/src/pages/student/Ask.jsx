@@ -53,6 +53,7 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
   const [loadingModules, setLoadingModules] = useState(false);
   const [sent, setSent] = useState(false);
   const [autoServed, setAutoServed] = useState(false);
+  const [matchedQuestion, setMatchedQuestion] = useState(null);
   const [threadAnswer, setThreadAnswer] = useState(null);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -230,11 +231,13 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
     setQuestion('');
     setSent(true);
     setAutoServed(false);
+    setMatchedQuestion(null);
     setThreadAnswer(null);
     flashButton();
     try {
       const res = await askQuestion(text, selectedModuleId, initialThread?.threadId);
       setAutoServed(res.data?.autoServed === true);
+      setMatchedQuestion(res.data?.matchedQuestion || null);
       // Direct follow-up answers render inline — no history trip needed.
       setThreadAnswer(res.data?.threadAnswered ? res.data?.answer || null : null);
     } catch (err) {
@@ -460,7 +463,7 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
       {sent && (
         <div className="mt-4 rounded-lg border border-border bg-surface p-4 text-sm text-heading">
           {autoServed
-            ? 'Answered instantly from a verified answer. '
+            ? `Answered instantly from a verified answer${matchedQuestion ? ` to: "${matchedQuestion}"` : ''}. `
             : threadAnswer
               ? ''
               : 'Your question was submitted to the TA review queue. '}

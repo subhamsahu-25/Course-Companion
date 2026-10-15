@@ -24,6 +24,42 @@ This is a three-service project:
 The `frontend` only ever talks to `backend`. `backend` is the only service
 that talks to `rag` (authenticated with a shared service key — see below).
 
+```mermaid
+flowchart LR
+    Student([Student browser]) --> FE[frontend\nVite + React]
+    TA([TA browser]) --> FE
+    Instructor([Instructor browser]) --> FE
+    FE -->|/api/v1 + cookies| BE[backend\nExpress + Mongoose]
+    BE -->|x-service-key| RAG[rag service\nLangChain + Gemini]
+    BE --> MDB[(MongoDB\nusers, courses,\ndocuments, quiz)]
+    RAG --> MDB
+    RAG --> QDR[(Qdrant\nvectors + goldens)]
+    RAG --> GEM([Gemini API\nchat + embeddings])
+    BE --> CLD([Cloudinary\nfiles])
+    BE --> MAIL([Brevo/SMTP\nmail])
+```
+
+Ask → draft → review → verified answer:
+
+```mermaid
+sequenceDiagram
+    participant S as Student
+    participant B as backend
+    participant R as rag service
+    participant T as TA
+    S->>B: ask (course scope checked)
+    B->>R: submit-question
+    R->>R: instant-answer check (exact, then golden ≥ 0.90)
+    alt verified match
+        R-->>S: approved answer immediately
+    else new question
+        R->>R: retrieve (golden-first) + draft + citations
+        T->>R: approve / edit + rate, or reject
+        R->>R: servable approvals ingest as golden
+        R-->>S: answer + email notification
+    end
+```
+
 **Roles:** `admin`, `instructor`, `ta`, `student`. Anyone can self-register
 as `student`, `instructor`, or `ta`; `admin` accounts must be created
 directly in the database (there's no self-registration path for it, by

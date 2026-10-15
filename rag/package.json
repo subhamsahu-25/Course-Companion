@@ -14,9 +14,9 @@
     "nodemon": "^3.1.14",
     "pdf-parse": "^2.4.5"
   },
-  "name": "rag-hackathon",
+  "name": "course-companion-rag",
   "version": "1.0.0",
-  "description": "",
+  "description": "Course Companion RAG service: ingestion, retrieval pipeline, TA review queue",
   "main": "ingest.js",
   "scripts": {
     "dev": "nodemon server.js",

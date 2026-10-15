@@ -12,3 +12,5 @@ rag/course_materials/*
 !rag/course_materials/.gitkeep
 
 rag/chroma-data/
+
+.VSCodeCounter/

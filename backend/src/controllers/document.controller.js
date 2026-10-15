@@ -1,5 +1,4 @@
 // controllers/document.controller.js
-import fs from "fs";
 import path from "path";
 import { asyncHandler } from "../utils/async-handler.js";
 import { ApiResponse } from "../utils/api-response.js";
@@ -170,32 +169,14 @@ const streamDocumentFile = asyncHandler(async (req, res) => {
    assertCourseAccess(document.module.course, req.user);
 
    // Cloudinary-hosted files (everything uploaded since durable storage):
-   // access stays checked here, then hand off to the CDN.
+   // access stays checked here, then hand off to the CDN. Anything else is
+   // a legacy local-disk record — deliberately NOT served (with the
+   // /uploads static mount gone, disk files are unreachable by design).
    if (/^https?:\/\//i.test(document.url || "")) {
       return res.redirect(document.url);
    }
 
-   // Legacy local-disk records (pre-Cloudinary uploads, plus localhost
-   // dev) — kept as a fallback path.
-   const filename = path.basename(document.url);
-   const filePath = path.resolve("uploads", filename);
-
-   if (!fs.existsSync(filePath)) {
-      throw new ApiError(404, "File is not available");
-   }
-
-   const ext = path.extname(filename).toLowerCase();
-   const mimeTypes = {
-      ".pdf": "application/pdf",
-      ".txt": "text/plain; charset=utf-8",
-   };
-
-   res.setHeader("Content-Type", mimeTypes[ext] || "application/octet-stream");
-   res.setHeader(
-      "Content-Disposition",
-      `inline; filename="${encodeURIComponent(document.title || filename)}"`,
-   );
-   fs.createReadStream(filePath).pipe(res);
+   throw new ApiError(404, "File is not available");
 });
 
 const deleteDocument = asyncHandler(async (req, res) => {

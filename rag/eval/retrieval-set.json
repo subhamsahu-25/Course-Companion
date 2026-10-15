@@ -1,0 +1,19 @@
+{
+  "_comment": "Retrieval eval set: 20 real course questions with the expected source file (and page when known). expectedSource matches chunk metadata.source. Run: node measure-retrieval.js. Fill moduleId/courseId from your Mongo (Module._id / Course._id).",
+  "cases": [
+    {
+      "question": "TEMPLATE: when did the war in the pacific end?",
+      "moduleId": "TEMPLATE_MODULE_ID",
+      "courseId": "TEMPLATE_COURSE_ID",
+      "expectedSource": "TEMPLATE_FILE.pdf",
+      "expectedPage": null
+    },
+    {
+      "question": "TEMPLATE: what is data normalization?",
+      "moduleId": "TEMPLATE_MODULE_ID",
+      "courseId": "TEMPLATE_COURSE_ID",
+      "expectedSource": "TEMPLATE_FILE.pdf",
+      "expectedPage": null
+    }
+  ]
+}

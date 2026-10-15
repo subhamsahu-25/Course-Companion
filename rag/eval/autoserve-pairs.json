@@ -1,0 +1,25 @@
+{
+  "_comment": "Calibration pairs for AUTO_SERVE_SIMILARITY. Replace these TEMPLATE entries with 30-40 REAL pairs from your courses: half true paraphrases (same answer) labeled true, half same-words-different-meaning labeled false (e.g. 'What caused X?' vs 'What ended X?'). Run: node calibrate-autoserve.js",
+  "pairs": [
+    {
+      "a": "TEMPLATE: when did the war in the pacific end?",
+      "b": "TEMPLATE: in which month and year did pacific fighting stop?",
+      "same": true
+    },
+    {
+      "a": "TEMPLATE: what caused the war?",
+      "b": "TEMPLATE: what ended the war?",
+      "same": false
+    },
+    {
+      "a": "TEMPLATE: define blitzkrieg",
+      "b": "TEMPLATE: what does lightning war mean?",
+      "same": true
+    },
+    {
+      "a": "TEMPLATE: who won the war?",
+      "b": "TEMPLATE: who started the war?",
+      "same": false
+    }
+  ]
+}
