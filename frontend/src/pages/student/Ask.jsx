@@ -72,6 +72,17 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
     setFlashSent(true);
     flashTimer.current = setTimeout(() => setFlashSent(false), 1000);
   }
+  // 3-second auto-dismiss for the "submitted to review queue" banner —
+  // otherwise it sits under the form forever and reads as if it belongs
+  // to whatever the student types next. Instant/thread confirmations
+  // carry the answer itself, so those stay until the next submit.
+  const sentTimer = useRef(null);
+  useEffect(
+    () => () => {
+      if (sentTimer.current) clearTimeout(sentTimer.current);
+    },
+    [],
+  );
   // Quota-strain nudge: when the shared pool is exhausted AND this
   // student has no key of their own, point them at Account — the moment
   // motivation peaks. Keyed students fail over silently instead.
@@ -228,6 +239,7 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
     submittingRef.current = true;
     setSubmitting(true);
     setError(null);
+    if (sentTimer.current) clearTimeout(sentTimer.current);
     setQuestion('');
     setSent(true);
     setAutoServed(false);
@@ -240,6 +252,12 @@ export default function StudentAsk({ initialModuleId, initialThread, entryModule
       setMatchedQuestion(res.data?.matchedQuestion || null);
       // Direct follow-up answers render inline — no history trip needed.
       setThreadAnswer(res.data?.threadAnswered ? res.data?.answer || null : null);
+      // Plain queue submissions carry no lasting info (the answer arrives
+      // via history), so the banner bows out after 3 seconds instead of
+      // lingering under the next question being typed.
+      if (res.data?.autoServed !== true && !res.data?.threadAnswered) {
+        sentTimer.current = setTimeout(() => setSent(false), 3000);
+      }
     } catch (err) {
       setError(err.message);
       setQuestion(text);

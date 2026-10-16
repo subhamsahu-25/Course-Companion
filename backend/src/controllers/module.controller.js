@@ -7,7 +7,7 @@ import { Course } from "../models/course.model.js";
 import { Question } from "../models/question.model.js";
 import { Answer } from "../models/answer.model.js";
 import { Document } from "../models/document.model.js";
-import { assertCourseAccess } from "../utils/course-access.js";
+import { assertCourseAccess, accessibleCourseFilter } from "../utils/course-access.js";
 
 const createModule = asyncHandler(async (req, res) => {
    const { title, description, course: courseId, order } = req.body;
@@ -45,15 +45,9 @@ const createModule = asyncHandler(async (req, res) => {
 // used to need (counts, dropdowns, review filters all derive client-side
 // from this + getCourses in just 2 requests).
 const getMyModules = asyncHandler(async (req, res) => {
-   // Same visibility rule as getAllCourses: students see published member
-   // courses, TAs member courses, staff everything.
-   const courseFilter = {};
-   if (req.user?.role === "student") {
-      courseFilter.isPublished = true;
-      courseFilter.students = req.user._id;
-   } else if (req.user?.role === "ta") {
-      courseFilter.tas = req.user._id;
-   }
+   // Same visibility rule as getAllCourses, from the shared helper —
+   // instructors only see modules of courses they own.
+   const courseFilter = accessibleCourseFilter(req.user);
    const courses = await Course.find(courseFilter).select("_id").lean();
    const modules = await Module.find({
       course: { $in: courses.map((c) => c._id) },

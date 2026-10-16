@@ -6,11 +6,13 @@ import { getVectorStore } from "../clients.js";
 import { scopeFilter } from "../ingest-logic.js";
 
 // Minimum golden-chunk cosine similarity for an instant answer. Calibrated
-// upward from 0.85 (see calibrate-autoserve.js): a false positive serves a
-// wrong answer with no human ever looking, so paraphrase matches must be
-// near-certain. Exact normalized matches bypass this entirely (they can't
+// on your real golden answers (see calibrate-goldens.js): genuine paraphrase
+// matches score 0.84–0.98, while unrelated questions in the same scope top
+// out at 0.70 — so 0.80 sits in the clean gap with margin both ways. Was
+// 0.90, which sat above most real paraphrases and effectively disabled the
+// similarity leg. Exact normalized matches bypass this entirely (they can't
 // false-positive).
-export const AUTO_SERVE_SIMILARITY = 0.9;
+export const AUTO_SERVE_SIMILARITY = 0.8;
 
 // Ratings that may teach or auto-serve. Mirrors the golden policy: 1–2
 // star approvals are quarantined from both.

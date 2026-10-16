@@ -100,8 +100,12 @@ const retryAnswer = (id) =>
    ragRequest(`/review-queue/${id}/retry`, { method: "POST" });
 
 // Questions in a course with enough TA important marks to highlight.
-const getImportantQuestions = (courseId) =>
-   ragRequest(`/review-queue/important?courseId=${encodeURIComponent(courseId)}`);
+// threshold = the course's own importantThreshold (distinct-TA marks
+// needed). Omitted for older courses — the rag service defaults to 2.
+const getImportantQuestions = (courseId, threshold) =>
+   ragRequest(
+      `/review-queue/important?courseId=${encodeURIComponent(courseId)}${threshold !== undefined && threshold !== null ? `&threshold=${encodeURIComponent(threshold)}` : ""}`
+   );
 
 // Per-course activity: asked counts per student, resolved counts per TA.
 const getCourseQaStats = (courseId) =>

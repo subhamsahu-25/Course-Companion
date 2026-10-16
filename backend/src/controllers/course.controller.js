@@ -7,7 +7,7 @@ import { Module } from "../models/module.model.js";
 import { Question } from "../models/question.model.js";
 import { Document } from "../models/document.model.js";
 import { Answer } from "../models/answer.model.js";
-import { assertCourseAccess, generateUniqueJoinCode } from "../utils/course-access.js";
+import { assertCourseAccess, generateUniqueJoinCode, accessibleCourseFilter } from "../utils/course-access.js";
 import fs from "fs";
 import path from "path";
 import * as ragService from "../services/rag.service.js";
@@ -88,17 +88,10 @@ const joinCourseByCode = asyncHandler(async (req, res) => {
 });
 
 const getAllCourses = asyncHandler(async (req, res) => {
-   const filter = {};
-
-   // Students and TAs only ever see courses they've joined with a code —
-   // "published" alone no longer implies visible to everyone. Admins and
-   // instructors keep seeing every course, same as before.
-   if (req.user?.role === "student") {
-      filter.isPublished = true;
-      filter.students = req.user._id;
-   } else if (req.user?.role === "ta") {
-      filter.tas = req.user._id;
-   }
+   // Students see published member courses, TAs member courses,
+   // instructors only courses they own, admins everything — one shared
+   // helper, so list visibility can't drift from the access checks.
+   const filter = accessibleCourseFilter(req.user);
 
    const courses = await Course.find(filter)
       .populate("instructor", "username fullname")
@@ -138,7 +131,7 @@ const getCourseById = asyncHandler(async (req, res) => {
 
 const updateCourse = asyncHandler(async (req, res) => {
    const { id } = req.params;
-   const { title, description, tags, isPublished } = req.body;
+   const { title, description, tags, isPublished, importantThreshold } = req.body;
 
    const course = await Course.findById(id);
    if (!course) {
@@ -159,6 +152,7 @@ const updateCourse = asyncHandler(async (req, res) => {
    if (description !== undefined) course.description = description;
    if (tags !== undefined) course.tags = tags;
    if (isPublished !== undefined) course.isPublished = isPublished;
+   if (importantThreshold !== undefined) course.importantThreshold = importantThreshold;
 
    await course.save();
 

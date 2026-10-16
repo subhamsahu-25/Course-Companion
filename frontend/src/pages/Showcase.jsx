@@ -4,7 +4,7 @@
 // card carries a display button ("Start here") that picks the first
 // screen after sign-in (persisted through email verification), with the
 // button's explanation below it inside the card.
-import { PerspectiveCarousel } from '../components/ui/perspective-carousel.jsx';
+import { PerspectiveCarousel } from '../components/ui/perspective-carousel.tsx';
 import { nameForRole, cardArt, sectionsForRole } from '../utils/showcase.js';
 
 // User-supplied curly arrow artwork, recolored to the app palette

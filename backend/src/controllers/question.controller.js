@@ -4,7 +4,9 @@ import { ApiResponse } from "../utils/api-response.js";
 import { ApiError } from "../utils/api-error.js";
 import { Question } from "../models/question.model.js";
 import { Module } from "../models/module.model.js";
+import { Course } from "../models/course.model.js";
 import { Answer } from "../models/answer.model.js";
+import { assertCourseAccess, accessibleCourseFilter } from "../utils/course-access.js";
 
 const createQuestion = asyncHandler(async (req, res) => {
    const { module: moduleId, text, type, points } = req.body;
@@ -41,8 +43,20 @@ const getQuestionFeed = asyncHandler(async (req, res) => {
    const limit = Math.min(parseInt(req.query.limit) || 20, 100);
    const { cursor, module } = req.query;
 
+   // Scope the feed to the caller's accessible courses — same rule as the
+   // course/module lists, so one course's quiz never leaks into another's
+   // (or to a non-owner instructor's) view.
+   const courseIds = await Course.find(accessibleCourseFilter(req.user)).distinct("_id");
+   const moduleIds = await Module.find({ course: { $in: courseIds } }).distinct("_id");
    const filter = {};
-   if (module) filter.module = module;
+   if (module) {
+      if (!moduleIds.some((id) => id.toString() === module)) {
+         throw new ApiError(403, "You need to join this course with its code before you can access it.");
+      }
+      filter.module = module;
+   } else {
+      filter.module = { $in: moduleIds };
+   }
    if (cursor) filter._id = { $lt: cursor };
 
    const questions = await Question.find(filter)
@@ -74,9 +88,14 @@ const getQuestionFeed = asyncHandler(async (req, res) => {
 const getQuestionById = asyncHandler(async (req, res) => {
    const { id } = req.params;
 
-   const question = await Question.findById(id).populate("answers");
+   const question = await Question.findById(id)
+      .populate("answers")
+      .populate({ path: "module", populate: { path: "course" } });
    if (!question) {
       throw new ApiError(404, "Question not found");
+   }
+   if (question.module?.course) {
+      assertCourseAccess(question.module.course, req.user);
    }
 
    return res

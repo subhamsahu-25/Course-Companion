@@ -5,6 +5,7 @@ import { ApiError } from "../utils/api-error.js";
 import { Answer } from "../models/answer.model.js";
 import { Question } from "../models/question.model.js";
 import { transitionAnswer } from "../services/answer-workflow.service.js";
+import { assertCourseAccess } from "../utils/course-access.js";
 
 const createAnswer = asyncHandler(async (req, res) => {
    const { question: questionId, text, isCorrect } = req.body;
@@ -41,6 +42,17 @@ const createAnswer = asyncHandler(async (req, res) => {
 
 const getAnswersByQuestion = asyncHandler(async (req, res) => {
    const { questionId } = req.params;
+
+   const question = await Question.findById(questionId).populate({
+      path: "module",
+      populate: { path: "course" },
+   });
+   if (!question) {
+      throw new ApiError(404, "Question not found");
+   }
+   if (question.module?.course) {
+      assertCourseAccess(question.module.course, req.user);
+   }
 
    const filter = { question: questionId };
    // students only ever see published answers

@@ -3,9 +3,11 @@
 // Shared enrollment logic for the join-code system. A course's materials,
 // Q&A, and review queue are only reachable by: the course's own
 // instructor, any admin, or a user who has joined via the course's
-// joinCode (added to `students` or `tas` accordingly). Every controller
-// that reads course-scoped data should go through hasCourseAccess/
-// assertCourseAccess rather than re-deriving this logic itself.
+// joinCode (added to `students` or `tas` accordingly). Instructors never
+// see another instructor's courses. Every controller that reads
+// course-scoped data should go through hasCourseAccess/
+// assertCourseAccess (or accessibleCourseFilter for list endpoints)
+// rather than re-deriving this logic itself.
 
 import { ApiError } from "./api-error.js";
 
@@ -32,10 +34,22 @@ function hasCourseAccess(course, user) {
    if (user.role === "ta") {
       return course.tas?.some((id) => idString(id) === userId) ?? false;
    }
-   // Other instructors (not the owner) currently keep the platform-wide
-   // visibility that existed before join codes — unchanged from prior
-   // behavior, just centralized here.
-   return user.role === "instructor";
+   // Instructors see only courses they own — a non-owner instructor has no
+   // access here (strict ownership; there is no co-teaching or join path
+   // for instructors). Admins bypass via STAFF_ROLES above.
+   return false;
+}
+
+// Mongoose filter matching list-endpoint visibility: students see
+// published member courses, TAs member courses, instructors only courses
+// they own, admins everything. Single source so getAllCourses,
+// getMyModules, and the question feed can't drift apart.
+function accessibleCourseFilter(user) {
+   if (!user) return { _id: null };
+   if (user.role === "student") return { isPublished: true, students: user._id };
+   if (user.role === "ta") return { tas: user._id };
+   if (user.role === "instructor") return { instructor: user._id };
+   return {};
 }
 
 function assertCourseAccess(course, user) {
@@ -59,4 +73,4 @@ async function generateUniqueJoinCode(Course) {
    throw new ApiError(500, "Could not generate a unique join code, please try again.");
 }
 
-export { hasCourseAccess, assertCourseAccess, generateUniqueJoinCode };
+export { hasCourseAccess, assertCourseAccess, generateUniqueJoinCode, accessibleCourseFilter };

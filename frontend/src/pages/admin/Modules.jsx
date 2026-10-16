@@ -4,6 +4,7 @@ import {
   getCourseById,
   getModulesByCourse,
   createModule,
+  updateCourse,
   deleteModule,
   deleteDocument,
   getDocumentFileUrl,
@@ -39,6 +40,10 @@ export default function AdminModules({ courseId, onPageChange }) {
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [expandedModules, setExpandedModules] = useState(() => new Set());
+  // Which module the Important questions section is filtered to (from a
+  // module card's "See important questions"). Null = whole course.
+  const [importantModuleId, setImportantModuleId] = useState(null);
+  const importantRef = useRef(null);
   // TA-highlighted questions (enough important marks) + per-member Q&A
   // activity for this course. Separate calls so a rag outage degrades to
   // empty sections instead of failing the whole page.
@@ -97,6 +102,15 @@ export default function AdminModules({ courseId, onPageChange }) {
         next.add(moduleId);
       }
       return next;
+    });
+  }
+  // Jumps to the Important questions section filtered to one module.
+  // The section always renders (even when empty), so the scroll target
+  // is stable regardless of the filter.
+  function seeImportantQuestions(moduleId) {
+    setImportantModuleId(moduleId);
+    requestAnimationFrame(() => {
+      importantRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }
   async function handleCreateModule(event) {
@@ -246,6 +260,9 @@ export default function AdminModules({ courseId, onPageChange }) {
         )}
         {modules.map((mod) => {
           const isExpanded = expandedModules.has(mod._id);
+          const flaggedCount = importantQuestions.filter(
+            (q) => q.moduleId === mod._id,
+          ).length;
           return (
             <div
               key={mod._id}
@@ -299,6 +316,14 @@ export default function AdminModules({ courseId, onPageChange }) {
                   </div>
                 </button>
               </div>
+              <button
+                onClick={() => seeImportantQuestions(mod._id)}
+                className="mt-4 w-full rounded-lg bg-white/5 p-3 text-left text-sm text-body transition-all duration-200 ease-out hover:bg-white/10 hover:text-heading"
+              >
+                {flaggedCount > 0
+                  ? `See important questions (${flaggedCount}) →`
+                  : 'See important questions →'}
+              </button>
               {isExpanded && (
                 <div className="mt-5 space-y-2 border-t border-border pt-4">
                   {mod.documents.length === 0 && (
@@ -336,9 +361,19 @@ export default function AdminModules({ courseId, onPageChange }) {
           );
         })}
       </div>
+      <ThresholdSection
+        key={courseId}
+        courseId={courseId}
+        current={course?.importantThreshold ?? 2}
+        onSaved={loadAll}
+      />
       <ImportantQuestionsSection
         questions={importantQuestions}
         modules={modules}
+        threshold={course?.importantThreshold ?? 2}
+        sectionRef={importantRef}
+        activeModuleId={importantModuleId}
+        onClearFilter={() => setImportantModuleId(null)}
       />
       <AnswerQualitySection quality={qaStats.quality} />
       <ContentGapsSection gaps={qaStats.gaps || []} modules={modules} />
@@ -353,45 +388,153 @@ export default function AdminModules({ courseId, onPageChange }) {
     </div>
   );
 }
-// Questions the TAs collectively flagged as important (enough distinct-TA
-// marks to cross the threshold) — questions only, newest highlights first
-// by mark count, each labeled with its module.
-function ImportantQuestionsSection({ questions, modules }) {
-  if (questions.length === 0) return null;
-  const moduleById = new Map(modules.map((m) => [m._id, m]));
+// Per-course bar for highlighting: how many distinct-TA important marks a
+// question needs before it shows up under Important questions below.
+// Stored on the course (not global), so a solo-TA course can set 1 while
+// a large course demands more. The list itself is never capped — every
+// question reaching the bar highlights.
+function ThresholdSection({ courseId, current, onSaved }) {
+  const [value, setValue] = useState(String(current ?? 2));
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState(null); // { tone: 'ok' | 'error', text } | null
+  async function save(event) {
+    event.preventDefault();
+    const n = Number.parseInt(value, 10);
+    if (!Number.isInteger(n) || n < 1) {
+      setMessage({ tone: 'error', text: 'Enter a whole number of 1 or more.' });
+      return;
+    }
+    setSaving(true);
+    setMessage(null);
+    try {
+      await updateCourse(courseId, { importantThreshold: n });
+      setMessage({
+        tone: 'ok',
+        text: `Saved — questions with ${n} or more TA marks will highlight below.`,
+      });
+      if (onSaved) await onSaved();
+    } catch (err) {
+      setMessage({ tone: 'error', text: err.message });
+    } finally {
+      setSaving(false);
+    }
+  }
   return (
     <div className="mt-8 rounded-xl border border-border bg-surface p-6 shadow-sm">
       <div className="text-[16px] font-semibold text-heading">
-        Important questions ({questions.length})
+        Important-question threshold
       </div>
       <p className="mt-1 text-xs text-body">
-        Flagged by your TAs as worth your attention.
+        How many different TAs must flag a question before it highlights
+        below. No cap on how many questions can highlight.
       </p>
-      <ul className="mt-3 space-y-3">
-        {questions.map((q) => (
-          <li
-            key={q.id}
-            className="rounded-lg bg-black/20 px-4 py-3"
+      <form onSubmit={save} className="mt-3 flex max-w-xs items-center gap-2">
+        <input
+          type="number"
+          min={1}
+          step={1}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          aria-label="Distinct-TA marks needed"
+          className="w-24 rounded-lg border border-border bg-bg p-2.5 text-sm text-heading outline-none focus:border-accent"
+        />
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded-xl border border-border bg-accent px-4 py-2 text-sm font-medium text-accent-ink hover:bg-accent-hover active:scale-[0.98] disabled:opacity-60"
+        >
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </form>
+      {message && (
+        <div
+          className={`mt-3 rounded-lg border p-3 text-sm ${
+            message.tone === 'ok'
+              ? 'border-green-200 bg-green-50 text-green-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {message.text}
+        </div>
+      )}
+    </div>
+  );
+}
+// Questions the TAs collectively flagged as important (at least `threshold`
+// distinct-TA marks) — questions only, hottest first by mark count, each
+// labeled with its module. Always rendered, even when empty, so the
+// section is discoverable; an optional module filter (from each module
+// card's "See important questions") narrows it to one module.
+function ImportantQuestionsSection({
+  questions,
+  modules,
+  threshold,
+  sectionRef,
+  activeModuleId,
+  onClearFilter,
+}) {
+  const moduleById = new Map(modules.map((m) => [m._id, m]));
+  const activeModule = activeModuleId ? moduleById.get(activeModuleId) : null;
+  const visible = activeModuleId
+    ? questions.filter((q) => q.moduleId === activeModuleId)
+    : questions;
+  return (
+    <div
+      ref={sectionRef}
+      className="mt-8 scroll-mt-6 rounded-xl border border-border bg-surface p-6 shadow-sm"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[16px] font-semibold text-heading">
+          Important questions ({visible.length})
+        </div>
+        {activeModule && (
+          <button
+            type="button"
+            onClick={onClearFilter}
+            title="Show all modules"
+            className="rounded-full border border-border bg-white/5 px-3 py-1 text-xs text-body transition-all duration-200 ease-out hover:text-heading"
           >
-            <div className="flex items-start justify-between gap-3">
-              <span className="text-sm font-medium text-heading">
-                {q.question}
-              </span>
-              <span
-                title="Distinct-TA important marks"
-                className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700"
-              >
-                ★ {q.importantCount}
-              </span>
-            </div>
-            {moduleById.get(q.moduleId) && (
-              <div className="mt-1 text-xs text-body">
-                {moduleById.get(q.moduleId).title}
+            {activeModule.title} ×
+          </button>
+        )}
+      </div>
+      <p className="mt-1 text-xs text-body">
+        Flagged by your TAs as worth your attention — needs {threshold} or
+        more TA mark{threshold === 1 ? '' : 's'}.
+      </p>
+      {visible.length === 0 ? (
+        <p className="mt-3 text-sm text-body">
+          {activeModuleId
+            ? `No flagged questions in ${activeModule?.title || 'this module'} yet.`
+            : 'Nothing flagged yet. When TAs mark questions important in the review queue, the ones reaching the threshold appear here.'}
+        </p>
+      ) : (
+        <ul className="mt-3 space-y-3">
+          {visible.map((q) => (
+            <li
+              key={q.id}
+              className="rounded-lg bg-black/20 px-4 py-3"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-sm font-medium text-heading">
+                  {q.question}
+                </span>
+                <span
+                  title="Distinct-TA important marks"
+                  className="shrink-0 rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-medium text-amber-700"
+                >
+                  ★ {q.importantCount}
+                </span>
               </div>
-            )}
-          </li>
-        ))}
-      </ul>
+              {moduleById.get(q.moduleId) && (
+                <div className="mt-1 text-xs text-body">
+                  {moduleById.get(q.moduleId).title}
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

@@ -54,6 +54,16 @@ const courseSchema = new Schema(
          type: Boolean,
          default: false
       },
+      // Distinct-TA important marks needed before a question highlights on
+      // the instructor portal. Per-course (not global): a solo-TA course
+      // can set 1, a large course can demand more. Defaults to 2, the
+      // prior hardcoded bar — older courses without the field behave as
+      // before until an admin sets it.
+      importantThreshold: {
+         type: Number,
+         default: 2,
+         min: 1
+      },
       isDeleted: {
          type: Boolean,
          default: false,

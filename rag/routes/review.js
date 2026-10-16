@@ -259,9 +259,12 @@ function normalizeRating(value) {
 // self-perpetuate.
 const GOLDEN_MIN_RATING = 3;
 
-// Distinct-TA important marks needed before a question is highlighted to
-// the instructor. Low on purpose: most courses have a handful of TAs, so
-// 2 means "more than one TA independently flagged this".
+// Fallback bar for distinct-TA important marks. Per-course now: the
+// backend passes ?threshold= from the course's own importantThreshold
+// setting. This default (2 = "more than one TA independently flagged
+// this") applies only when the param is absent or invalid — e.g. courses
+// created before the setting existed. Never trust 0/negative/NaN here:
+// they would highlight everything or nothing by accident.
 const IMPORTANT_THRESHOLD = 2;
 
 
@@ -496,8 +499,12 @@ router.post('/unsave-answer', async (req, res) => {
 // mark counts, nothing else from these rows is needed... except moduleId
 // so it can label which module each came from.
 router.get('/review-queue/important', async (req, res) => {
-    const { courseId } = req.query;
+    const { courseId, threshold } = req.query;
     if (!courseId) return res.status(400).json({ error: "courseId query param is required." });
+    // Per-course bar from the backend (?threshold=). Absent/invalid falls
+    // back to IMPORTANT_THRESHOLD — never 0/negative, see above.
+    const parsed = Number.parseInt(threshold, 10);
+    const needed = Number.isInteger(parsed) && parsed >= 1 ? parsed : IMPORTANT_THRESHOLD;
 
     const items = await ReviewQueueItem.find({
         courseId,
@@ -514,7 +521,7 @@ router.get('/review-queue/important', async (req, res) => {
                 importantCount: (item.importantBy || []).length,
                 createdAt: item.createdAt,
             }))
-            .filter((item) => item.importantCount >= IMPORTANT_THRESHOLD)
+            .filter((item) => item.importantCount >= needed)
             .sort((a, b) => b.importantCount - a.importantCount)
     );
 });

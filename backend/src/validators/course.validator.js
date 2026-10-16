@@ -65,6 +65,11 @@ const updateCourseValidator = () => {
          .optional()
          .isBoolean()
          .withMessage("isPublished must be a boolean"),
+
+      body("importantThreshold")
+         .optional()
+         .isInt({ min: 1 })
+         .withMessage("importantThreshold must be a whole number of 1 or more"),
    ]
 }
 

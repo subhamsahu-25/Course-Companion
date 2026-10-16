@@ -164,7 +164,10 @@ const getImportantQuestions = asyncHandler(async (req, res) => {
    if (!course) throw new ApiError(404, "Course not found");
    assertCourseAccess(course, req.user);
 
-   const result = await ragService.getImportantQuestions(courseId);
+   // Per-course bar: the course's own importantThreshold decides how many
+   // distinct-TA marks highlight a question. Older courses without the
+   // field send undefined — the rag service falls back to 2.
+   const result = await ragService.getImportantQuestions(courseId, course.importantThreshold);
    return res.status(200).json(new ApiResponse(200, result, "Important questions fetched"));
 });
 
