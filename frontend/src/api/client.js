@@ -5,7 +5,7 @@
 // request/response shape, error handling, and auth cookie handling in
 // exactly one place instead of drifting across files.
 
-const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '');
+const BASE_URL = (import.meta.env.VITE_API_BASE_URL || '').replace(/\/+$/, '') + '/api/v1';
 
 // In-memory tokens as a second auth channel beside cookies. Cross-site
 // cookies (Vercel → Railway) are dropped by some browsers/policies even
